@@ -36,6 +36,11 @@ npm install --no-fund --no-audit || fail "התקנת התלויות נכשלה"
 step "בונה את האתר"
 npm run build || fail "בניית האתר נכשלה"
 
+if [ -d ios ]; then
+  step "מעדכן את פרויקט האייפון"
+  npx cap sync ios || printf '⚠ עדכון פרויקט האייפון נכשל\n'
+fi
+
 step "בונה את אפליקציית ה-Mac"
 if npm run app:build; then
   APP_PATH="$(find release -maxdepth 2 -name '*.app' -print -quit 2>/dev/null)"
@@ -49,5 +54,7 @@ printf '  • האתר המעודכן נמצא בתיקייה: %s\n' "$(pwd)/dis
 [ -n "$APP_PATH" ] && printf '  • האפליקציה: %s\n' "$APP_PATH"
 [ -n "$DMG_PATH" ] && printf '  • קובץ ההתקנה: %s\n' "$DMG_PATH"
 printf '\nלהרצת האתר מקומית: npm run dev\n'
+printf 'להתקנה על האייפון: לחיצה כפולה על "התקנה לאייפון.command"\n'
+printf 'לפרסום לאינטרנט:   לחיצה כפולה על "פרסום לאינטרנט.command"\n'
 
 read -r -p $'\nלחץ Enter לסגירה… ' _
