@@ -1,0 +1,51 @@
+{
+  "name": "yoman-avoda",
+  "private": true,
+  "version": "1.0.0",
+  "description": "יומן עבודה לעבודות בנייה — רישום יומי והפקת דוח Word בתבנית הטופס המודפס",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "typecheck": "tsc -b --noEmit",
+    "icons": "node scripts/make-icons.mjs",
+    "sample": "node scripts/bundle.mjs scripts/sample.ts tmp/sample.mjs && node tmp/sample.mjs",
+    "fonts": "node scripts/fetch-fonts.mjs",
+    "app:dev": "YOMAN_DEV_URL=http://localhost:5199 electron .",
+    "app:build": "npm run build && electron-builder --config electron-builder.yml"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.3",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "dexie": "^4.4.4",
+    "dexie-react-hooks": "^4.4.0",
+    "docx": "^9.7.1",
+    "file-saver": "^2.0.5",
+    "pdf-lib": "^1.17.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^24.13.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.3",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.1",
+    "oxlint": "^1.71.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1",
+    "vite-plugin-pwa": "^1.3.0"
+  },
+  "main": "electron/main.js"
+}

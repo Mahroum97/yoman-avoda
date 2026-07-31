@@ -1,0 +1,26 @@
+# dependencies
+node_modules
+
+# build output
+dist
+release
+build/icon.iconset
+tmp
+
+# generated samples and scratch
+*.local
+
+# native build artefacts (the iOS project itself is committed)
+ios/App/App/public
+ios/App/Pods
+ios/DerivedData
+ios/App/build
+DerivedData
+*.xcuserstate
+xcuserdata
+
+# the user's own source form, kept out of the public repo
+יומן עבודה לעבודות בנייה.pdf
+
+# macOS
+.DS_Store

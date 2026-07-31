@@ -1,0 +1,1119 @@
+/**
+ * Every piece of text in the product, in the three languages it ships in.
+ *
+ * The same dictionary drives the interface *and* the generated PDF and Word
+ * documents, so switching the language in Settings changes the reports too —
+ * labels, headings, the date wording and the reading direction.
+ *
+ * `Strings` is a closed type, so adding a key without translating it in all
+ * three languages is a compile error rather than a missing label in a report.
+ */
+
+export const LANGUAGES = ['he', 'ar', 'en'] as const;
+export type Language = (typeof LANGUAGES)[number];
+
+export type Direction = 'rtl' | 'ltr';
+
+export interface Strings {
+  /* meta */
+  languageName: string;
+  dir: Direction;
+  locale: string;
+
+  /* app shell */
+  appName: string;
+  navDiary: string;
+  navReports: string;
+  navProjects: string;
+  navSettings: string;
+  navNew: string;
+
+  /* generic actions */
+  save: string;
+  cancel: string;
+  update: string;
+  delete: string;
+  remove: string;
+  edit: string;
+  add: string;
+  loading: string;
+  back: string;
+  print: string;
+
+  /* diary list */
+  diaryTitle: string;
+  newToday: string;
+  duplicateLast: string;
+  combinedReport: string;
+  searchPlaceholder: string;
+  noEntriesTitle: string;
+  noEntriesBody: string;
+  noMatches: string;
+  daysCount: (n: number) => string;
+  workersShort: (n: number) => string;
+  toolsShort: (n: number) => string;
+  photosShort: (n: number) => string;
+  noDescription: string;
+  statusDraft: string;
+  statusSigned: string;
+
+  /* entry editor */
+  sectionProjectDate: string;
+  sectionManagement: string;
+  sectionContractors: string;
+  sectionEquipment: string;
+  sectionWorkDescription: string;
+  sectionCasting: string;
+  sectionSupervisorNotes: string;
+  sectionSignatures: string;
+  sectionPhotos: string;
+  hintProjectDate: string;
+  hintManagement: string;
+  hintContractors: string;
+  hintEquipment: string;
+  hintCasting: string;
+  hintSignatures: string;
+  hintPhotos: string;
+  hintDescriptionLines: string;
+  addStaff: string;
+  addContractor: string;
+  addEquipment: string;
+  rowNumber: (n: number) => string;
+  moveUp: string;
+  moveDown: string;
+  deleteRow: string;
+  markSigned: string;
+  markDraft: string;
+  deleteEntry: string;
+  confirmDeleteEntry: (date: string) => string;
+  savedNote: string;
+  savingNote: string;
+  unsavedNote: string;
+  entryExists: string;
+  entryExistsBody: string;
+  previewButton: string;
+  exportPdf: string;
+  exportWord: string;
+  generating: string;
+  exporting: string;
+  fileCreated: (name: string) => string;
+  pdfFailed: string;
+  wordFailed: string;
+  entrySaved: string;
+  entryDeleted: string;
+  markedSigned: string;
+  markedDraft: string;
+
+  /* form labels — these are also the printed labels */
+  labelProject: string;
+  labelProjectName: string;
+  labelAddress: string;
+  labelCompany: string;
+  labelDateWeather: string;
+  labelDate: string;
+  labelWeather: string;
+  labelCrewSection: string;
+  labelManagement: string;
+  labelName: string;
+  labelRole: string;
+  labelContractor: string;
+  labelTrade: string;
+  labelWorkers: string;
+  labelEquipment: string;
+  labelKind: string;
+  labelQty: string;
+  labelHours: string;
+  labelWorkDescription: string;
+  labelCasting: string;
+  labelDescription: string;
+  labelSizeQty: string;
+  labelPump: string;
+  labelConcrete: string;
+  labelConcreteType: string;
+  labelConcreteQty: string;
+  labelNotes: string;
+  labelSupervisorNotes: string;
+  labelSupervisorSignature: string;
+  labelManagerSignature: string;
+  labelConcreteTypeNote: string;
+
+  /* placeholders */
+  phFullName: string;
+  phRole: string;
+  phTrade: string;
+  phEquipment: string;
+  phHours: string;
+  phWeather: string;
+  phCastingDescription: string;
+  phSizeQty: string;
+  phPump: string;
+  phConcreteType: string;
+  phConcreteQty: string;
+  phWorkDescription: string;
+  phSupervisorNotes: string;
+  phProjectName: string;
+  phAddress: string;
+  phCompany: string;
+  phCaption: string;
+
+  /* signatures + photos */
+  signHere: (label: string) => string;
+  signed: (label: string) => string;
+  signAgain: string;
+  clear: string;
+  saveSignature: string;
+  addPhotos: string;
+  takePhoto: string;
+  photosSummary: (count: number, size: string) => string;
+  deletePhoto: string;
+  photoLoadFailed: string;
+  photoNumber: (n: number) => string;
+
+  /* projects */
+  projectsTitle: string;
+  newProject: string;
+  noProjectsTitle: string;
+  noProjectsBody: string;
+  restoreInstead: string;
+  activeProject: string;
+  makeActive: string;
+  editDetails: string;
+  switchedTo: (name: string) => string;
+  projectAdded: string;
+  projectUpdated: string;
+  projectDeleted: string;
+  projectNameRequired: string;
+  confirmDeleteProject: (name: string, count: number) => string;
+  startTitle: string;
+  startBody: string;
+  startAction: string;
+
+  /* reports */
+  reportsTitle: string;
+  period: string;
+  fromDate: string;
+  toDate: string;
+  prevMonth: string;
+  thisMonth: string;
+  nextMonth: string;
+  invalidRange: string;
+  reportContent: string;
+  includeSummary: string;
+  includePhotos: string;
+  periodSummary: string;
+  noEntriesInRange: string;
+  statDiaryDays: string;
+  statActiveDays: string;
+  statCastingDays: string;
+  statConcreteTotal: string;
+  statSigned: string;
+  statPhotos: string;
+  summaryTrades: string;
+  summaryEquipment: string;
+  summaryConcrete: string;
+  unitWorkers: string;
+  unitHours: string;
+  unitCubicMetres: string;
+  unitDays: string;
+  detail: string;
+  total: string;
+  generateReportPdf: (days: number) => string;
+  reportCovers: (from: string, to: string) => string;
+  reportFailed: string;
+
+  /* settings */
+  settingsTitle: string;
+  display: string;
+  displayHint: string;
+  themeLight: string;
+  themeDark: string;
+  themeAuto: string;
+  themeLightHint: string;
+  themeDarkHint: string;
+  themeAutoHint: string;
+  language: string;
+  languageHint: string;
+  companyLogo: string;
+  companyLogoHint: string;
+  noLogo: string;
+  uploadLogo: string;
+  replaceLogo: string;
+  logoSaved: string;
+  logoRemoved: string;
+  logoFailed: string;
+  backupTitle: string;
+  backupHint: string;
+  downloadBackup: string;
+  restoreBackup: string;
+  storageUsage: (used: string, quota: string) => string;
+  backupDownloaded: string;
+  backupFailed: string;
+  confirmRestore: string;
+  restored: (projects: number, entries: number) => string;
+  restoreFailed: string;
+  savedLists: string;
+  savedListsHint: string;
+  presetStaff: string;
+  presetRole: string;
+  presetTrade: string;
+  presetEquipment: string;
+  presetWeather: string;
+  presetConcrete: string;
+  noValuesYet: string;
+  addTo: (list: string) => string;
+  about: string;
+  aboutBody: string;
+  installTip: string;
+
+  /* documents */
+  docWorkDiary: string;
+  docCombinedReport: string;
+  docPhotoAppendix: string;
+  docPage: (n: number, of: number) => string;
+  docGeneratedBy: string;
+  docNoEntries: string;
+  docReportPeriod: string;
+  docPhotosInReport: string;
+  fileEntryPrefix: string;
+  fileReportPrefix: string;
+  fileUntil: string;
+  fileBackupPrefix: string;
+  weekdays: string[];
+  months: string[];
+  longDate: (weekday: string, date: string) => string;
+}
+
+const he: Strings = {
+  languageName: 'עברית',
+  dir: 'rtl',
+  locale: 'he-IL',
+
+  appName: 'יומן עבודה',
+  navDiary: 'יומן',
+  navReports: 'דוחות',
+  navProjects: 'פרויקטים',
+  navSettings: 'הגדרות',
+  navNew: 'חדש',
+
+  save: 'שמור',
+  cancel: 'ביטול',
+  update: 'עדכן',
+  delete: 'מחק',
+  remove: 'הסר',
+  edit: 'ערוך',
+  add: 'הוסף',
+  loading: 'טוען…',
+  back: 'חזרה לעריכה',
+  print: 'הדפס',
+
+  diaryTitle: 'יומן עבודה',
+  newToday: 'יומן להיום',
+  duplicateLast: 'שכפל את היומן האחרון',
+  combinedReport: 'דוח מרוכז',
+  searchPlaceholder: 'חיפוש בתאריך, מקצוע, תיאור…',
+  noEntriesTitle: 'עדיין אין רישומים',
+  noEntriesBody: 'התחל ביומן של היום — הוא ייפתח בתבנית של הטופס המקורי.',
+  noMatches: 'לא נמצאו רישומים תואמים',
+  daysCount: (n) => `${n} ימים`,
+  workersShort: (n) => `${n} עובדים`,
+  toolsShort: (n) => `${n} כלים`,
+  photosShort: (n) => `${n}`,
+  noDescription: 'ללא תיאור עבודה',
+  statusDraft: 'טיוטה',
+  statusSigned: '✓ חתום',
+
+  sectionProjectDate: 'פרויקט ותאריך',
+  sectionManagement: 'צוות הנהלה',
+  sectionContractors: 'קבלנים',
+  sectionEquipment: 'ציוד',
+  sectionWorkDescription: 'תיאור העבודה שבוצעה',
+  sectionCasting: 'פרטי יציקה',
+  sectionSupervisorNotes: 'הערות המפקח',
+  sectionSignatures: 'חתימות',
+  sectionPhotos: 'תמונות מהאתר',
+  hintProjectDate: 'שם הפרויקט, הכתובת ושם החברה נלקחים מהפרויקט הפעיל ומודפסים בראש הדף.',
+  hintManagement: 'השמות והתפקידים שנרשמים בעמודות הימניות של הטבלה.',
+  hintContractors: 'מקצוע וכמות העובדים שהגיעו מכל קבלן.',
+  hintEquipment: 'סוג הציוד, הכמות ושעות העבודה.',
+  hintCasting: 'השאר ריק בימים ללא יציקה.',
+  hintSignatures: 'החתימות מוטמעות בדוח בתחתית הדף.',
+  hintPhotos: 'התמונות מודפסות בנספח בסוף הדוח.',
+  hintDescriptionLines: 'כל שורה תודפס על שורה נפרדת בטופס.',
+  addStaff: 'הוסף איש צוות',
+  addContractor: 'הוסף קבלן',
+  addEquipment: 'הוסף ציוד',
+  rowNumber: (n) => `שורה ${n}`,
+  moveUp: 'הזז למעלה',
+  moveDown: 'הזז למטה',
+  deleteRow: 'מחק שורה',
+  markSigned: 'סמן כחתום',
+  markDraft: 'החזר לטיוטה',
+  deleteEntry: 'מחק יומן',
+  confirmDeleteEntry: (date) => `למחוק את היומן מתאריך ${date}?`,
+  savedNote: 'נשמר',
+  savingNote: 'שומר…',
+  unsavedNote: 'לא נשמר',
+  entryExists: 'קיים כבר יומן לתאריך הזה',
+  entryExistsBody: 'בחר תאריך אחר כדי לשמור את הדף.',
+  previewButton: 'תצוגה מקדימה',
+  exportPdf: 'הפק PDF',
+  exportWord: 'ייצא ל-Word',
+  generating: 'מפיק…',
+  exporting: 'מייצא…',
+  fileCreated: (name) => `נוצר הקובץ ${name}`,
+  pdfFailed: 'הפקת ה-PDF נכשלה',
+  wordFailed: 'ייצוא ל-Word נכשל',
+  entrySaved: 'היומן נשמר',
+  entryDeleted: 'היומן נמחק',
+  markedSigned: 'היומן סומן כחתום',
+  markedDraft: 'היומן חזר לטיוטה',
+
+  labelProject: 'פרויקט',
+  labelProjectName: 'שם הפרויקט',
+  labelAddress: 'כתובת',
+  labelCompany: 'שם חברה',
+  labelDateWeather: 'תאריך – מזג האוויר',
+  labelDate: 'תאריך',
+  labelWeather: 'מזג אוויר',
+  labelCrewSection: 'רישום יומי של עובדים וציוד',
+  labelManagement: 'צוות הנהלה',
+  labelName: 'שם',
+  labelRole: 'תפקיד',
+  labelContractor: 'קבלן',
+  labelTrade: 'מקצוע',
+  labelWorkers: 'כמות עובדים',
+  labelEquipment: 'ציוד',
+  labelKind: 'סוג',
+  labelQty: 'כמות',
+  labelHours: 'שט"ע',
+  labelWorkDescription: 'תיאור העבודה שבוצעה',
+  labelCasting: 'פרטי יציקה',
+  labelDescription: 'תיאור',
+  labelSizeQty: 'גודל-כמות',
+  labelPump: 'משאבה',
+  labelConcrete: 'בטון',
+  labelConcreteType: 'סוג בטון',
+  labelConcreteQty: 'כמות בטון',
+  labelNotes: 'הערות',
+  labelSupervisorNotes: 'הערות המפקח',
+  labelSupervisorSignature: 'חתימת מפקח',
+  labelManagerSignature: 'חתימת מנ"ע',
+  labelConcreteTypeNote: 'סוג בטון (שורת הערות)',
+
+  phFullName: 'שם מלא',
+  phRole: 'מנהל עבודה',
+  phTrade: 'טפסנות',
+  phEquipment: 'מנוף צריח',
+  phHours: 'שעות',
+  phWeather: 'בהיר, 30°C',
+  phCastingDescription: 'תקרת קומה 3',
+  phSizeQty: '240 מ"ר',
+  phPump: 'משאבה 42 מ׳',
+  phConcreteType: 'ב-30',
+  phConcreteQty: '58',
+  phWorkDescription: 'המשך יציקת תקרה קומה 3…',
+  phSupervisorNotes: 'נבדק ברזל הזיון לפני היציקה…',
+  phProjectName: 'מגדלי הים התיכון',
+  phAddress: 'רחוב הרצל 15, חיפה',
+  phCompany: 'חברה לבנייה בע"מ',
+  phCaption: 'כיתוב',
+
+  signHere: (label) => `${label} — חתום באצבע או בעכבר`,
+  signed: (label) => `${label} — נחתם`,
+  signAgain: 'חתום מחדש',
+  clear: 'נקה',
+  saveSignature: 'שמור חתימה',
+  addPhotos: 'בחר תמונות',
+  takePhoto: 'צלם עכשיו',
+  photosSummary: (count, size) => `${count} תמונות · ${size}`,
+  deletePhoto: 'מחק תמונה',
+  photoLoadFailed: 'לא ניתן היה לטעון את התמונות',
+  photoNumber: (n) => `תמונה ${n}`,
+
+  projectsTitle: 'פרויקטים',
+  newProject: 'פרויקט חדש',
+  noProjectsTitle: 'אין עדיין פרויקטים',
+  noProjectsBody: 'הוסף את האתר הראשון כדי להתחיל לנהל יומן עבודה.',
+  restoreInstead: 'כבר יש לי גיבוי — שחזר אותו',
+  activeProject: 'פעיל',
+  makeActive: 'הפוך לפעיל',
+  editDetails: 'ערוך פרטים',
+  switchedTo: (name) => `עברת לפרויקט ${name}`,
+  projectAdded: 'הפרויקט נוסף',
+  projectUpdated: 'הפרויקט עודכן',
+  projectDeleted: 'הפרויקט נמחק',
+  projectNameRequired: 'חובה להזין שם פרויקט',
+  confirmDeleteProject: (name, count) =>
+    count > 0
+      ? `למחוק את "${name}" ואת ${count} רישומי היומן שלו? הפעולה אינה הפיכה.`
+      : `למחוק את "${name}"?`,
+  startTitle: 'בואו נתחיל',
+  startBody: 'כדי לנהל יומן עבודה צריך קודם להגדיר פרויקט אחד.',
+  startAction: 'הגדרת פרויקט',
+
+  reportsTitle: 'דוח מרוכז',
+  period: 'תקופה',
+  fromDate: 'מתאריך',
+  toDate: 'עד תאריך',
+  prevMonth: 'חודש קודם',
+  thisMonth: 'החודש הנוכחי',
+  nextMonth: 'חודש הבא',
+  invalidRange: 'טווח התאריכים אינו תקין.',
+  reportContent: 'תוכן הדוח',
+  includeSummary: 'עמוד סיכום בתחילת הדוח',
+  includePhotos: 'כלול נספחי תמונות (מגדיל את הקובץ)',
+  periodSummary: 'סיכום התקופה',
+  noEntriesInRange: 'אין רישומים בטווח שנבחר',
+  statDiaryDays: 'ימי יומן',
+  statActiveDays: 'ימי עבודה בפועל',
+  statCastingDays: 'ימי יציקה',
+  statConcreteTotal: 'סה"כ בטון (מ"ק)',
+  statSigned: 'יומנים חתומים',
+  statPhotos: 'תמונות',
+  summaryTrades: 'סה"כ עובדים לפי מקצוע',
+  summaryEquipment: 'שעות ציוד לפי סוג',
+  summaryConcrete: 'בטון לפי סוג',
+  unitWorkers: 'עובדים',
+  unitHours: 'שעות',
+  unitCubicMetres: 'מ"ק',
+  unitDays: 'ימים',
+  detail: 'פירוט',
+  total: 'סה"כ',
+  generateReportPdf: (days) => `הפק דוח PDF (${days} ימים)`,
+  reportCovers: (from, to) => `הדוח יכלול את הימים ${from} — ${to}.`,
+  reportFailed: 'הפקת הדוח נכשלה',
+
+  settingsTitle: 'הגדרות',
+  display: 'תצוגה',
+  displayHint: 'בוקר או לילה — הבחירה נשמרת במכשיר הזה.',
+  themeLight: '☀️ בוקר',
+  themeDark: '🌙 לילה',
+  themeAuto: '🌗 אוטומטי',
+  themeLightHint: 'רקע בהיר',
+  themeDarkHint: 'רקע כהה',
+  themeAutoHint: 'לפי המכשיר',
+  language: 'שפה',
+  languageHint: 'משנה את כל האפליקציה ואת הדוחות שמופקים — כותרות, תוויות וכיוון הכתיבה.',
+  companyLogo: 'לוגו החברה',
+  companyLogoHint: 'מודפס בראש כל דוח PDF ו-Word. מומלץ קובץ PNG עם רקע שקוף.',
+  noLogo: 'אין לוגו',
+  uploadLogo: 'העלה לוגו',
+  replaceLogo: 'החלף לוגו',
+  logoSaved: 'הלוגו נשמר ויופיע בדוחות',
+  logoRemoved: 'הלוגו הוסר',
+  logoFailed: 'לא ניתן היה לטעון את הלוגו',
+  backupTitle: 'גיבוי ושחזור',
+  backupHint: 'הנתונים נשמרים במכשיר בלבד. מומלץ לגבות מדי שבוע.',
+  downloadBackup: 'הורד גיבוי',
+  restoreBackup: 'שחזר מגיבוי',
+  storageUsage: (used, quota) => `בשימוש: ${used} מתוך ${quota} הזמינים לאפליקציה במכשיר.`,
+  backupDownloaded: 'הגיבוי הורד',
+  backupFailed: 'יצירת הגיבוי נכשלה',
+  confirmRestore:
+    'שחזור גיבוי ימחק את כל הנתונים הקיימים במכשיר ויחליף אותם בתוכן הקובץ. להמשיך?',
+  restored: (projects, entries) => `שוחזרו ${projects} פרויקטים ו-${entries} רישומים`,
+  restoreFailed: 'השחזור נכשל',
+  savedLists: 'רשימות שמורות',
+  savedListsHint: 'הערכים נלמדים אוטומטית מכל יומן שנשמר ומוצעים בהשלמה אוטומטית.',
+  presetStaff: 'אנשי צוות',
+  presetRole: 'תפקידים',
+  presetTrade: 'מקצועות',
+  presetEquipment: 'ציוד',
+  presetWeather: 'מזג אוויר',
+  presetConcrete: 'סוגי בטון',
+  noValuesYet: 'אין ערכים עדיין',
+  addTo: (list) => `הוסף ל${list}`,
+  about: 'אודות',
+  aboutBody:
+    'יומן עבודה לעבודות בנייה — מבוסס על טופס היומן המודפס. הנתונים נשמרים במכשיר, האפליקציה פועלת גם ללא אינטרנט, והדוחות נוצרים מקומית.',
+  installTip: 'טיפ: אפשר להתקין את האפליקציה למסך הבית מתפריט הדפדפן ← "הוסף למסך הבית".',
+
+  docWorkDiary: 'יומן עבודה',
+  docCombinedReport: 'דוח מרוכז',
+  docPhotoAppendix: 'נספח תמונות',
+  docPage: (n, of) => `דף ${n} מתוך ${of}`,
+  docGeneratedBy: 'הופק ביומן עבודה',
+  docNoEntries: 'לא נמצאו רישומי יומן בתקופה שנבחרה',
+  docReportPeriod: 'תקופת הדוח',
+  docPhotosInReport: 'תמונות בדוח',
+  fileEntryPrefix: 'יומן',
+  fileReportPrefix: 'דוח-יומן',
+  fileUntil: 'עד',
+  fileBackupPrefix: 'גיבוי-יומן-עבודה',
+  weekdays: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
+  months: [
+    'ינואר',
+    'פברואר',
+    'מרץ',
+    'אפריל',
+    'מאי',
+    'יוני',
+    'יולי',
+    'אוגוסט',
+    'ספטמבר',
+    'אוקטובר',
+    'נובמבר',
+    'דצמבר',
+  ],
+  longDate: (weekday, date) => `יום ${weekday}, ${date}`,
+};
+
+const ar: Strings = {
+  languageName: 'العربية',
+  dir: 'rtl',
+  locale: 'ar',
+
+  appName: 'سجل العمل',
+  navDiary: 'السجل',
+  navReports: 'التقارير',
+  navProjects: 'المشاريع',
+  navSettings: 'الإعدادات',
+  navNew: 'جديد',
+
+  save: 'حفظ',
+  cancel: 'إلغاء',
+  update: 'تحديث',
+  delete: 'حذف',
+  remove: 'إزالة',
+  edit: 'تعديل',
+  add: 'إضافة',
+  loading: 'جارٍ التحميل…',
+  back: 'العودة للتحرير',
+  print: 'طباعة',
+
+  diaryTitle: 'سجل العمل',
+  newToday: 'سجل اليوم',
+  duplicateLast: 'نسخ السجل الأخير',
+  combinedReport: 'تقرير مجمّع',
+  searchPlaceholder: 'بحث بالتاريخ أو المهنة أو الوصف…',
+  noEntriesTitle: 'لا توجد سجلات بعد',
+  noEntriesBody: 'ابدأ بسجل اليوم — سيُفتح بنفس تنسيق النموذج الأصلي.',
+  noMatches: 'لم يتم العثور على سجلات مطابقة',
+  daysCount: (n) => `${n} أيام`,
+  workersShort: (n) => `${n} عمال`,
+  toolsShort: (n) => `${n} معدات`,
+  photosShort: (n) => `${n}`,
+  noDescription: 'بدون وصف للعمل',
+  statusDraft: 'مسودة',
+  statusSigned: '✓ موقّع',
+
+  sectionProjectDate: 'المشروع والتاريخ',
+  sectionManagement: 'طاقم الإدارة',
+  sectionContractors: 'المقاولون',
+  sectionEquipment: 'المعدات',
+  sectionWorkDescription: 'وصف العمل المنفَّذ',
+  sectionCasting: 'تفاصيل الصب',
+  sectionSupervisorNotes: 'ملاحظات المشرف',
+  sectionSignatures: 'التواقيع',
+  sectionPhotos: 'صور من الموقع',
+  hintProjectDate: 'اسم المشروع والعنوان واسم الشركة تؤخذ من المشروع النشط وتُطبع أعلى الصفحة.',
+  hintManagement: 'الأسماء والوظائف التي تُسجَّل في أعمدة الجدول.',
+  hintContractors: 'المهنة وعدد العمال الذين حضروا من كل مقاول.',
+  hintEquipment: 'نوع المعدات والكمية وساعات العمل.',
+  hintCasting: 'اتركه فارغًا في الأيام التي لا يوجد فيها صب.',
+  hintSignatures: 'تُدرج التواقيع في أسفل صفحة التقرير.',
+  hintPhotos: 'تُطبع الصور في ملحق بنهاية التقرير.',
+  hintDescriptionLines: 'كل سطر سيُطبع في سطر منفصل في النموذج.',
+  addStaff: 'إضافة موظف',
+  addContractor: 'إضافة مقاول',
+  addEquipment: 'إضافة معدات',
+  rowNumber: (n) => `صف ${n}`,
+  moveUp: 'تحريك للأعلى',
+  moveDown: 'تحريك للأسفل',
+  deleteRow: 'حذف الصف',
+  markSigned: 'وضع علامة موقّع',
+  markDraft: 'إرجاع إلى مسودة',
+  deleteEntry: 'حذف السجل',
+  confirmDeleteEntry: (date) => `هل تريد حذف سجل تاريخ ${date}؟`,
+  savedNote: 'تم الحفظ',
+  savingNote: 'جارٍ الحفظ…',
+  unsavedNote: 'لم يُحفظ',
+  entryExists: 'يوجد سجل لهذا التاريخ بالفعل',
+  entryExistsBody: 'اختر تاريخًا آخر لحفظ الصفحة.',
+  previewButton: 'معاينة',
+  exportPdf: 'إنشاء PDF',
+  exportWord: 'تصدير إلى Word',
+  generating: 'جارٍ الإنشاء…',
+  exporting: 'جارٍ التصدير…',
+  fileCreated: (name) => `تم إنشاء الملف ${name}`,
+  pdfFailed: 'فشل إنشاء ملف PDF',
+  wordFailed: 'فشل التصدير إلى Word',
+  entrySaved: 'تم حفظ السجل',
+  entryDeleted: 'تم حذف السجل',
+  markedSigned: 'تم وضع علامة موقّع',
+  markedDraft: 'أُعيد السجل إلى مسودة',
+
+  labelProject: 'المشروع',
+  labelProjectName: 'اسم المشروع',
+  labelAddress: 'العنوان',
+  labelCompany: 'اسم الشركة',
+  labelDateWeather: 'التاريخ – الطقس',
+  labelDate: 'التاريخ',
+  labelWeather: 'الطقس',
+  labelCrewSection: 'سجل يومي للعمال والمعدات',
+  labelManagement: 'طاقم الإدارة',
+  labelName: 'الاسم',
+  labelRole: 'الوظيفة',
+  labelContractor: 'المقاول',
+  labelTrade: 'المهنة',
+  labelWorkers: 'عدد العمال',
+  labelEquipment: 'المعدات',
+  labelKind: 'النوع',
+  labelQty: 'الكمية',
+  labelHours: 'ساعات العمل',
+  labelWorkDescription: 'وصف العمل المنفَّذ',
+  labelCasting: 'تفاصيل الصب',
+  labelDescription: 'الوصف',
+  labelSizeQty: 'الحجم والكمية',
+  labelPump: 'المضخة',
+  labelConcrete: 'الخرسانة',
+  labelConcreteType: 'نوع الخرسانة',
+  labelConcreteQty: 'كمية الخرسانة',
+  labelNotes: 'ملاحظات',
+  labelSupervisorNotes: 'ملاحظات المشرف',
+  labelSupervisorSignature: 'توقيع المشرف',
+  labelManagerSignature: 'توقيع مدير العمل',
+  labelConcreteTypeNote: 'نوع الخرسانة (سطر الملاحظات)',
+
+  phFullName: 'الاسم الكامل',
+  phRole: 'مدير عمل',
+  phTrade: 'أعمال الطوبار',
+  phEquipment: 'رافعة برجية',
+  phHours: 'ساعات',
+  phWeather: 'صحو، 30°C',
+  phCastingDescription: 'سقف الطابق 3',
+  phSizeQty: '240 م²',
+  phPump: 'مضخة 42 م',
+  phConcreteType: 'ب-30',
+  phConcreteQty: '58',
+  phWorkDescription: 'متابعة صب سقف الطابق 3…',
+  phSupervisorNotes: 'تم فحص حديد التسليح قبل الصب…',
+  phProjectName: 'أبراج البحر المتوسط',
+  phAddress: 'شارع هرتسل 15، حيفا',
+  phCompany: 'شركة للبناء م.ض',
+  phCaption: 'تعليق',
+
+  signHere: (label) => `${label} — وقّع بإصبعك أو بالفأرة`,
+  signed: (label) => `${label} — تم التوقيع`,
+  signAgain: 'إعادة التوقيع',
+  clear: 'مسح',
+  saveSignature: 'حفظ التوقيع',
+  addPhotos: 'اختيار صور',
+  takePhoto: 'التقاط صورة',
+  photosSummary: (count, size) => `${count} صور · ${size}`,
+  deletePhoto: 'حذف الصورة',
+  photoLoadFailed: 'تعذر تحميل الصور',
+  photoNumber: (n) => `صورة ${n}`,
+
+  projectsTitle: 'المشاريع',
+  newProject: 'مشروع جديد',
+  noProjectsTitle: 'لا توجد مشاريع بعد',
+  noProjectsBody: 'أضف الموقع الأول لتبدأ في إدارة سجل العمل.',
+  restoreInstead: 'لدي نسخة احتياطية — استعادتها',
+  activeProject: 'نشط',
+  makeActive: 'اجعله نشطًا',
+  editDetails: 'تعديل التفاصيل',
+  switchedTo: (name) => `تم التحويل إلى مشروع ${name}`,
+  projectAdded: 'تمت إضافة المشروع',
+  projectUpdated: 'تم تحديث المشروع',
+  projectDeleted: 'تم حذف المشروع',
+  projectNameRequired: 'يجب إدخال اسم المشروع',
+  confirmDeleteProject: (name, count) =>
+    count > 0
+      ? `هل تريد حذف "${name}" و${count} من سجلاته؟ لا يمكن التراجع عن هذا.`
+      : `هل تريد حذف "${name}"؟`,
+  startTitle: 'لنبدأ',
+  startBody: 'لإدارة سجل العمل يجب أولًا تعريف مشروع واحد.',
+  startAction: 'تعريف مشروع',
+
+  reportsTitle: 'تقرير مجمّع',
+  period: 'الفترة',
+  fromDate: 'من تاريخ',
+  toDate: 'إلى تاريخ',
+  prevMonth: 'الشهر السابق',
+  thisMonth: 'الشهر الحالي',
+  nextMonth: 'الشهر التالي',
+  invalidRange: 'نطاق التواريخ غير صالح.',
+  reportContent: 'محتوى التقرير',
+  includeSummary: 'صفحة ملخص في بداية التقرير',
+  includePhotos: 'تضمين ملاحق الصور (يزيد حجم الملف)',
+  periodSummary: 'ملخص الفترة',
+  noEntriesInRange: 'لا توجد سجلات في النطاق المحدد',
+  statDiaryDays: 'أيام السجل',
+  statActiveDays: 'أيام العمل الفعلية',
+  statCastingDays: 'أيام الصب',
+  statConcreteTotal: 'إجمالي الخرسانة (م³)',
+  statSigned: 'سجلات موقّعة',
+  statPhotos: 'الصور',
+  summaryTrades: 'إجمالي العمال حسب المهنة',
+  summaryEquipment: 'ساعات المعدات حسب النوع',
+  summaryConcrete: 'الخرسانة حسب النوع',
+  unitWorkers: 'عمال',
+  unitHours: 'ساعات',
+  unitCubicMetres: 'م³',
+  unitDays: 'أيام',
+  detail: 'التفصيل',
+  total: 'الإجمالي',
+  generateReportPdf: (days) => `إنشاء تقرير PDF (${days} أيام)`,
+  reportCovers: (from, to) => `سيشمل التقرير الأيام ${from} — ${to}.`,
+  reportFailed: 'فشل إنشاء التقرير',
+
+  settingsTitle: 'الإعدادات',
+  display: 'العرض',
+  displayHint: 'نهاري أو ليلي — يُحفظ الاختيار على هذا الجهاز.',
+  themeLight: '☀️ نهاري',
+  themeDark: '🌙 ليلي',
+  themeAuto: '🌗 تلقائي',
+  themeLightHint: 'خلفية فاتحة',
+  themeDarkHint: 'خلفية داكنة',
+  themeAutoHint: 'حسب الجهاز',
+  language: 'اللغة',
+  languageHint: 'تغيّر التطبيق بالكامل والتقارير المنشأة — العناوين والتسميات واتجاه الكتابة.',
+  companyLogo: 'شعار الشركة',
+  companyLogoHint: 'يُطبع أعلى كل تقرير PDF وWord. يُفضل ملف PNG بخلفية شفافة.',
+  noLogo: 'لا يوجد شعار',
+  uploadLogo: 'رفع شعار',
+  replaceLogo: 'استبدال الشعار',
+  logoSaved: 'تم حفظ الشعار وسيظهر في التقارير',
+  logoRemoved: 'تمت إزالة الشعار',
+  logoFailed: 'تعذر تحميل الشعار',
+  backupTitle: 'النسخ الاحتياطي والاستعادة',
+  backupHint: 'تُحفظ البيانات على الجهاز فقط. يُنصح بعمل نسخة احتياطية أسبوعيًا.',
+  downloadBackup: 'تنزيل نسخة احتياطية',
+  restoreBackup: 'استعادة من نسخة',
+  storageUsage: (used, quota) => `مستخدم: ${used} من ${quota} المتاحة للتطبيق على الجهاز.`,
+  backupDownloaded: 'تم تنزيل النسخة الاحتياطية',
+  backupFailed: 'فشل إنشاء النسخة الاحتياطية',
+  confirmRestore:
+    'الاستعادة ستحذف كل البيانات الموجودة على الجهاز وتستبدلها بمحتوى الملف. هل تريد المتابعة؟',
+  restored: (projects, entries) => `تمت استعادة ${projects} مشاريع و${entries} سجلات`,
+  restoreFailed: 'فشلت الاستعادة',
+  savedLists: 'القوائم المحفوظة',
+  savedListsHint: 'تُتعلَّم القيم تلقائيًا من كل سجل يُحفظ وتُقترح في الإكمال التلقائي.',
+  presetStaff: 'الموظفون',
+  presetRole: 'الوظائف',
+  presetTrade: 'المهن',
+  presetEquipment: 'المعدات',
+  presetWeather: 'الطقس',
+  presetConcrete: 'أنواع الخرسانة',
+  noValuesYet: 'لا توجد قيم بعد',
+  addTo: (list) => `إضافة إلى ${list}`,
+  about: 'حول',
+  aboutBody:
+    'سجل عمل لأعمال البناء — مبني على نموذج السجل المطبوع. تُحفظ البيانات على الجهاز، ويعمل التطبيق بدون إنترنت، وتُنشأ التقارير محليًا.',
+  installTip: 'نصيحة: يمكن تثبيت التطبيق على الشاشة الرئيسية من قائمة المتصفح ← "إضافة إلى الشاشة الرئيسية".',
+
+  docWorkDiary: 'سجل العمل',
+  docCombinedReport: 'تقرير مجمّع',
+  docPhotoAppendix: 'ملحق الصور',
+  docPage: (n, of) => `صفحة ${n} من ${of}`,
+  docGeneratedBy: 'أُنشئ بواسطة سجل العمل',
+  docNoEntries: 'لا توجد سجلات في الفترة المحددة',
+  docReportPeriod: 'فترة التقرير',
+  docPhotosInReport: 'صور في التقرير',
+  fileEntryPrefix: 'سجل',
+  fileReportPrefix: 'تقرير-سجل',
+  fileUntil: 'حتى',
+  fileBackupPrefix: 'نسخة-سجل-العمل',
+  weekdays: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
+  months: [
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
+  ],
+  longDate: (weekday, date) => `${weekday}، ${date}`,
+};
+
+const en: Strings = {
+  languageName: 'English',
+  dir: 'ltr',
+  locale: 'en-GB',
+
+  appName: 'Work Diary',
+  navDiary: 'Diary',
+  navReports: 'Reports',
+  navProjects: 'Projects',
+  navSettings: 'Settings',
+  navNew: 'New',
+
+  save: 'Save',
+  cancel: 'Cancel',
+  update: 'Update',
+  delete: 'Delete',
+  remove: 'Remove',
+  edit: 'Edit',
+  add: 'Add',
+  loading: 'Loading…',
+  back: 'Back to editing',
+  print: 'Print',
+
+  diaryTitle: 'Work Diary',
+  newToday: "Today's entry",
+  duplicateLast: 'Duplicate last entry',
+  combinedReport: 'Combined report',
+  searchPlaceholder: 'Search by date, trade, description…',
+  noEntriesTitle: 'No entries yet',
+  noEntriesBody: "Start with today's entry — it opens in the original form's layout.",
+  noMatches: 'No matching entries',
+  daysCount: (n) => `${n} days`,
+  workersShort: (n) => `${n} workers`,
+  toolsShort: (n) => `${n} machines`,
+  photosShort: (n) => `${n}`,
+  noDescription: 'No work description',
+  statusDraft: 'Draft',
+  statusSigned: '✓ Signed',
+
+  sectionProjectDate: 'Project and date',
+  sectionManagement: 'Management team',
+  sectionContractors: 'Contractors',
+  sectionEquipment: 'Equipment',
+  sectionWorkDescription: 'Description of work performed',
+  sectionCasting: 'Casting details',
+  sectionSupervisorNotes: "Supervisor's remarks",
+  sectionSignatures: 'Signatures',
+  sectionPhotos: 'Site photos',
+  hintProjectDate:
+    'The project name, address and company are taken from the active project and printed at the top of the page.',
+  hintManagement: 'The names and roles recorded in the table columns.',
+  hintContractors: 'Trade and the number of workers each contractor brought.',
+  hintEquipment: 'Equipment type, quantity and working hours.',
+  hintCasting: 'Leave empty on days with no pour.',
+  hintSignatures: 'Signatures are embedded at the foot of the report page.',
+  hintPhotos: 'Photos are printed in an appendix at the end of the report.',
+  hintDescriptionLines: 'Each line is printed on its own ruled line in the form.',
+  addStaff: 'Add team member',
+  addContractor: 'Add contractor',
+  addEquipment: 'Add equipment',
+  rowNumber: (n) => `Row ${n}`,
+  moveUp: 'Move up',
+  moveDown: 'Move down',
+  deleteRow: 'Delete row',
+  markSigned: 'Mark as signed',
+  markDraft: 'Back to draft',
+  deleteEntry: 'Delete entry',
+  confirmDeleteEntry: (date) => `Delete the entry for ${date}?`,
+  savedNote: 'saved',
+  savingNote: 'saving…',
+  unsavedNote: 'unsaved',
+  entryExists: 'An entry already exists for this date',
+  entryExistsBody: 'Choose another date to save this page.',
+  previewButton: 'Preview',
+  exportPdf: 'Create PDF',
+  exportWord: 'Export to Word',
+  generating: 'Creating…',
+  exporting: 'Exporting…',
+  fileCreated: (name) => `Created ${name}`,
+  pdfFailed: 'PDF creation failed',
+  wordFailed: 'Word export failed',
+  entrySaved: 'Entry saved',
+  entryDeleted: 'Entry deleted',
+  markedSigned: 'Entry marked as signed',
+  markedDraft: 'Entry returned to draft',
+
+  labelProject: 'Project',
+  labelProjectName: 'Project name',
+  labelAddress: 'Address',
+  labelCompany: 'Company',
+  labelDateWeather: 'Date – Weather',
+  labelDate: 'Date',
+  labelWeather: 'Weather',
+  labelCrewSection: 'Daily record of workers and equipment',
+  labelManagement: 'Management team',
+  labelName: 'Name',
+  labelRole: 'Role',
+  labelContractor: 'Contractor',
+  labelTrade: 'Trade',
+  labelWorkers: 'Workers',
+  labelEquipment: 'Equipment',
+  labelKind: 'Type',
+  labelQty: 'Qty',
+  labelHours: 'Hours',
+  labelWorkDescription: 'Description of work performed',
+  labelCasting: 'Casting details',
+  labelDescription: 'Description',
+  labelSizeQty: 'Size / quantity',
+  labelPump: 'Pump',
+  labelConcrete: 'Concrete',
+  labelConcreteType: 'Grade',
+  labelConcreteQty: 'Volume',
+  labelNotes: 'Notes',
+  labelSupervisorNotes: "Supervisor's remarks",
+  labelSupervisorSignature: 'Supervisor signature',
+  labelManagerSignature: 'Site manager signature',
+  labelConcreteTypeNote: 'Concrete grade (notes line)',
+
+  phFullName: 'Full name',
+  phRole: 'Site manager',
+  phTrade: 'Formwork',
+  phEquipment: 'Tower crane',
+  phHours: 'Hours',
+  phWeather: 'Clear, 30°C',
+  phCastingDescription: 'Level 3 slab',
+  phSizeQty: '240 m²',
+  phPump: '42 m pump',
+  phConcreteType: 'C30',
+  phConcreteQty: '58',
+  phWorkDescription: 'Continued pouring the level 3 slab…',
+  phSupervisorNotes: 'Reinforcement checked before the pour…',
+  phProjectName: 'Mediterranean Towers',
+  phAddress: '15 Herzl St, Haifa',
+  phCompany: 'Construction Ltd',
+  phCaption: 'Caption',
+
+  signHere: (label) => `${label} — sign with a finger or the mouse`,
+  signed: (label) => `${label} — signed`,
+  signAgain: 'Sign again',
+  clear: 'Clear',
+  saveSignature: 'Save signature',
+  addPhotos: 'Choose photos',
+  takePhoto: 'Take photo',
+  photosSummary: (count, size) => `${count} photos · ${size}`,
+  deletePhoto: 'Delete photo',
+  photoLoadFailed: 'Could not load the photos',
+  photoNumber: (n) => `Photo ${n}`,
+
+  projectsTitle: 'Projects',
+  newProject: 'New project',
+  noProjectsTitle: 'No projects yet',
+  noProjectsBody: 'Add your first site to start keeping a work diary.',
+  restoreInstead: 'I already have a backup — restore it',
+  activeProject: 'Active',
+  makeActive: 'Make active',
+  editDetails: 'Edit details',
+  switchedTo: (name) => `Switched to ${name}`,
+  projectAdded: 'Project added',
+  projectUpdated: 'Project updated',
+  projectDeleted: 'Project deleted',
+  projectNameRequired: 'A project name is required',
+  confirmDeleteProject: (name, count) =>
+    count > 0
+      ? `Delete "${name}" and its ${count} diary entries? This cannot be undone.`
+      : `Delete "${name}"?`,
+  startTitle: "Let's start",
+  startBody: 'To keep a work diary you first need to set up a project.',
+  startAction: 'Set up a project',
+
+  reportsTitle: 'Combined report',
+  period: 'Period',
+  fromDate: 'From',
+  toDate: 'To',
+  prevMonth: 'Previous month',
+  thisMonth: 'This month',
+  nextMonth: 'Next month',
+  invalidRange: 'The date range is not valid.',
+  reportContent: 'Report contents',
+  includeSummary: 'Summary page at the start',
+  includePhotos: 'Include photo appendices (larger file)',
+  periodSummary: 'Period summary',
+  noEntriesInRange: 'No entries in the selected range',
+  statDiaryDays: 'Diary days',
+  statActiveDays: 'Working days',
+  statCastingDays: 'Pour days',
+  statConcreteTotal: 'Total concrete (m³)',
+  statSigned: 'Signed entries',
+  statPhotos: 'Photos',
+  summaryTrades: 'Workers by trade',
+  summaryEquipment: 'Equipment hours by type',
+  summaryConcrete: 'Concrete by grade',
+  unitWorkers: 'workers',
+  unitHours: 'hours',
+  unitCubicMetres: 'm³',
+  unitDays: 'days',
+  detail: 'Detail',
+  total: 'Total',
+  generateReportPdf: (days) => `Create PDF report (${days} days)`,
+  reportCovers: (from, to) => `The report covers ${from} — ${to}.`,
+  reportFailed: 'Report creation failed',
+
+  settingsTitle: 'Settings',
+  display: 'Appearance',
+  displayHint: 'Day or night — the choice is saved on this device.',
+  themeLight: '☀️ Day',
+  themeDark: '🌙 Night',
+  themeAuto: '🌗 Auto',
+  themeLightHint: 'Light background',
+  themeDarkHint: 'Dark background',
+  themeAutoHint: 'Follow the device',
+  language: 'Language',
+  languageHint:
+    'Changes the whole app and the generated reports — headings, labels and writing direction.',
+  companyLogo: 'Company logo',
+  companyLogoHint: 'Printed at the top of every PDF and Word report. A transparent PNG works best.',
+  noLogo: 'No logo',
+  uploadLogo: 'Upload logo',
+  replaceLogo: 'Replace logo',
+  logoSaved: 'Logo saved — it will appear on reports',
+  logoRemoved: 'Logo removed',
+  logoFailed: 'Could not load the logo',
+  backupTitle: 'Backup and restore',
+  backupHint: 'Data is stored on this device only. Back up weekly.',
+  downloadBackup: 'Download backup',
+  restoreBackup: 'Restore from backup',
+  storageUsage: (used, quota) => `Using ${used} of the ${quota} available to the app.`,
+  backupDownloaded: 'Backup downloaded',
+  backupFailed: 'Creating the backup failed',
+  confirmRestore:
+    'Restoring will delete everything on this device and replace it with the file contents. Continue?',
+  restored: (projects, entries) => `Restored ${projects} projects and ${entries} entries`,
+  restoreFailed: 'Restore failed',
+  savedLists: 'Saved lists',
+  savedListsHint: 'Values are learned from every saved entry and offered as suggestions.',
+  presetStaff: 'Team members',
+  presetRole: 'Roles',
+  presetTrade: 'Trades',
+  presetEquipment: 'Equipment',
+  presetWeather: 'Weather',
+  presetConcrete: 'Concrete grades',
+  noValuesYet: 'No values yet',
+  addTo: (list) => `Add to ${list}`,
+  about: 'About',
+  aboutBody:
+    'A construction site work diary based on the printed form. Data stays on the device, the app works offline, and reports are generated locally.',
+  installTip: 'Tip: install the app to your home screen from the browser menu → "Add to Home Screen".',
+
+  docWorkDiary: 'WORK DIARY',
+  docCombinedReport: 'COMBINED REPORT',
+  docPhotoAppendix: 'PHOTO APPENDIX',
+  docPage: (n, of) => `Page ${n} of ${of}`,
+  docGeneratedBy: 'Generated with Work Diary',
+  docNoEntries: 'No diary entries in the selected period',
+  docReportPeriod: 'Report period',
+  docPhotosInReport: 'Photos in report',
+  fileEntryPrefix: 'diary',
+  fileReportPrefix: 'diary-report',
+  fileUntil: 'to',
+  fileBackupPrefix: 'work-diary-backup',
+  weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  months: [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ],
+  longDate: (weekday, date) => `${weekday}, ${date}`,
+};
+
+export const STRINGS: Record<Language, Strings> = { he, ar, en };
+
+export const DEFAULT_LANGUAGE: Language = 'he';
+
+export function isLanguage(value: unknown): value is Language {
+  return LANGUAGES.includes(value as Language);
+}
