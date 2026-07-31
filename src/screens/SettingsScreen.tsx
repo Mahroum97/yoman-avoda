@@ -16,6 +16,7 @@ import {
   restoreFromJson,
 } from '../db';
 import { formatBytes } from '../lib/images';
+import { requestPersistentStorage } from '../lib/native';
 import { isoDate } from '../lib/dates';
 import { usePresetRows } from '../hooks/useData';
 import { useToast } from '../hooks/toastContext';
@@ -58,11 +59,13 @@ export function SettingsScreen() {
   ];
   const companyLogo = useCompanyLogo();
   const [usage, setUsage] = useState<{ used: number; quota: number } | null>(null);
+  const [persisted, setPersisted] = useState<boolean | null>(null);
   const [newValue, setNewValue] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void estimateUsage().then(setUsage);
+    void requestPersistentStorage().then(setPersisted);
   }, [presets]);
 
   const backup = async () => {
@@ -210,6 +213,11 @@ export function SettingsScreen() {
         {usage && usage.quota > 0 && (
           <p className="card__note" style={{ marginTop: 12 }}>
             {t.storageUsage(formatBytes(usage.used), formatBytes(usage.quota))}
+          </p>
+        )}
+        {persisted === false && (
+          <p className="card__note" style={{ marginTop: 6, color: 'var(--accent)' }}>
+            {t.storageNotPersisted}
           </p>
         )}
       </Card>

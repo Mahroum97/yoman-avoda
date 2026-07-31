@@ -30,8 +30,28 @@ async function syncStatusBar(): Promise<void> {
   }
 }
 
+/**
+ * Asks the browser to keep the diary.
+ *
+ * This matters most on iOS, where storage for a web app can be cleared after a
+ * stretch of not being opened. Granted persistence takes the diary out of that
+ * eviction path. Safari grants it silently for an installed home-screen app;
+ * the native shell does not need it at all.
+ */
+export async function requestPersistentStorage(): Promise<boolean> {
+  if (isNativeApp()) return true;
+  if (!navigator.storage?.persist) return false;
+  try {
+    if (await navigator.storage.persisted()) return true;
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
 export function initNative(): void {
   if (typeof window === 'undefined') return;
   markStandalone();
   void syncStatusBar();
+  void requestPersistentStorage();
 }

@@ -801,6 +801,21 @@ button:focus-visible {
   padding-bottom: 8px;
 }
 
+/* Scales the A4 sheets down to the screen width — see SheetScaler.tsx. */
+.sheet-frame {
+  width: 100%;
+  /* Clipping is what keeps the measurement honest: without it the 794px sheet
+     widens its own container and the scale comes out too large. */
+  overflow: hidden;
+}
+
+@media print {
+  /* Printing must use the real size, never the on-screen fit. */
+  .sheet-frame__content {
+    zoom: 1 !important;
+  }
+}
+
 .sheet {
   --s-navy: #0f2d4a;
   --s-amber: #d97706;

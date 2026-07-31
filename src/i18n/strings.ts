@@ -246,6 +246,7 @@ export interface Strings {
   downloadBackup: string;
   restoreBackup: string;
   storageUsage: (used: string, quota: string) => string;
+  storageNotPersisted: string;
   backupDownloaded: string;
   backupFailed: string;
   confirmRestore: string;
@@ -507,6 +508,8 @@ const he: Strings = {
   downloadBackup: 'הורד גיבוי',
   restoreBackup: 'שחזר מגיבוי',
   storageUsage: (used, quota) => `בשימוש: ${used} מתוך ${quota} הזמינים לאפליקציה במכשיר.`,
+  storageNotPersisted:
+    'הדפדפן לא הבטיח שמירה קבועה של הנתונים. מומלץ להתקין את האפליקציה למסך הבית, ולגבות באופן קבוע.',
   backupDownloaded: 'הגיבוי הורד',
   backupFailed: 'יצירת הגיבוי נכשלה',
   confirmRestore:
@@ -782,6 +785,8 @@ const ar: Strings = {
   downloadBackup: 'تنزيل نسخة احتياطية',
   restoreBackup: 'استعادة من نسخة',
   storageUsage: (used, quota) => `مستخدم: ${used} من ${quota} المتاحة للتطبيق على الجهاز.`,
+  storageNotPersisted:
+    'لم يضمن المتصفح حفظ البيانات بشكل دائم. يُنصح بتثبيت التطبيق على الشاشة الرئيسية وعمل نسخ احتياطي بانتظام.',
   backupDownloaded: 'تم تنزيل النسخة الاحتياطية',
   backupFailed: 'فشل إنشاء النسخة الاحتياطية',
   confirmRestore:
@@ -1059,6 +1064,8 @@ const en: Strings = {
   downloadBackup: 'Download backup',
   restoreBackup: 'Restore from backup',
   storageUsage: (used, quota) => `Using ${used} of the ${quota} available to the app.`,
+  storageNotPersisted:
+    'The browser has not guaranteed to keep this data. Install the app to your home screen, and back up regularly.',
   backupDownloaded: 'Backup downloaded',
   backupFailed: 'Creating the backup failed',
   confirmRestore:

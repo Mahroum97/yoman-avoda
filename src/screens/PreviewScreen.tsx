@@ -10,6 +10,7 @@ import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
 import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
+import { SheetScaler } from '../components/SheetScaler';
 
 export function PreviewScreen({
   entryId,
@@ -85,7 +86,7 @@ export function PreviewScreen({
         </button>
       </div>
 
-      <div className="sheet-scroll">
+      <SheetScaler>
         <SheetPreview
           entry={entry}
           project={project}
@@ -98,7 +99,7 @@ export function PreviewScreen({
           companyLogo={logoDataUrl}
           pages={pages}
         />
-      </div>
+      </SheetScaler>
     </div>
   );
 }
