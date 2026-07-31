@@ -14,7 +14,11 @@
     "sample": "node scripts/bundle.mjs scripts/sample.ts tmp/sample.mjs && node tmp/sample.mjs",
     "fonts": "node scripts/fetch-fonts.mjs",
     "app:dev": "YOMAN_DEV_URL=http://localhost:5199 electron .",
-    "app:build": "npm run build && electron-builder --config electron-builder.yml"
+    "app:build": "npm run build && electron-builder --config electron-builder.yml",
+    "deploy": "bash scripts/deploy-pages.sh",
+    "ios:sync": "npm run build && npx cap sync ios",
+    "ios:open": "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer npx cap open ios",
+    "ios:run": "bash scripts/ios-install.sh"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.0",

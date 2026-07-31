@@ -9,9 +9,9 @@ The user fills in a day's page and exports a **designed PDF or Word document** b
 the printed A4 form in `יומן עבודה לעבודות בנייה.pdf` — that PDF is the origin of the
 layout, and fidelity to its structure is the point of the project.
 
-It ships two ways from one codebase: a **PWA** (installable on a phone, works with no
-signal) and a **macOS app** (Electron, `npm run app:build`). React + TypeScript + Vite,
-IndexedDB via Dexie, `pdf-lib` and `docx` for the documents. No server, no accounts.
+It ships three ways from one codebase: a **PWA**, a **macOS app** (Electron) and an
+**iOS app** (Capacitor). React + TypeScript + Vite, IndexedDB via Dexie, `pdf-lib` and
+`docx` for the documents. No server, no accounts.
 
 ## Commands
 
@@ -25,7 +25,14 @@ npm run fonts        # re-downloads the embedded Hebrew/Arabic TTFs
 npm run icons        # rasterises public/favicon.svg into PWA icons + build/icon.icns
 npm run app:dev      # Electron against a running dev server
 npm run app:build    # packages release/*.dmg and release/mac-arm64/*.app
+npm run ios:sync     # build + copy the web assets into the iOS project
+npm run ios:run      # build, sign and install on the connected iPhone
+npm run deploy       # publish dist/ to the gh-pages branch (HTTPS, for iOS install)
 ```
+
+Xcode is installed but is not the selected developer directory on this machine, so every
+iOS command sets `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` rather than
+requiring `sudo xcode-select`.
 
 `עדכון.command` at the repo root is the user-facing updater: double-clicking it installs,
 rebuilds the site and rebuilds the Mac app, reporting progress in Hebrew.
@@ -107,6 +114,22 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
 - Backup is the only copy that leaves the device, so photos become data URLs there.
   **Settings must stay reachable with zero projects** (`App.tsx`) or restoring onto a new
   device is impossible — the onboarding redirect has an explicit exception for it.
+
+## iOS
+
+- **There is no downloads folder on iOS.** `src/lib/save.ts` therefore routes exports to
+  the iOS share sheet — through Capacitor's Filesystem+Share in the native app, and the
+  Web Share API in Safari. A `<a download>` silently does nothing in a web view, so never
+  reach for `saveAs` directly; call `saveBlob`/`saveBinary`.
+- Installing to the home screen from Safari requires **HTTPS**, which is why `npm run
+  deploy` exists. Over plain http the app still runs but the service worker will not
+  register, so it will not work offline.
+- iOS zooms the page when a focused input is under 16px and never zooms back; the phone
+  breakpoint in `global.css` pins form fields to 16px for that reason.
+- Safe-area insets are applied to the top bar, the tab bar and the toast. `viewport-fit=cover`
+  in `index.html` is what gives those insets real values.
+- The native shell skips the service worker (`main.tsx`): Capacitor already serves the
+  built files locally, and a second cache in front of them only causes stale assets.
 
 ## Conventions
 
