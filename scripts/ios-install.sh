@@ -22,26 +22,81 @@ npm run build
 npx cap sync ios
 
 step "מחפש את הטלפון"
-DEVICE_JSON=$(xcrun devicectl list devices --json-output /dev/stdout 2>/dev/null | tail -n +1)
-DEVICE_ID=$(printf '%s' "$DEVICE_JSON" | python3 -c '
-import json, sys
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    sys.exit(0)
-for device in data.get("result", {}).get("devices", []):
-    props = device.get("deviceProperties", {})
-    hardware = device.get("hardwareProperties", {})
-    if hardware.get("platform") == "iOS" and device.get("connectionProperties", {}).get("tunnelState") != "unavailable":
-        print(device["identifier"])
-        break
-')
+# devicectl prints a human-readable table to stdout as well, so the JSON has to
+# go to a file of its own — parsing stdout mixes the two and finds nothing.
+DEVICE_JSON=$(mktemp -t yoman-devices)
+xcrun devicectl list devices --json-output "$DEVICE_JSON" >/dev/null 2>&1 || true
 
-if [ -z "$DEVICE_ID" ]; then
-  echo "✖ לא נמצא אייפון מחובר. חבר את הטלפון בכבל, פתח אותו, ואשר \"Trust This Computer\"." >&2
-  exit 1
-fi
-echo "  נמצא: $DEVICE_ID"
+read -r DEVICE_ID DEVICE_STATE <<EOF
+$(python3 - "$DEVICE_JSON" <<'PYEOF'
+import json, sys
+
+try:
+    with open(sys.argv[1]) as handle:
+        data = json.load(handle)
+except Exception:
+    print(" none")
+    raise SystemExit
+
+for device in data.get("result", {}).get("devices", []):
+    if device.get("hardwareProperties", {}).get("platform") != "iOS":
+        continue
+    connection = device.get("connectionProperties", {})
+    properties = device.get("deviceProperties", {})
+    dev_mode = properties.get("developerModeStatus")
+
+    if dev_mode in (None, "disabled"):
+        state = "devmode"
+    elif connection.get("pairingState") != "paired":
+        state = "unpaired"
+    else:
+        state = "ready"
+    print(device["identifier"], state)
+    break
+else:
+    print(" none")
+PYEOF
+)
+EOF
+rm -f "$DEVICE_JSON"
+
+case "${DEVICE_STATE:-none}" in
+  ready)
+    echo "  נמצא: $DEVICE_ID"
+    ;;
+  devmode)
+    cat >&2 <<'EOS'
+
+✖ הטלפון מחובר, אבל "מצב פיתוח" כבוי — ובלי זה iOS לא מרשה להתקין אפליקציה.
+
+   בטלפון:
+   1. הגדרות ← פרטיות ואבטחה
+   2. גוללים למטה ל-"מצב פיתוח" (Developer Mode) ← מדליקים
+   3. הטלפון יבקש להפעיל מחדש — מאשרים
+   4. אחרי ההפעלה מחדש, מאשרים את החלון "להפעיל מצב פיתוח?"
+
+   אם "מצב פיתוח" לא מופיע בכלל: משאירים את הטלפון מחובר בכבל,
+   מריצים את הסקריפט פעם אחת, ואז הוא יופיע בהגדרות.
+
+EOS
+    exit 1
+    ;;
+  unpaired)
+    cat >&2 <<'EOS'
+
+✖ הטלפון מחובר אבל עדיין לא מקושר למחשב הזה.
+
+   נעל ופתח את הטלפון, ואשר את החלון "Trust This Computer" / "לתת אמון במחשב",
+   ואז הרץ שוב.
+
+EOS
+    exit 1
+    ;;
+  *)
+    echo "✖ לא נמצא אייפון מחובר. חבר את הטלפון בכבל, פתח אותו, ואשר \"Trust This Computer\"." >&2
+    exit 1
+    ;;
+esac
 
 # The development team is whatever certificate is already in the keychain.
 TEAM_ID=${IOS_TEAM_ID:-$(security find-identity -v -p codesigning 2>/dev/null \
