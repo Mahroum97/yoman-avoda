@@ -98,22 +98,39 @@ EOS
     ;;
 esac
 
-# The development team is whatever certificate is already in the keychain.
-TEAM_ID=${IOS_TEAM_ID:-$(security find-identity -v -p codesigning 2>/dev/null \
-  | sed -nE 's/.*"Apple Development: .*\(([A-Z0-9]{10})\)".*/\1/p' | head -1)}
+# The development team can come from three places, in order of reliability:
+# an explicit override, the team already written into the Xcode project, or a
+# certificate sitting in the keychain from a previous build.
+TEAM_ID=${IOS_TEAM_ID:-}
+
+if [ -z "$TEAM_ID" ]; then
+  TEAM_ID=$(sed -nE 's/.*DEVELOPMENT_TEAM = ([A-Z0-9]{10});.*/\1/p' \
+    ios/App/App.xcodeproj/project.pbxproj | head -1)
+fi
+
+if [ -z "$TEAM_ID" ]; then
+  TEAM_ID=$(security find-identity -v -p codesigning 2>/dev/null \
+    | sed -nE 's/.*"Apple Development: .*\(([A-Z0-9]{10})\)".*/\1/p' | head -1)
+fi
 
 if [ -z "$TEAM_ID" ]; then
   cat >&2 <<'EOS'
 
-✖ אין עדיין חשבון מפתח ב-Xcode, ובלי זה iOS לא מרשה להתקין אפליקציה.
+✖ חסר "צוות פיתוח" (Development Team) — בחירה חד-פעמית ב-Xcode.
 
-   פעם אחת בלבד:
-   1. פותחים את Xcode
-   2. Xcode ← Settings ← Accounts ← + ← Apple ID
-   3. מתחברים עם ה-Apple ID הרגיל שלך (חינם, לא צריך תוכנית מפתחים בתשלום)
+   Xcode נפתח עכשיו. צריך רק:
+   1. בעמודה השמאלית ללחוץ על הפרויקט "App" (הכי למעלה)
+   2. ללחוץ על הלשונית "Signing & Capabilities"
+   3. בשורה "Team" לבחור מהתפריט: Mohamad Mahroum (Personal Team)
+   4. לסגור את Xcode
 
-   אחר כך מריצים שוב:  npm run ios:run
+   ואז להריץ שוב את "התקנה לאייפון.command".
+
+   (אפשר גם פשוט ללחוץ ב-Xcode על כפתור ה-▶ עם האייפון נבחר למעלה —
+    זה יתקין את האפליקציה ישירות.)
+
 EOS
+  open ios/App/App.xcodeproj 2>/dev/null || true
   exit 1
 fi
 echo "  צוות פיתוח: $TEAM_ID"
