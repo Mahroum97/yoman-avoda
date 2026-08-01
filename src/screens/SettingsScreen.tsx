@@ -26,6 +26,8 @@ import { useTheme, type ThemePreference } from '../hooks/useTheme';
 import { clearCompanyLogo, saveCompanyLogo, useCompanyLogo } from '../hooks/useBranding';
 import { Card, Field } from '../components/ui';
 import { SyncCard } from '../components/SyncCard';
+import { DocThemePicker } from '../components/DocThemePicker';
+import { setDocThemeId, useDocThemeId } from '../hooks/useDocTheme';
 
 
 
@@ -59,6 +61,7 @@ export function SettingsScreen() {
     { value: 'auto', label: t.themeAuto, hint: t.themeAutoHint },
   ];
   const companyLogo = useCompanyLogo();
+  const docThemeId = useDocThemeId();
   const [usage, setUsage] = useState<{ used: number; quota: number } | null>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [newValue, setNewValue] = useState<Record<string, string>>({});
@@ -141,6 +144,10 @@ export function SettingsScreen() {
             </button>
           ))}
         </div>
+      </Card>
+
+      <Card title={t.docThemeTitle} note={t.docThemeHint}>
+        <DocThemePicker value={docThemeId} onChange={(id) => void setDocThemeId(id)} />
       </Card>
 
       <Card title={t.companyLogo} note={t.companyLogoHint}>

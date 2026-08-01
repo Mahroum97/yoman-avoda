@@ -1,4 +1,5 @@
 /** Live views over IndexedDB. Every hook re-renders when the data changes. */
+import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Preset, PresetKind, Project } from '../types';
 import { ACTIVE_PROJECT_KEY, db, getSetting, setSetting } from '../db';
@@ -16,16 +17,33 @@ export interface ActiveProject {
 export function useActiveProject(): ActiveProject {
   const result = useLiveQuery(async () => {
     const id = await getSetting<number | null>(ACTIVE_PROJECT_KEY, null);
-    if (id === null) {
-      // Fall back to any project, so a fresh restore is immediately usable.
-      const first = await db.projects.filter((p) => !p.archived).first();
-      return { project: first, projectId: first?.id };
-    }
-    const project = await db.projects.get(id);
-    return { project, projectId: project?.id };
+    const stored = id === null ? undefined : await db.projects.get(id);
+    if (stored) return { project: stored, projectId: stored.id, stale: false };
+
+    /*
+     * Either nothing was chosen yet, or the stored id points at a project that
+     * no longer exists — after a restore, or when the other device deleted it
+     * and the deletion arrived by sync. Falling back here is what stops the app
+     * showing "no projects yet" while projects exist.
+     */
+    const first = await db.projects.filter((p) => !p.archived).first();
+    return { project: first, projectId: first?.id, stale: first?.id !== undefined };
   }, []);
 
-  return { ...(result ?? {}), loading: result === undefined };
+  /*
+   * Healing the stored pointer has to happen out here: a live query runs inside
+   * a read transaction, and writing from within one throws.
+   */
+  const staleId = result?.stale ? result.projectId : undefined;
+  useEffect(() => {
+    if (staleId !== undefined) void setActiveProject(staleId);
+  }, [staleId]);
+
+  return {
+    project: result?.project,
+    projectId: result?.projectId,
+    loading: result === undefined,
+  };
 }
 
 export async function setActiveProject(id: number): Promise<void> {

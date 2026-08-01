@@ -21,7 +21,8 @@ import {
   type EntryImages,
   type PageChrome,
 } from './entryPage';
-import { CONTENT_W, COLORS, METRICS, PAGE, TYPE } from './theme';
+import { CONTENT_W, METRICS, PAGE, TYPE, paletteFor } from './theme';
+import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
 
 import heeboRegularUrl from '../assets/fonts/heebo-regular.ttf?url';
 import heeboBoldUrl from '../assets/fonts/heebo-bold.ttf?url';
@@ -68,6 +69,8 @@ export interface BuildOptions {
   fontBytes?: Partial<Record<'hebrew' | 'arabic', FontBytes>>;
   /** Company logo as a PNG/JPEG data URL, shown in the header band. */
   logoDataUrl?: string;
+  /** Which of the document colour themes to print in. */
+  themeId?: string;
   includePhotos?: boolean;
 }
 
@@ -94,7 +97,8 @@ async function prepare(options: BuildOptions) {
   doc.setProducer(t.appName);
   doc.setCreator(t.appName);
   doc.setTitle(t.docWorkDiary);
-  return { doc, fonts, t, dir: t.dir };
+  const colors = paletteFor(docTheme(options.themeId ?? DEFAULT_DOC_THEME));
+  return { doc, fonts, t, dir: t.dir, colors };
 }
 
 async function embedDataUrl(
@@ -132,7 +136,7 @@ async function drawPhotoPage(
   chrome: PageChrome,
 ): Promise<void> {
   const page = newPage(doc);
-  const p = new Painter(page, fonts, chrome.t.dir);
+  const p = new Painter(page, fonts, chrome.t.dir, chrome.colors);
 
   let y: number = PAGE.margin;
   y = drawHeaderBand(
@@ -156,8 +160,8 @@ async function drawPhotoPage(
 
     const x = col === 0 ? RIGHT - colW : LEFT;
     p.rect(x, y, colW, slotH + 18, {
-      fill: COLORS.panel,
-      stroke: COLORS.line,
+      fill: p.colors.panel,
+      stroke: p.colors.line,
       lineWidth: METRICS.hairline,
     });
 
@@ -167,7 +171,7 @@ async function drawPhotoPage(
     p.image(image, x + (colW - w) / 2, y + 6, w, h);
     p.textCentreBox(photo.caption || chrome.t.photoNumber(index + 1), x + colW / 2, y + slotH + 6, 12, {
       size: TYPE.tiny,
-      color: COLORS.muted,
+      color: p.colors.muted,
     });
 
     col += 1;
@@ -187,7 +191,7 @@ export async function buildEntryPdf(
   project: Project,
   options: BuildOptions = {},
 ): Promise<Uint8Array> {
-  const { doc, fonts, t, dir } = await prepare(options);
+  const { doc, fonts, t, dir, colors } = await prepare(options);
   const includePhotos = (options.includePhotos ?? true) && entry.photos.length > 0;
   const photoPages = includePhotos ? Math.ceil(entry.photos.length / 4) : 0;
   const pageCount = 1 + photoPages;
@@ -200,11 +204,12 @@ export async function buildEntryPdf(
   };
 
   const page = newPage(doc);
-  drawEntryPage(new Painter(page, fonts, dir), entry, project, images, {
+  drawEntryPage(new Painter(page, fonts, dir, colors), entry, project, images, {
     pageNumber: 1,
     pageCount,
     generatedAt,
     t,
+    colors,
   });
 
   if (includePhotos) {
@@ -214,6 +219,7 @@ export async function buildEntryPdf(
       generatedAt,
       logo: images.logo,
       t,
+      colors,
     });
   }
 
@@ -237,39 +243,39 @@ function summaryTable(
   const edges = [RIGHT, RIGHT - cols[0], RIGHT - cols[0] - cols[1]];
   const rowH = 16;
 
-  p.rect(LEFT, y, CONTENT_W, rowH, { fill: COLORS.tintHead });
+  p.rect(LEFT, y, CONTENT_W, rowH, { fill: p.colors.tintHead });
   [t.detail, unit, t.unitDays].forEach((label, i) => {
     p.textCentreBox(label, edges[i] - cols[i] / 2, y, rowH, {
       size: TYPE.column,
       bold: true,
-      color: COLORS.navy,
+      color: p.colors.navy,
     });
   });
   y += rowH;
 
   rows.forEach((row, index) => {
-    if (index % 2 === 1) p.rect(LEFT, y, CONTENT_W, rowH, { fill: COLORS.tintRow });
+    if (index % 2 === 1) p.rect(LEFT, y, CONTENT_W, rowH, { fill: p.colors.tintRow });
     const values = [row.label, formatNum(row.total), String(row.days)];
     values.forEach((value, i) => {
       p.textCentreBox(value, edges[i] - cols[i] / 2, y, rowH, { size: TYPE.cell });
     });
     y += rowH;
-    p.line(LEFT, y, RIGHT, y, { color: COLORS.lineSoft, width: METRICS.hairline });
+    p.line(LEFT, y, RIGHT, y, { color: p.colors.lineSoft, width: METRICS.hairline });
   });
 
   const total = rows.reduce((sum, row) => sum + row.total, 0);
-  p.rect(LEFT, y, CONTENT_W, rowH, { fill: COLORS.tintGroup });
+  p.rect(LEFT, y, CONTENT_W, rowH, { fill: p.colors.tintGroup });
   [t.total, formatNum(total), ''].forEach((value, i) => {
     p.textCentreBox(value, edges[i] - cols[i] / 2, y, rowH, {
       size: TYPE.cell,
       bold: true,
-      color: COLORS.navy,
+      color: p.colors.navy,
     });
   });
   y += rowH;
 
   p.rect(LEFT, top + METRICS.sectionBar, CONTENT_W, y - top - METRICS.sectionBar, {
-    stroke: COLORS.line,
+    stroke: p.colors.line,
     lineWidth: METRICS.border,
   });
   return y + METRICS.gap;
@@ -310,19 +316,19 @@ function coverPage(
   figures.forEach(([label, value], i) => {
     const x = RIGHT - cardW - i * (cardW + gap);
     p.rect(x, y, cardW, cardH, {
-      fill: COLORS.panel,
-      stroke: COLORS.line,
+      fill: p.colors.panel,
+      stroke: p.colors.line,
       lineWidth: METRICS.hairline,
     });
-    p.rect(x, y, cardW, 2, { fill: COLORS.amber });
+    p.rect(x, y, cardW, 2, { fill: p.colors.amber });
     p.textCentreBox(value, x + cardW / 2, y + 8, 20, {
       size: 15,
       bold: true,
-      color: COLORS.navy,
+      color: p.colors.navy,
     });
     p.textCentreBox(label, x + cardW / 2, y + 28, 12, {
       size: TYPE.label,
-      color: COLORS.muted,
+      color: p.colors.muted,
     });
   });
   y += cardH + METRICS.gap;
@@ -333,8 +339,8 @@ function coverPage(
     [t.docPhotosInReport, String(stats.photos)],
   ];
   p.rect(LEFT, y, CONTENT_W, 20 + details.length * 15, {
-    fill: COLORS.panel,
-    stroke: COLORS.line,
+    fill: p.colors.panel,
+    stroke: p.colors.line,
     lineWidth: METRICS.hairline,
   });
   let dy = y + 8;
@@ -342,7 +348,7 @@ function coverPage(
     p.textRight(`${label}:`, RIGHT - 10, dy, {
       size: TYPE.label,
       bold: true,
-      color: COLORS.navySoft,
+      color: p.colors.navySoft,
     });
     const lw = p.width(`${label}:`, { size: TYPE.label, bold: true });
     p.textRight(value, RIGHT - 14 - lw, dy - 0.5, { size: TYPE.value });
@@ -362,7 +368,7 @@ export async function buildRangePdf(
   to: string,
   options: BuildOptions & { includeSummary?: boolean } = {},
 ): Promise<Uint8Array> {
-  const { doc, fonts, t, dir } = await prepare(options);
+  const { doc, fonts, t, dir, colors } = await prepare(options);
   const includePhotos = options.includePhotos ?? false;
   const includeSummary = options.includeSummary ?? true;
   const generatedAt = new Date();
@@ -376,12 +382,13 @@ export async function buildRangePdf(
 
   if (includeSummary) {
     const page = newPage(doc);
-    coverPage(new Painter(page, fonts, dir), project, entries, from, to, {
+    coverPage(new Painter(page, fonts, dir, colors), project, entries, from, to, {
       pageNumber,
       pageCount,
       generatedAt,
       logo,
       t,
+      colors,
     });
     pageNumber += 1;
   }
@@ -393,11 +400,12 @@ export async function buildRangePdf(
       logo,
     };
     const page = newPage(doc);
-    drawEntryPage(new Painter(page, fonts, dir), entry, project, images, {
+    drawEntryPage(new Painter(page, fonts, dir, colors), entry, project, images, {
       pageNumber,
       pageCount,
       generatedAt,
       t,
+      colors,
     });
     pageNumber += 1;
 
@@ -408,6 +416,7 @@ export async function buildRangePdf(
         generatedAt,
         logo,
         t,
+        colors,
       });
       pageNumber += 1;
     }
@@ -415,10 +424,10 @@ export async function buildRangePdf(
 
   if (doc.getPageCount() === 0) {
     const page = newPage(doc);
-    const p = new Painter(page, fonts, dir);
+    const p = new Painter(page, fonts, dir, colors);
     p.textCenter(t.docNoEntries, PAGE.width / 2, 200, {
       size: TYPE.section,
-      color: COLORS.muted,
+      color: p.colors.muted,
     });
   }
 

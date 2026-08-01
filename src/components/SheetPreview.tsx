@@ -10,6 +10,7 @@ import type { DiaryEntry, Project } from '../types';
 import { formatDdMmYyyy, formatLongDate } from '../lib/dates';
 import { useLanguage } from '../i18n/useLanguage';
 import type { Strings } from '../i18n/strings';
+import { css, docTheme } from '../docTheme';
 import { Logo } from './Logo';
 
 /** Same ratios as CREW_COLUMNS in the PDF and Word builders. */
@@ -128,16 +129,31 @@ function InfoPanel({
   );
 }
 
+/** Maps a document theme onto the custom properties `.sheet` styles read. */
+function themeVars(themeId?: string): React.CSSProperties {
+  const theme = docTheme(themeId);
+  return {
+    '--s-navy': css(theme.band),
+    '--s-amber': css(theme.accent),
+    '--s-tint-group': css(theme.tintGroup),
+    '--s-tint-head': css(theme.tintHead),
+    '--s-panel': css(theme.panel),
+    '--s-row': css(theme.row),
+  } as React.CSSProperties;
+}
+
 export function SheetPreview({
   entry,
   project,
   companyLogo,
   pages = 1,
+  themeId,
 }: {
   entry: DiaryEntry;
   project: Project;
   companyLogo?: string;
   pages?: number;
+  themeId?: string;
 }) {
   const { t, dir } = useLanguage();
   const description = useRuled(entry.workDescription, DESCRIPTION_LINES, 92);
@@ -150,7 +166,7 @@ export function SheetPreview({
   );
 
   return (
-    <div className="sheet" dir={dir}>
+    <div className="sheet" dir={dir} style={themeVars(themeId)}>
       <HeaderBand
         title={t.docWorkDiary}
         subtitle={project.name}
@@ -196,9 +212,9 @@ export function SheetPreview({
           <tr className="sheet__col-row">
             <td>{t.labelName}</td>
             <td>{t.labelRole}</td>
-            <td>{t.labelTrade}</td>
+            <td className="sheet__group-edge">{t.labelTrade}</td>
             <td className="sheet__col-row--tiny">{t.labelWorkers}</td>
-            <td>{t.labelKind}</td>
+            <td className="sheet__group-edge">{t.labelKind}</td>
             <td>{t.labelQty}</td>
             <td>{t.labelHours}</td>
           </tr>
@@ -210,9 +226,9 @@ export function SheetPreview({
               <tr key={i}>
                 <td>{staff?.name ?? ''}</td>
                 <td>{staff?.role ?? ''}</td>
-                <td>{contractor?.trade ?? ''}</td>
+                <td className="sheet__group-edge">{contractor?.trade ?? ''}</td>
                 <td>{contractor?.workers ?? ''}</td>
-                <td>{equipment?.kind ?? ''}</td>
+                <td className="sheet__group-edge">{equipment?.kind ?? ''}</td>
                 <td>{equipment?.qty ?? ''}</td>
                 <td>{equipment?.hours ?? ''}</td>
               </tr>
@@ -302,11 +318,13 @@ export function PhotoSheet({
   project,
   companyLogo,
   pages = 2,
+  themeId,
 }: {
   entry: DiaryEntry;
   project: Project;
   companyLogo?: string;
   pages?: number;
+  themeId?: string;
 }) {
   const { t, dir } = useLanguage();
   const [urls, setUrls] = useState<string[]>([]);
@@ -324,7 +342,7 @@ export function PhotoSheet({
   if (entry.photos.length === 0) return null;
 
   return (
-    <div className="sheet sheet--photos" dir={dir}>
+    <div className="sheet sheet--photos" dir={dir} style={themeVars(themeId)}>
       <HeaderBand
         title={t.docPhotoAppendix}
         subtitle={project.name}

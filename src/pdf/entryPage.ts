@@ -20,9 +20,9 @@ import type { DiaryEntry, Project } from '../types';
 import type { Strings } from '../i18n/strings';
 import { formatDdMmYyyy, formatLongDate } from '../lib/dates';
 import { Painter } from './painter';
+import type { Palette } from './theme';
 import {
   CONTENT_W,
-  COLORS,
   CREW_COLUMNS,
   METRICS,
   PAGE,
@@ -41,6 +41,8 @@ export interface PageChrome {
   pageCount: number;
   generatedAt: Date;
   t: Strings;
+  /** The document palette, so pages built here match the rest. */
+  colors?: Palette;
 }
 
 const axisOf = (p: Painter): Axis => axisFor(p.dir);
@@ -57,9 +59,9 @@ export function drawHeaderBand(
 ): number {
   const a = axisOf(p);
   const h = METRICS.headerBand;
-  p.rect(LEFT, top, CONTENT_W, h, { fill: COLORS.navy });
+  p.rect(LEFT, top, CONTENT_W, h, { fill: p.colors.navy });
   // Amber rule along the bottom edge — the one splash of brand colour.
-  p.rect(LEFT, top + h - 2.5, CONTENT_W, 2.5, { fill: COLORS.amber });
+  p.rect(LEFT, top + h - 2.5, CONTENT_W, 2.5, { fill: p.colors.amber });
 
   const pad = 14;
 
@@ -67,21 +69,21 @@ export function drawHeaderBand(
   const markSize = 22;
   const markX = a.boxX(pad, markSize);
   const markTop = top + (h - 2.5 - markSize) / 2;
-  p.rect(markX, markTop, markSize, markSize, { fill: COLORS.amber });
-  p.rect(markX + 4, markTop + 5, markSize - 8, markSize - 8, { fill: COLORS.white });
+  p.rect(markX, markTop, markSize, markSize, { fill: p.colors.amber });
+  p.rect(markX + 4, markTop + 5, markSize - 8, markSize - 8, { fill: p.colors.white });
   for (let i = 0; i < 3; i += 1) {
-    p.rect(markX + 6.5, markTop + 8 + i * 4, markSize - 13, 1.6, { fill: COLORS.navy });
+    p.rect(markX + 6.5, markTop + 8 + i * 4, markSize - 13, 1.6, { fill: p.colors.navy });
   }
 
   const titleStart = a.dir === 'rtl' ? markX - 9 : markX + markSize + 9;
   p.textStart(title, titleStart, top + 12, {
     size: TYPE.title,
     bold: true,
-    color: COLORS.white,
+    color: p.colors.white,
   });
   p.textStart(subtitle, titleStart, top + 34, {
     size: TYPE.subtitle,
-    color: COLORS.tintGroup,
+    color: p.colors.tintGroup,
   });
 
   // Far end of the band: the date, the page number and the company logo.
@@ -102,10 +104,10 @@ export function drawHeaderBand(
     if (a.dir === 'rtl') p.text(text, detailX, y, options);
     else p.textRight(text, detailX, y, options);
   };
-  drawEnd(detail, top + 14, { size: TYPE.subtitle, color: COLORS.white });
+  drawEnd(detail, top + 14, { size: TYPE.subtitle, color: p.colors.white });
   drawEnd(chrome.t.docPage(chrome.pageNumber, chrome.pageCount), top + 34, {
     size: TYPE.label,
-    color: COLORS.tintGroup,
+    color: p.colors.tintGroup,
   });
 
   return top + h;
@@ -115,13 +117,13 @@ export function drawHeaderBand(
 
 export function drawFooter(p: Painter, project: Project, chrome: PageChrome): void {
   const top = PAGE.height - PAGE.margin - METRICS.footerBand;
-  p.line(LEFT, top, RIGHT, top, { color: COLORS.line, width: METRICS.hairline });
+  p.line(LEFT, top, RIGHT, top, { color: p.colors.line, width: METRICS.hairline });
 
   const stamp = `${formatDdMmYyyy(chrome.generatedAt.toISOString().slice(0, 10))} ${chrome.generatedAt
     .toTimeString()
     .slice(0, 5)}`;
   const a = axisOf(p);
-  const small = { size: TYPE.footer, color: COLORS.muted };
+  const small = { size: TYPE.footer, color: p.colors.muted };
 
   p.textStart(project.company || project.name, a.startX, top + 5, small);
   p.textCenter(`${chrome.t.docGeneratedBy} · ${stamp}`, LEFT + CONTENT_W / 2, top + 5, small);
@@ -134,14 +136,14 @@ export function drawFooter(p: Painter, project: Project, chrome: PageChrome): vo
 export function sectionBar(p: Painter, label: string, top: number): number {
   const a = axisOf(p);
   const h = METRICS.sectionBar;
-  p.rect(LEFT, top, CONTENT_W, h, { fill: COLORS.tintHead });
+  p.rect(LEFT, top, CONTENT_W, h, { fill: p.colors.tintHead });
   // Amber tick on the starting edge — reads as a bullet in either direction.
-  p.rect(a.boxX(0, 3), top, 3, h, { fill: COLORS.amber });
+  p.rect(a.boxX(0, 3), top, 3, h, { fill: p.colors.amber });
   const textStart = a.dir === 'rtl' ? a.startX - 3 : a.startX + 3;
   p.textStartBox(label, textStart, top, h, {
     size: TYPE.section,
     bold: true,
-    color: COLORS.navy,
+    color: p.colors.navy,
     pad: 9,
   });
   return top + h;
@@ -171,13 +173,13 @@ function labelledLines(
     p.textStart(labelText, start, y, {
       size: TYPE.label,
       bold: true,
-      color: COLORS.navySoft,
+      color: p.colors.navySoft,
     });
     const labelWidth = p.width(labelText, { size: TYPE.label, bold: true });
     const valueStart = a.dir === 'rtl' ? start - labelWidth - 6 : start + labelWidth + 6;
-    p.textStart(value, valueStart, y - 0.5, { size: TYPE.value, color: COLORS.ink });
+    p.textStart(value, valueStart, y - 0.5, { size: TYPE.value, color: p.colors.ink });
     const [x1, x2] = a.dir === 'rtl' ? [far, valueStart] : [valueStart, far];
-    p.line(x1, y + 11, x2, y + 11, { color: COLORS.lineSoft, width: METRICS.hairline });
+    p.line(x1, y + 11, x2, y + 11, { color: p.colors.lineSoft, width: METRICS.hairline });
     y += 17;
   }
 }
@@ -217,17 +219,17 @@ function infoPanels(
   for (const [heading, offset, lines] of panels) {
     const x = a.boxX(offset, w);
     p.rect(x, top, w, h, {
-      fill: COLORS.panel,
-      stroke: COLORS.line,
+      fill: p.colors.panel,
+      stroke: p.colors.line,
       lineWidth: METRICS.hairline,
     });
     p.textStart(heading, a.dir === 'rtl' ? x + w - 10 : x + 10, top + 7, {
       size: TYPE.group,
       bold: true,
-      color: COLORS.navy,
+      color: p.colors.navy,
     });
     p.line(x + 10, top + 20, x + w - 10, top + 20, {
-      color: COLORS.line,
+      color: p.colors.line,
       width: METRICS.hairline,
     });
     labelledLines(p, lines, offset, w, top + 26);
@@ -256,7 +258,7 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
 
   let y = top;
 
-  p.rect(LEFT, y, CONTENT_W, METRICS.groupRow, { fill: COLORS.tintGroup });
+  p.rect(LEFT, y, CONTENT_W, METRICS.groupRow, { fill: p.colors.tintGroup });
   const groups: [string, number, number][] = [
     [t.labelManagement, 0, 2],
     [t.labelContractor, 2, 2],
@@ -266,12 +268,12 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
     p.textCentreBox(label, spanCentre(from, count), y, METRICS.groupRow, {
       size: TYPE.group,
       bold: true,
-      color: COLORS.navy,
+      color: p.colors.navy,
     });
   }
   y += METRICS.groupRow;
 
-  p.rect(LEFT, y, CONTENT_W, METRICS.columnRow, { fill: COLORS.tintHead });
+  p.rect(LEFT, y, CONTENT_W, METRICS.columnRow, { fill: p.colors.tintHead });
   const headers = [
     t.labelName,
     t.labelRole,
@@ -286,7 +288,7 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
       // The workers column is narrow; its label needs the smaller size.
       size: i === 3 ? TYPE.tiny : TYPE.column,
       bold: true,
-      color: COLORS.navy,
+      color: p.colors.navy,
     });
   });
   y += METRICS.columnRow;
@@ -300,7 +302,7 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
 
   const bodyTop = y;
   for (let i = 0; i < rowCount; i += 1) {
-    if (i % 2 === 1) p.rect(LEFT, y, CONTENT_W, METRICS.crewRow, { fill: COLORS.tintRow });
+    if (i % 2 === 1) p.rect(LEFT, y, CONTENT_W, METRICS.crewRow, { fill: p.colors.tintRow });
     const staff = entry.management[i];
     const contractor = entry.contractors[i];
     const equipment = entry.equipment[i];
@@ -317,16 +319,26 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
       p.textCentreBox(value, centreOf(col), y, METRICS.crewRow, { size: TYPE.cell });
     });
     y += METRICS.crewRow;
-    p.line(LEFT, y, RIGHT, y, { color: COLORS.lineSoft, width: METRICS.hairline });
+    p.line(LEFT, y, RIGHT, y, { color: p.colors.lineSoft, width: METRICS.hairline });
   }
 
+  /*
+   * Columns inside a group are separated by a hairline; the two boundaries
+   * *between* the groups get a full rule, so management, contractor and
+   * equipment read as three blocks rather than one seven-column run.
+   */
+  const groupEdges = new Set([2, 4]);
   for (let i = 1; i < CREW_COLUMNS.length; i += 1) {
     const gx = a.boxX(offsets[i], CREW_COLUMNS[i]);
     const edge = a.dir === 'rtl' ? gx + CREW_COLUMNS[i] : gx;
-    p.line(edge, top, edge, y, { color: COLORS.line, width: METRICS.hairline });
+    const isGroupEdge = groupEdges.has(i);
+    p.line(edge, top, edge, y, {
+      color: isGroupEdge ? p.colors.muted : p.colors.line,
+      width: isGroupEdge ? METRICS.border : METRICS.hairline,
+    });
   }
-  p.line(LEFT, bodyTop, RIGHT, bodyTop, { color: COLORS.line, width: METRICS.hairline });
-  p.rect(LEFT, top, CONTENT_W, y - top, { stroke: COLORS.line, lineWidth: METRICS.border });
+  p.line(LEFT, bodyTop, RIGHT, bodyTop, { color: p.colors.line, width: METRICS.hairline });
+  p.rect(LEFT, top, CONTENT_W, y - top, { stroke: p.colors.line, lineWidth: METRICS.border });
 
   return y;
 }
@@ -346,14 +358,14 @@ function castingBox(
   const x = a.boxX(offset, w);
   const { casting } = entry;
 
-  p.rect(x, top, w, h, { stroke: COLORS.line, lineWidth: METRICS.border });
+  p.rect(x, top, w, h, { stroke: p.colors.line, lineWidth: METRICS.border });
 
   const headH = 16;
-  p.rect(x, top, w, headH, { fill: COLORS.tintGroup });
+  p.rect(x, top, w, headH, { fill: p.colors.tintGroup });
   p.textCentreBox(t.labelCasting, x + w / 2, top, headH, {
     size: TYPE.group,
     bold: true,
-    color: COLORS.navy,
+    color: p.colors.navy,
   });
 
   const labelW = w * 0.34;
@@ -379,17 +391,17 @@ function castingBox(
   let y = top + headH;
 
   for (const [label, lines] of rows) {
-    p.line(x, y, x + w, y, { color: COLORS.lineSoft, width: METRICS.hairline });
+    p.line(x, y, x + w, y, { color: p.colors.lineSoft, width: METRICS.hairline });
     const labelX = a.boxX(offset, labelW);
-    p.rect(labelX, y, labelW, rowH, { fill: COLORS.panel });
+    p.rect(labelX, y, labelW, rowH, { fill: p.colors.panel });
     p.textCentreBox(label, labelX + labelW / 2, y, rowH, {
       size: TYPE.column,
       bold: true,
-      color: COLORS.navy,
+      color: p.colors.navy,
     });
     const divider = a.dir === 'rtl' ? labelX : labelX + labelW;
     p.line(divider, y, divider, y + rowH, {
-      color: COLORS.lineSoft,
+      color: p.colors.lineSoft,
       width: METRICS.hairline,
     });
 
@@ -402,7 +414,7 @@ function castingBox(
         p.textStart(subText, cursor, ly + 1, {
           size: TYPE.tiny,
           bold: true,
-          color: COLORS.muted,
+          color: p.colors.muted,
         });
         const sw = p.width(subText, { size: TYPE.tiny, bold: true }) + 4;
         cursor = a.dir === 'rtl' ? cursor - sw : cursor + sw;
@@ -414,7 +426,7 @@ function castingBox(
   }
 
   // Closing strip: the two free lines from the paper form.
-  p.line(x, y, x + w, y, { color: COLORS.lineSoft, width: METRICS.hairline });
+  p.line(x, y, x + w, y, { color: p.colors.lineSoft, width: METRICS.hairline });
   const notes: [string, string][] = [
     [t.labelNotes, casting.notes],
     [t.labelConcreteType, casting.notesConcreteType],
@@ -426,7 +438,7 @@ function castingBox(
     p.textStart(labelText, noteStart, ny, {
       size: TYPE.tiny,
       bold: true,
-      color: COLORS.muted,
+      color: p.colors.muted,
     });
     const lw = p.width(labelText, { size: TYPE.tiny, bold: true }) + 4;
     p.textStart(value, a.dir === 'rtl' ? noteStart - lw : noteStart + lw, ny - 0.5, {
@@ -444,7 +456,7 @@ function descriptionBlock(p: Painter, entry: DiaryEntry, t: Strings, top: number
   const h = METRICS.descriptionLines * METRICS.descriptionLine + 10;
 
   const x = a.boxX(0, textW);
-  p.rect(x, top, textW, h, { stroke: COLORS.line, lineWidth: METRICS.border });
+  p.rect(x, top, textW, h, { stroke: p.colors.line, lineWidth: METRICS.border });
 
   const pad = 9;
   const lines = p.wrap(entry.workDescription, textW - pad * 2, { size: TYPE.note });
@@ -453,7 +465,7 @@ function descriptionBlock(p: Painter, entry: DiaryEntry, t: Strings, top: number
   for (let i = 0; i < METRICS.descriptionLines; i += 1) {
     const lineY = y + METRICS.descriptionLine - 3.5;
     p.line(x + pad, lineY, x + textW - pad, lineY, {
-      color: COLORS.lineSoft,
+      color: p.colors.lineSoft,
       width: METRICS.hairline,
     });
     if (lines[i]) p.textStart(lines[i], textStart, y + 1.5, { size: TYPE.note });
@@ -480,12 +492,12 @@ function footerBlock(
   const h = METRICS.signatureBox * 2 + gap;
 
   const notesX = a.boxX(0, notesW);
-  p.rect(notesX, top, notesW, h, { stroke: COLORS.line, lineWidth: METRICS.border });
-  p.rect(notesX, top, notesW, 16, { fill: COLORS.tintHead });
+  p.rect(notesX, top, notesW, h, { stroke: p.colors.line, lineWidth: METRICS.border });
+  p.rect(notesX, top, notesW, 16, { fill: p.colors.tintHead });
   p.textStartBox(t.labelSupervisorNotes, a.dir === 'rtl' ? notesX + notesW : notesX, top, 16, {
     size: TYPE.group,
     bold: true,
-    color: COLORS.navy,
+    color: p.colors.navy,
     pad: 9,
   });
 
@@ -496,7 +508,7 @@ function footerBlock(
   for (let i = 0; i < METRICS.supervisorLines; i += 1) {
     const lineY = y + 12.5;
     p.line(notesX + pad, lineY, notesX + notesW - pad, lineY, {
-      color: COLORS.lineSoft,
+      color: p.colors.lineSoft,
       width: METRICS.hairline,
     });
     if (noteLines[i]) p.textStart(noteLines[i], textStart, y + 1, { size: TYPE.note });
@@ -511,13 +523,13 @@ function footerBlock(
   let by = top;
   for (const [label, image] of boxes) {
     p.rect(signX, by, signW, METRICS.signatureBox, {
-      stroke: COLORS.line,
+      stroke: p.colors.line,
       lineWidth: METRICS.border,
     });
     p.textStart(label, a.dir === 'rtl' ? signX + signW - 9 : signX + 9, by + 6, {
       size: TYPE.label,
       bold: true,
-      color: COLORS.navy,
+      color: p.colors.navy,
     });
     if (image) {
       const maxW = signW - 30;
@@ -529,7 +541,7 @@ function footerBlock(
     } else {
       const lineY = by + METRICS.signatureBox - 12;
       p.line(signX + 16, lineY, signX + signW - 16, lineY, {
-        color: COLORS.lineSoft,
+        color: p.colors.lineSoft,
         width: METRICS.hairline,
       });
     }

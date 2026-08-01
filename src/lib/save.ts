@@ -150,3 +150,14 @@ export async function saveBinary(
 ): Promise<void> {
   await saveBlob(new Blob([bytes as BlobPart], { type: mime }), name);
 }
+
+/**
+ * True where `window.print()` does nothing.
+ *
+ * A web view has no print dialog, so on the iPhone and iPad app the print
+ * button has to produce the PDF and hand it to the iOS share sheet — Print
+ * lives there, alongside Save to Files.
+ */
+export function needsShareToPrint(): boolean {
+  return isNativeApp() || (isIos() && !!navigator.canShare);
+}

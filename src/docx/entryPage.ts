@@ -125,14 +125,23 @@ function gridCell(
     span?: number;
     fill?: string;
     color?: string;
+    /** Heavier rule where one column group ends and the next begins. */
+    groupEdge?: boolean;
   } = {},
 ): TableCell {
+  // The boundary is drawn on the edge the group starts at, which flips with
+  // the writing direction.
+  const edge = opts.groupEdge
+    ? isRtl()
+      ? { right: THICK }
+      : { left: THICK }
+    : {};
   return new TableCell({
     width: { size: width, type: WidthType.DXA },
     columnSpan: opts.span,
     verticalAlign: VerticalAlign.CENTER,
     margins: { top: 30, bottom: 30, left: 60, right: 60 },
-    borders: boxBorders(THIN),
+    borders: { ...boxBorders(THIN), ...edge },
     shading: opts.fill
       ? { type: ShadingType.CLEAR, fill: opts.fill, color: 'auto' }
       : undefined,
@@ -167,6 +176,7 @@ function crewTable(entry: DiaryEntry, t: Strings): Table {
         span: 2,
         fill: FILL.tintGroup,
         color: INK.navy,
+        groupEdge: true,
       }),
       gridCell(t.labelEquipment, wKind + wQty + wHours, {
         bold: true,
@@ -174,6 +184,7 @@ function crewTable(entry: DiaryEntry, t: Strings): Table {
         span: 3,
         fill: FILL.tintGroup,
         color: INK.navy,
+        groupEdge: true,
       }),
     ],
   });
@@ -184,10 +195,10 @@ function crewTable(entry: DiaryEntry, t: Strings): Table {
     children: [
       gridCell(t.labelName, wName, { bold: true, size: SIZE.columnHeader, fill: FILL.tintHead, color: INK.navy }),
       gridCell(t.labelRole, wRole, { bold: true, size: SIZE.columnHeader, fill: FILL.tintHead, color: INK.navy }),
-      gridCell(t.labelTrade, wTrade, { bold: true, size: SIZE.columnHeader, fill: FILL.tintHead, color: INK.navy }),
+      gridCell(t.labelTrade, wTrade, { bold: true, size: SIZE.columnHeader, fill: FILL.tintHead, color: INK.navy, groupEdge: true }),
       // Narrow column; the paper form prints this label in two small lines.
       gridCell(t.labelWorkers, wWorkers, { bold: true, size: SIZE.tiny, fill: FILL.tintHead, color: INK.navy }),
-      gridCell(t.labelKind, wKind, { bold: true, size: SIZE.columnHeader, fill: FILL.tintHead, color: INK.navy }),
+      gridCell(t.labelKind, wKind, { bold: true, size: SIZE.columnHeader, fill: FILL.tintHead, color: INK.navy, groupEdge: true }),
       gridCell(t.labelQty, wQty, { bold: true, size: SIZE.columnHeader, fill: FILL.tintHead, color: INK.navy }),
       gridCell(t.labelHours, wHours, { bold: true, size: SIZE.columnHeader, fill: FILL.tintHead, color: INK.navy }),
     ],
@@ -211,9 +222,9 @@ function crewTable(entry: DiaryEntry, t: Strings): Table {
       children: [
         gridCell(staff?.name ?? '', wName, { fill: stripe }),
         gridCell(staff?.role ?? '', wRole, { fill: stripe }),
-        gridCell(contractor?.trade ?? '', wTrade, { fill: stripe }),
+        gridCell(contractor?.trade ?? '', wTrade, { fill: stripe, groupEdge: true }),
         gridCell(contractor?.workers ?? '', wWorkers, { fill: stripe }),
-        gridCell(equipment?.kind ?? '', wKind, { fill: stripe }),
+        gridCell(equipment?.kind ?? '', wKind, { fill: stripe, groupEdge: true }),
         gridCell(equipment?.qty ?? '', wQty, { fill: stripe }),
         gridCell(equipment?.hours ?? '', wHours, { fill: stripe }),
       ],

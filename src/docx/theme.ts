@@ -6,6 +6,7 @@
  * page line up with the original A4 form.
  */
 import type { Direction } from '../i18n/strings';
+import type { DocTheme } from '../docTheme';
 import {
   AlignmentType,
   BorderStyle,
@@ -40,7 +41,13 @@ export const SIZE = {
   note: 18,
 } as const;
 
-/** Brand palette, matching src/pdf/theme.ts. Word wants hex without the hash. */
+/**
+ * Brand palette, matching src/pdf/theme.ts. Word wants hex without the hash.
+ *
+ * Mutable, and set by `setDocPalette` at the top of a build alongside the
+ * direction — the properties are updated in place so every importer sees the
+ * change regardless of how it imported them.
+ */
 export const FILL = {
   navy: '0F2D4A',
   amber: 'D97706',
@@ -48,14 +55,25 @@ export const FILL = {
   tintHead: 'EFF3F8',
   panel: 'F7F9FB',
   row: 'FAFBFD',
-} as const;
+};
 
 export const INK = {
   white: 'FFFFFF',
   navy: '0F2D4A',
   navySoft: '1C4870',
   muted: '5B6675',
-} as const;
+};
+
+export function setDocPalette(theme: DocTheme): void {
+  FILL.navy = theme.band;
+  FILL.amber = theme.accent;
+  FILL.tintGroup = theme.tintGroup;
+  FILL.tintHead = theme.tintHead;
+  FILL.panel = theme.panel;
+  FILL.row = theme.row;
+  INK.navy = theme.band;
+  INK.navySoft = theme.band;
+}
 
 /** Border weights are eighths of a point: 6 = 0.75pt, 12 = 1.5pt. */
 export const THIN: IBorderOptions = {

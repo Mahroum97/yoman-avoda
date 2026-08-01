@@ -20,6 +20,7 @@ import {
 import type { DiaryEntry, Project } from '../types';
 import type { Strings } from '../i18n/strings';
 import { currentStrings } from '../i18n/useLanguage';
+import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
 import { formatDdMmYyyy } from '../lib/dates';
 import { blobToUint8 } from '../lib/images';
 import { CELL_MARGIN, bar, labelledLine } from './blocks';
@@ -39,6 +40,7 @@ import {
   hePara,
   isRtl,
   setDocDirection,
+  setDocPalette,
 } from './theme';
 
 const pageProperties: ISectionOptions['properties'] = {
@@ -85,6 +87,8 @@ export interface EntryDocOptions {
   includePhotos?: boolean;
   /** Report language. Defaults to whatever the app is set to. */
   strings?: Strings;
+  /** Which of the document colour themes to print in. */
+  themeId?: string;
 }
 
 /** A single diary page, plus its photo appendix. */
@@ -95,6 +99,7 @@ export async function buildEntryDoc(
 ): Promise<Document> {
   const t = options.strings ?? currentStrings();
   setDocDirection(t.dir);
+  setDocPalette(docTheme(options.themeId ?? DEFAULT_DOC_THEME));
   const includePhotos = options.includePhotos ?? true;
   const images = includePhotos ? await loadPhotos([entry]) : new Map();
   const sections: ISectionOptions[] = [
@@ -243,6 +248,7 @@ export interface RangeDocOptions {
   includePhotos?: boolean;
   includeSummary?: boolean;
   strings?: Strings;
+  themeId?: string;
 }
 
 /** Cover + summaries + one page per diary day over the selected period. */
@@ -255,6 +261,7 @@ export async function buildRangeDoc(
 ): Promise<Document> {
   const t = options.strings ?? currentStrings();
   setDocDirection(t.dir);
+  setDocPalette(docTheme(options.themeId ?? DEFAULT_DOC_THEME));
   const includePhotos = options.includePhotos ?? false;
   const includeSummary = options.includeSummary ?? true;
   const images = includePhotos ? await loadPhotos(entries) : new Map();

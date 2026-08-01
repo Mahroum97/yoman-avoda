@@ -9,7 +9,7 @@
  *    is what guarantees that is never forgotten.
  */
 import type { PDFFont, PDFImage, PDFPage, RGB } from 'pdf-lib';
-import { COLORS, PAGE, TYPE } from './theme';
+import { COLORS, PAGE, TYPE, type Palette } from './theme';
 import type { Direction } from '../i18n/strings';
 import { pdfText, wrapByWidth } from './bidi';
 
@@ -38,11 +38,19 @@ export class Painter {
   private readonly page: PDFPage;
   private readonly fonts: Fonts;
   readonly dir: Direction;
+  /** The document palette; every drawing helper reads its colours from here. */
+  readonly colors: Palette;
 
-  constructor(page: PDFPage, fonts: Fonts, dir: Direction = 'rtl') {
+  constructor(
+    page: PDFPage,
+    fonts: Fonts,
+    dir: Direction = 'rtl',
+    colors: Palette = COLORS,
+  ) {
     this.page = page;
     this.fonts = fonts;
     this.dir = dir;
+    this.colors = colors;
   }
 
   /** Aligns to the edge the language starts at. */
@@ -90,7 +98,7 @@ export class Painter {
       y: PAGE.height - top - size,
       size,
       font: this.font(text, options.bold),
-      color: options.color ?? COLORS.ink,
+      color: options.color ?? this.colors.ink,
     });
   }
 
@@ -158,7 +166,7 @@ export class Painter {
       start: { x: x1, y: PAGE.height - top1 },
       end: { x: x2, y: PAGE.height - top2 },
       thickness: options.width ?? 0.6,
-      color: options.color ?? COLORS.line,
+      color: options.color ?? this.colors.line,
     });
   }
 

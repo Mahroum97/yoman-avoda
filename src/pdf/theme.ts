@@ -5,8 +5,9 @@
  * The column proportions are the same as the Word builder's CREW_COLUMNS, so
  * the two documents lay out identically.
  */
-import { rgb } from 'pdf-lib';
+import { rgb, type RGB } from 'pdf-lib';
 import type { Direction } from '../i18n/strings';
+import { DEFAULT_DOC_THEME, docTheme, rgbOf, type DocTheme } from '../docTheme';
 
 export const PAGE = {
   width: 595.28, // A4
@@ -22,20 +23,52 @@ const CREW_TOTAL = CREW_RATIOS.reduce((a, b) => a + b, 0);
 
 export const CREW_COLUMNS = CREW_RATIOS.map((r) => (r / CREW_TOTAL) * CONTENT_W);
 
-export const COLORS = {
-  navy: rgb(0.059, 0.176, 0.29), // #0F2D4A
-  navySoft: rgb(0.11, 0.28, 0.44),
-  amber: rgb(0.851, 0.467, 0.024), // #D97706
+/** Greys and rules are shared by every palette; only the brand tints change. */
+const NEUTRAL = {
   ink: rgb(0.063, 0.078, 0.094),
   muted: rgb(0.357, 0.4, 0.459),
   line: rgb(0.788, 0.824, 0.871), // #C9D2DE
   lineSoft: rgb(0.882, 0.906, 0.937),
-  tintGroup: rgb(0.863, 0.894, 0.933), // table group header
-  tintHead: rgb(0.937, 0.953, 0.973), // column header + section bars
-  tintRow: rgb(0.98, 0.984, 0.992), // zebra stripe
-  panel: rgb(0.969, 0.976, 0.984), // info panels
   white: rgb(1, 1, 1),
 } as const;
+
+export type Palette = typeof NEUTRAL & {
+  navy: RGB;
+  navySoft: RGB;
+  amber: RGB;
+  tintGroup: RGB;
+  tintHead: RGB;
+  tintRow: RGB;
+  panel: RGB;
+};
+
+const toRgb = (hex: string): RGB => {
+  const { r, g, b } = rgbOf(hex);
+  return rgb(r, g, b);
+};
+
+/** Builds the drawing palette for a chosen document theme. */
+export function paletteFor(theme: DocTheme): Palette {
+  const band = rgbOf(theme.band);
+  return {
+    ...NEUTRAL,
+    navy: toRgb(theme.band),
+    // A lightened band colour, for the small labels inside the info panels.
+    navySoft: rgb(
+      Math.min(1, band.r + 0.08),
+      Math.min(1, band.g + 0.1),
+      Math.min(1, band.b + 0.14),
+    ),
+    amber: toRgb(theme.accent),
+    tintGroup: toRgb(theme.tintGroup),
+    tintHead: toRgb(theme.tintHead),
+    tintRow: toRgb(theme.row),
+    panel: toRgb(theme.panel),
+  };
+}
+
+/** The default palette, used where no theme has been threaded through yet. */
+export const COLORS: Palette = paletteFor(docTheme(DEFAULT_DOC_THEME));
 
 /** Type scale, in points. */
 export const TYPE = {

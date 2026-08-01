@@ -266,6 +266,11 @@ export interface Strings {
   aboutBody: string;
   installTip: string;
 
+  /* document look */
+  docThemeTitle: string;
+  docThemeHint: string;
+  docThemeNames: Record<'navy' | 'graphite' | 'sky' | 'olive' | 'amber', string>;
+
   /* sync */
   syncTitle: string;
   syncHostHint: string;
@@ -552,6 +557,16 @@ const he: Strings = {
   aboutBody:
     'יומן עבודה לעבודות בנייה — מבוסס על טופס היומן המודפס. הנתונים נשמרים במכשיר, האפליקציה פועלת גם ללא אינטרנט, והדוחות נוצרים מקומית.',
   installTip: 'טיפ: אפשר להתקין את האפליקציה למסך הבית מתפריט הדפדפן ← "הוסף למסך הבית".',
+
+  docThemeTitle: 'עיצוב המסמך',
+  docThemeHint: 'הצבעים של הדוחות שמופקים — PDF, Word והתצוגה המקדימה.',
+  docThemeNames: {
+    navy: 'כחול ניווט',
+    graphite: 'אפור גרפיט',
+    sky: 'תכלת',
+    olive: 'ירוק זית',
+    amber: 'ענבר',
+  },
 
   syncTitle: 'סנכרון בין המכשירים',
   syncHostHint:
@@ -852,6 +867,16 @@ const ar: Strings = {
   aboutBody:
     'سجل عمل لأعمال البناء — مبني على نموذج السجل المطبوع. تُحفظ البيانات على الجهاز، ويعمل التطبيق بدون إنترنت، وتُنشأ التقارير محليًا.',
   installTip: 'نصيحة: يمكن تثبيت التطبيق على الشاشة الرئيسية من قائمة المتصفح ← "إضافة إلى الشاشة الرئيسية".',
+
+  docThemeTitle: 'تصميم المستند',
+  docThemeHint: 'ألوان التقارير التي تُنشأ — PDF وWord والمعاينة.',
+  docThemeNames: {
+    navy: 'أزرق داكن',
+    graphite: 'رمادي جرافيت',
+    sky: 'سماوي',
+    olive: 'أخضر زيتوني',
+    amber: 'كهرماني',
+  },
 
   syncTitle: 'المزامنة بين الأجهزة',
   syncHostHint:
@@ -1154,6 +1179,16 @@ const en: Strings = {
   aboutBody:
     'A construction site work diary based on the printed form. Data stays on the device, the app works offline, and reports are generated locally.',
   installTip: 'Tip: install the app to your home screen from the browser menu → "Add to Home Screen".',
+
+  docThemeTitle: 'Document design',
+  docThemeHint: 'The colours of the reports you produce — PDF, Word and the preview.',
+  docThemeNames: {
+    navy: 'Navy',
+    graphite: 'Graphite',
+    sky: 'Sky',
+    olive: 'Olive',
+    amber: 'Amber',
+  },
 
   syncTitle: 'Sync between devices',
   syncHostHint:

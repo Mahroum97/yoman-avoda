@@ -3,6 +3,7 @@ import { Packer } from 'docx';
 import type { DiaryEntry, Project } from '../types';
 import { saveBlob } from '../lib/save';
 import { currentStrings } from '../i18n/useLanguage';
+import { currentDocThemeId } from '../hooks/useDocTheme';
 import {
   buildEntryDoc,
   buildRangeDoc,
@@ -18,7 +19,8 @@ export async function exportEntry(
   options?: EntryDocOptions,
 ): Promise<string> {
   const t = options?.strings ?? currentStrings();
-  const doc = await buildEntryDoc(entry, project, { ...options, strings: t });
+  const themeId = options?.themeId ?? (await currentDocThemeId());
+  const doc = await buildEntryDoc(entry, project, { ...options, strings: t, themeId });
   const blob = await Packer.toBlob(doc);
   const name = `${entryFileName(entry, project, t)}.docx`;
   await saveBlob(blob, name);
@@ -33,7 +35,12 @@ export async function exportRange(
   options?: RangeDocOptions,
 ): Promise<string> {
   const t = options?.strings ?? currentStrings();
-  const doc = await buildRangeDoc(entries, project, from, to, { ...options, strings: t });
+  const themeId = options?.themeId ?? (await currentDocThemeId());
+  const doc = await buildRangeDoc(entries, project, from, to, {
+    ...options,
+    strings: t,
+    themeId,
+  });
   const blob = await Packer.toBlob(doc);
   const name = `${rangeFileName(project, from, to, t)}.docx`;
   await saveBlob(blob, name);

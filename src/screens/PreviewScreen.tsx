@@ -11,6 +11,8 @@ import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
 import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
+import { needsShareToPrint } from '../lib/save';
+import { useDocThemeId } from '../hooks/useDocTheme';
 
 export function PreviewScreen({
   entryId,
@@ -21,6 +23,7 @@ export function PreviewScreen({
 }) {
   const entry = useEntry(entryId);
   const logoDataUrl = useCompanyLogo();
+  const themeId = useDocThemeId();
   const toast = useToast();
   const { t } = useLanguage();
   const [busy, setBusy] = useState<'pdf' | 'word' | null>(null);
@@ -35,6 +38,26 @@ export function PreviewScreen({
       const { exportEntryPdf } = await import('../pdf/export');
       const name = await exportEntryPdf(entry, project, { logoDataUrl });
       toast.show(t.fileCreated(name));
+    } catch {
+      toast.error(t.pdfFailed);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /**
+   * On a phone the print dialog does not exist, so printing means producing the
+   * PDF and opening the share sheet, where the Print action lives.
+   */
+  const print = async () => {
+    if (!needsShareToPrint()) {
+      window.print();
+      return;
+    }
+    setBusy('pdf');
+    try {
+      const { exportEntryPdf } = await import('../pdf/export');
+      await exportEntryPdf(entry, project, { logoDataUrl });
     } catch {
       toast.error(t.pdfFailed);
     } finally {
@@ -81,7 +104,12 @@ export function PreviewScreen({
         >
           {busy === 'word' ? t.exporting : t.exportWord}
         </button>
-        <button type="button" className="btn btn--sm" onClick={() => window.print()}>
+        <button
+          type="button"
+          className="btn btn--sm"
+          disabled={busy !== null}
+          onClick={() => void print()}
+        >
           🖨 {t.print}
         </button>
       </div>
@@ -92,12 +120,14 @@ export function PreviewScreen({
           project={project}
           companyLogo={logoDataUrl}
           pages={pages}
+          themeId={themeId}
         />
         <PhotoSheet
           entry={entry}
           project={project}
           companyLogo={logoDataUrl}
           pages={pages}
+          themeId={themeId}
         />
       </SheetScaler>
     </div>
