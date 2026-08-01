@@ -266,6 +266,28 @@ export interface Strings {
   aboutBody: string;
   installTip: string;
 
+  /* sync */
+  syncTitle: string;
+  syncHostHint: string;
+  syncHostOffline: string;
+  syncStartHost: string;
+  syncClientHint: string;
+  syncAddress: string;
+  syncAddressHint: string;
+  syncCode: string;
+  syncNewCode: string;
+  syncConnect: string;
+  syncNow: string;
+  syncWorking: string;
+  syncForget: string;
+  syncForgotten: string;
+  syncNeedDetails: string;
+  syncNotFound: string;
+  syncBadCode: string;
+  syncFailed: string;
+  syncDone: (received: number, sent: number) => string;
+  syncLastAt: (when: string) => string;
+
   /* documents */
   docWorkDiary: string;
   docCombinedReport: string;
@@ -530,6 +552,29 @@ const he: Strings = {
   aboutBody:
     'יומן עבודה לעבודות בנייה — מבוסס על טופס היומן המודפס. הנתונים נשמרים במכשיר, האפליקציה פועלת גם ללא אינטרנט, והדוחות נוצרים מקומית.',
   installTip: 'טיפ: אפשר להתקין את האפליקציה למסך הבית מתפריט הדפדפן ← "הוסף למסך הבית".',
+
+  syncTitle: 'סנכרון בין המכשירים',
+  syncHostHint:
+    'המחשב הזה משמש כמרכז. בטלפון, בהגדרות ← סנכרון, מזינים את הכתובת והקוד שלמטה — פעם אחת בלבד.',
+  syncHostOffline: 'שרת הסנכרון כבוי.',
+  syncStartHost: 'הפעל סנכרון',
+  syncClientHint:
+    'פותחים את אפליקציית המק, נכנסים להגדרות ← סנכרון, ומעתיקים מכאן את הכתובת והקוד. שני המכשירים צריכים להיות על אותה רשת Wi-Fi.',
+  syncAddress: 'כתובת המחשב',
+  syncAddressHint: 'מופיעה באפליקציית המק, בהגדרות ← סנכרון',
+  syncCode: 'קוד',
+  syncNewCode: 'צור קוד חדש',
+  syncConnect: 'התחבר וסנכרן',
+  syncNow: 'סנכרן עכשיו',
+  syncWorking: 'מסנכרן…',
+  syncForget: 'נתק',
+  syncForgotten: 'החיבור נותק',
+  syncNeedDetails: 'צריך כתובת וקוד',
+  syncNotFound: 'לא נמצא מחשב בכתובת הזו. ודא ששני המכשירים על אותה רשת ושאפליקציית המק פתוחה.',
+  syncBadCode: 'הקוד שגוי',
+  syncFailed: 'הסנכרון נכשל',
+  syncDone: (received, sent) => `הסנכרון הושלם · התקבלו ${received}, נשלחו ${sent}`,
+  syncLastAt: (when) => `סנכרון אחרון: ${when}`,
 
   docWorkDiary: 'יומן עבודה',
   docCombinedReport: 'דוח מרוכז',
@@ -807,6 +852,29 @@ const ar: Strings = {
   aboutBody:
     'سجل عمل لأعمال البناء — مبني على نموذج السجل المطبوع. تُحفظ البيانات على الجهاز، ويعمل التطبيق بدون إنترنت، وتُنشأ التقارير محليًا.',
   installTip: 'نصيحة: يمكن تثبيت التطبيق على الشاشة الرئيسية من قائمة المتصفح ← "إضافة إلى الشاشة الرئيسية".',
+
+  syncTitle: 'المزامنة بين الأجهزة',
+  syncHostHint:
+    'هذا الحاسوب هو المركز. في الهاتف، الإعدادات ← المزامنة، أدخل العنوان والرمز أدناه — مرة واحدة فقط.',
+  syncHostOffline: 'خادم المزامنة متوقف.',
+  syncStartHost: 'تشغيل المزامنة',
+  syncClientHint:
+    'افتح تطبيق الماك، ادخل إلى الإعدادات ← المزامنة، وانسخ العنوان والرمز من هناك. يجب أن يكون الجهازان على نفس شبكة Wi-Fi.',
+  syncAddress: 'عنوان الحاسوب',
+  syncAddressHint: 'يظهر في تطبيق الماك، الإعدادات ← المزامنة',
+  syncCode: 'الرمز',
+  syncNewCode: 'إنشاء رمز جديد',
+  syncConnect: 'اتصال ومزامنة',
+  syncNow: 'زامن الآن',
+  syncWorking: 'جارٍ المزامنة…',
+  syncForget: 'قطع الاتصال',
+  syncForgotten: 'تم قطع الاتصال',
+  syncNeedDetails: 'مطلوب عنوان ورمز',
+  syncNotFound: 'لم يتم العثور على حاسوب بهذا العنوان. تأكد أن الجهازين على نفس الشبكة وأن تطبيق الماك مفتوح.',
+  syncBadCode: 'الرمز غير صحيح',
+  syncFailed: 'فشلت المزامنة',
+  syncDone: (received, sent) => `اكتملت المزامنة · وردت ${received}، أُرسلت ${sent}`,
+  syncLastAt: (when) => `آخر مزامنة: ${when}`,
 
   docWorkDiary: 'سجل العمل',
   docCombinedReport: 'تقرير مجمّع',
@@ -1086,6 +1154,29 @@ const en: Strings = {
   aboutBody:
     'A construction site work diary based on the printed form. Data stays on the device, the app works offline, and reports are generated locally.',
   installTip: 'Tip: install the app to your home screen from the browser menu → "Add to Home Screen".',
+
+  syncTitle: 'Sync between devices',
+  syncHostHint:
+    'This Mac is the hub. On the phone, open Settings → Sync and enter the address and code below — once.',
+  syncHostOffline: 'The sync server is not running.',
+  syncStartHost: 'Start sync',
+  syncClientHint:
+    'Open the Mac app, go to Settings → Sync, and copy the address and code from there. Both devices must be on the same Wi-Fi.',
+  syncAddress: 'Computer address',
+  syncAddressHint: 'Shown in the Mac app under Settings → Sync',
+  syncCode: 'Code',
+  syncNewCode: 'New code',
+  syncConnect: 'Connect and sync',
+  syncNow: 'Sync now',
+  syncWorking: 'Syncing…',
+  syncForget: 'Disconnect',
+  syncForgotten: 'Disconnected',
+  syncNeedDetails: 'An address and a code are needed',
+  syncNotFound: 'No computer found at that address. Check both devices are on the same network and the Mac app is open.',
+  syncBadCode: 'Wrong code',
+  syncFailed: 'Sync failed',
+  syncDone: (received, sent) => `Sync complete · ${received} in, ${sent} out`,
+  syncLastAt: (when) => `Last sync: ${when}`,
 
   docWorkDiary: 'WORK DIARY',
   docCombinedReport: 'COMBINED REPORT',

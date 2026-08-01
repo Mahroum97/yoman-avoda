@@ -10,6 +10,13 @@
  */
 import { saveAs } from 'file-saver';
 
+export interface SyncServerStatus {
+  running: boolean;
+  address: string | null;
+  code: string | null;
+  lastSyncAt: number | null;
+}
+
 export interface DesktopBridge {
   saveFile: (
     name: string,
@@ -17,6 +24,14 @@ export interface DesktopBridge {
   ) => Promise<{ saved: boolean; path?: string }>;
   platform: string;
   version: string;
+  /** Present only in the Mac app, which hosts local-network sync. */
+  sync?: {
+    status: () => Promise<SyncServerStatus>;
+    newCode: () => Promise<SyncServerStatus>;
+    start: () => Promise<SyncServerStatus>;
+    stop: () => Promise<SyncServerStatus>;
+    onRequest: (handler: (exchange: unknown) => Promise<unknown>) => void;
+  };
 }
 
 declare global {

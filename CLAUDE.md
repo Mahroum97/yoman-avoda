@@ -131,6 +131,37 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
 - The native shell skips the service worker (`main.tsx`): Capacitor already serves the
   built files locally, and a second cache in front of them only causes stale assets.
 
+## Local-network sync
+
+Two devices each hold a full copy of the diary; syncing is a **merge**, not a
+client talking to a server. `src/sync/` holds the whole thing:
+
+- `protocol.ts` — the wire types and `whatToRequest`. The exchange is two steps
+  on purpose: manifests first (uid + updatedAt, a few kB), then only the records
+  the other side actually lacks. Photos are why — sending whole entries to
+  discover they are identical would make syncing over Wi-Fi unusable.
+- `store.ts` — turns the local diary into wire records and merges them back.
+- `client.ts` — `syncNow` (the phone) and `answerExchange` (the Mac). Both sides
+  run the same merge code.
+
+Rules that are easy to get wrong, and are load-bearing:
+
+- **Numeric ids are local.** Dexie's auto-increment collides across devices, so
+  every project and entry carries a `uid`, and entries carry `projectUid` so an
+  incoming entry can be relinked to whatever local id the project has here.
+- **Deletions need tombstones.** Without them a record deleted on one device is
+  simply re-sent by the other and comes back. `applyPayload` consults *both*
+  sides' tombstones; a record whose incoming `updatedAt` is newer than the
+  tombstone does return, which is last-write-wins applied to deletes.
+- Conflicts are resolved by `updatedAt`, last write wins — correct for one
+  person with two devices, which is what this is for.
+
+The Mac hosts: `electron/sync-server.js` listens on port 45231 behind a
+six-digit code. It cannot read the diary itself (IndexedDB belongs to the
+renderer), so every request is forwarded to the window over IPC and the answer
+is matched back by id. iOS needs `NSLocalNetworkUsageDescription` and
+`NSAllowsLocalNetworking` in Info.plist, or the phone cannot reach it at all.
+
 ## Conventions
 
 - One hand-written stylesheet, `src/styles/global.css`, custom properties + BEM-ish names.

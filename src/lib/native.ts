@@ -5,6 +5,7 @@
  * website, the Mac app and the iPhone app.
  */
 import { isNativeApp } from './save';
+import { hostSync } from '../sync/client';
 
 /** Marks the document so CSS can tell an installed app from a browser tab. */
 function markStandalone(): void {
@@ -54,4 +55,6 @@ export function initNative(): void {
   markStandalone();
   void syncStatusBar();
   void requestPersistentStorage();
+  // The Mac app answers sync requests that arrive from the local network.
+  hostSync();
 }

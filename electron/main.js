@@ -9,6 +9,14 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
 import { writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { randomUUID } from 'node:crypto';
+import {
+  ANSWER_TIMEOUT_MS,
+  regenerateCode,
+  startSyncServer,
+  status as syncStatus,
+  stopSyncServer,
+} from './sync-server.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env.YOMAN_DEV_URL;
@@ -47,6 +55,47 @@ sandbox: false,
     return { action: 'deny' };
   });
 }
+
+/*
+ * Local-network sync. The server cannot read the diary itself — IndexedDB
+ * belongs to the renderer — so each request is forwarded to the window and the
+ * reply is matched back up by id.
+ */
+const pendingAnswers = new Map();
+
+function askRenderer(payload) {
+  return new Promise((resolve, reject) => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      reject(new Error('window is closed'));
+      return;
+    }
+    const id = randomUUID();
+    const timer = setTimeout(() => {
+      pendingAnswers.delete(id);
+      reject(new Error('the app did not answer in time'));
+    }, ANSWER_TIMEOUT_MS);
+
+    pendingAnswers.set(id, { resolve, reject, timer });
+    mainWindow.webContents.send('yoman:sync-request', id, payload);
+  });
+}
+
+ipcMain.on('yoman:sync-response', (_event, id, answer, error) => {
+  const pending = pendingAnswers.get(id);
+  if (!pending) return;
+  clearTimeout(pending.timer);
+  pendingAnswers.delete(id);
+  if (error) pending.reject(new Error(error));
+  else pending.resolve(answer);
+});
+
+ipcMain.handle('yoman:sync-status', () => syncStatus());
+ipcMain.handle('yoman:sync-new-code', () => regenerateCode());
+ipcMain.handle('yoman:sync-start', () => startSyncServer(askRenderer));
+ipcMain.handle('yoman:sync-stop', () => {
+  stopSyncServer();
+  return syncStatus();
+});
 
 /** Exports arrive here as bytes and go out through a real "save as" dialog. */
 ipcMain.handle('yoman:saveFile', async (_event, name, data) => {
@@ -115,6 +164,7 @@ function buildMenu() {
 app.whenReady().then(() => {
   buildMenu();
   createWindow();
+  startSyncServer(askRenderer);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -123,5 +173,6 @@ app.whenReady().then(() => {
 
 // The diary lives in this window's storage, so closing it ends the session.
 app.on('window-all-closed', () => {
+  stopSyncServer();
   if (process.platform !== 'darwin') app.quit();
 });

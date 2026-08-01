@@ -9,6 +9,11 @@
 /** פרויקט — a construction site. Every diary entry belongs to one. */
 export interface Project {
   id?: number;
+  /**
+   * Stable identity across devices. The numeric `id` is a local auto-increment
+   * key and collides between the phone and the Mac, so sync matches on this.
+   */
+  uid: string;
   /** שם הפרויקט */
   name: string;
   /** כתובת */
@@ -82,6 +87,10 @@ export type EntryStatus = 'draft' | 'signed';
 /** One day of the diary — one printed page of the form. */
 export interface DiaryEntry {
   id?: number;
+  /** Stable identity across devices — see Project.uid. */
+  uid: string;
+  /** The owning project's uid, so an entry can be matched before ids exist. */
+  projectUid: string;
   projectId: number;
   /** תאריך — ISO `yyyy-mm-dd`, the natural sort key */
   date: string;
@@ -129,6 +138,16 @@ export interface Preset {
 export interface EntryWithProject {
   entry: DiaryEntry;
   project: Project;
+}
+
+/**
+ * A record of something deleted, kept so the deletion can travel to the other
+ * device instead of the record simply reappearing on the next sync.
+ */
+export interface Tombstone {
+  uid: string;
+  table: 'projects' | 'entries';
+  deletedAt: number;
 }
 
 export const emptyCasting = (): CastingDetails => ({

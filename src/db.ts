@@ -9,8 +9,10 @@ import type {
   Preset,
   PresetKind,
   Project,
+  Tombstone,
 } from './types';
 import { emptyCasting } from './types';
+import { uid as newUid } from './lib/id';
 import { blobToDataUrl, dataUrlToBlob } from './lib/images';
 import { isoDate } from './lib/dates';
 
@@ -18,6 +20,8 @@ import { isoDate } from './lib/dates';
 export interface Setting {
   key: string;
   value: unknown;
+  /** Set for the few settings that sync between devices, e.g. the logo. */
+  updatedAt?: number;
 }
 
 class YomanDb extends Dexie {
@@ -25,6 +29,8 @@ class YomanDb extends Dexie {
   entries!: Table<DiaryEntry, number>;
   presets!: Table<Preset, number>;
   settings!: Table<Setting, string>;
+
+  tombstones!: Table<Tombstone, string>;
 
   constructor() {
     super('yoman-avoda');
@@ -35,6 +41,34 @@ class YomanDb extends Dexie {
       presets: '++id, kind, [kind+value], uses',
       settings: 'key',
     });
+
+    // v2 adds the identities sync needs: a uid per record that is stable across
+    // devices, and tombstones so a deletion travels instead of the record
+    // simply reappearing from the other device.
+    this.version(2)
+      .stores({
+        projects: '++id, &uid, name, archived, createdAt',
+        entries: '++id, &uid, projectUid, projectId, date, [projectId+date], status, updatedAt',
+        presets: '++id, kind, [kind+value], uses',
+        settings: 'key',
+        tombstones: '&uid, table, deletedAt',
+      })
+      .upgrade(async (tx) => {
+        const projects = await tx.table('projects').toArray();
+        const uidById = new Map<number, string>();
+        for (const project of projects) {
+          const uid = project.uid ?? newUid();
+          uidById.set(project.id, uid);
+          await tx.table('projects').update(project.id, { uid });
+        }
+        const entries = await tx.table('entries').toArray();
+        for (const entry of entries) {
+          await tx.table('entries').update(entry.id, {
+            uid: entry.uid ?? newUid(),
+            projectUid: entry.projectUid ?? uidById.get(entry.projectId) ?? '',
+          });
+        }
+      });
   }
 }
 
@@ -48,7 +82,7 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
 }
 
 export async function setSetting(key: string, value: unknown): Promise<void> {
-  await db.settings.put({ key, value });
+  await db.settings.put({ key, value, updatedAt: Date.now() });
 }
 
 export const ACTIVE_PROJECT_KEY = 'activeProjectId';
@@ -56,10 +90,11 @@ export const ACTIVE_PROJECT_KEY = 'activeProjectId';
 /* ------------------------------------------------------------------ projects */
 
 export async function createProject(
-  data: Omit<Project, 'id' | 'createdAt' | 'archived'>,
+  data: Omit<Project, 'id' | 'uid' | 'createdAt' | 'archived'>,
 ): Promise<number> {
   const id = await db.projects.add({
     ...data,
+    uid: newUid(),
     archived: false,
     createdAt: Date.now(),
   } as Project);
@@ -71,7 +106,15 @@ export async function createProject(
 
 /** Deletes a project and every diary page under it. */
 export async function deleteProject(id: number): Promise<void> {
-  await db.transaction('rw', db.projects, db.entries, db.settings, async () => {
+  await db.transaction('rw', db.projects, db.entries, db.settings, db.tombstones, async () => {
+    const project = await db.projects.get(id);
+    const entries = await db.entries.where('projectId').equals(id).toArray();
+    const now = Date.now();
+    // Record the deletions before removing them, so the other device follows.
+    await db.tombstones.bulkPut([
+      ...(project ? [{ uid: project.uid, table: 'projects' as const, deletedAt: now }] : []),
+      ...entries.map((entry) => ({ uid: entry.uid, table: 'entries' as const, deletedAt: now })),
+    ]);
     await db.entries.where('projectId').equals(id).delete();
     await db.projects.delete(id);
     const active = await getSetting<number | null>(ACTIVE_PROJECT_KEY, null);
@@ -84,9 +127,15 @@ export async function deleteProject(id: number): Promise<void> {
 
 /* ------------------------------------------------------------------- entries */
 
-export function blankEntry(projectId: number, date = isoDate()): DiaryEntry {
+export function blankEntry(
+  projectId: number,
+  date = isoDate(),
+  projectUid = '',
+): DiaryEntry {
   const now = Date.now();
   return {
+    uid: newUid(),
+    projectUid,
     projectId,
     date,
     weather: '',
@@ -119,6 +168,17 @@ export async function saveEntry(entry: DiaryEntry): Promise<number> {
   return id;
 }
 
+/** Deletes one diary page, recording it so the deletion syncs. */
+export async function deleteEntry(id: number): Promise<void> {
+  await db.transaction('rw', db.entries, db.tombstones, async () => {
+    const entry = await db.entries.get(id);
+    if (entry) {
+      await db.tombstones.put({ uid: entry.uid, table: 'entries', deletedAt: Date.now() });
+    }
+    await db.entries.delete(id);
+  });
+}
+
 export async function entriesInRange(
   projectId: number,
   from: string,
@@ -143,7 +203,7 @@ export async function duplicateForDate(
 ): Promise<DiaryEntry> {
   const existing = await findEntryByDate(source.projectId, date);
   if (existing) throw new Error(`קיים כבר יומן לתאריך ${date}`);
-  const fresh = blankEntry(source.projectId, date);
+  const fresh = blankEntry(source.projectId, date, source.projectUid);
   return {
     ...fresh,
     management: source.management.map((r) => ({ ...r })),
@@ -284,8 +344,22 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
         db.entries.clear(),
         db.presets.clear(),
       ]);
-      await db.projects.bulkAdd(parsed.projects);
-      await db.entries.bulkAdd(entries);
+      // Backups written before sync existed have no uids; mint them on the way
+      // in so a restored diary can still take part in syncing.
+      const uidByProjectId = new Map<number | undefined, string>();
+      const projects = parsed.projects.map((project) => {
+        const uid = project.uid ?? newUid();
+        uidByProjectId.set(project.id, uid);
+        return { ...project, uid };
+      });
+      await db.projects.bulkAdd(projects);
+      await db.entries.bulkAdd(
+        entries.map((entry) => ({
+          ...entry,
+          uid: entry.uid ?? newUid(),
+          projectUid: entry.projectUid || uidByProjectId.get(entry.projectId) || '',
+        })),
+      );
       await db.presets.bulkAdd(parsed.presets);
       const first = parsed.projects.find((p) => !p.archived) ?? parsed.projects[0];
       await setSetting(ACTIVE_PROJECT_KEY, first?.id ?? null);

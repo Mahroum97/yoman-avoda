@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiaryEntry, Project } from '../types';
-import { blankEntry, db, findEntryByDate, saveEntry } from '../db';
+import { blankEntry, db, deleteEntry, findEntryByDate, saveEntry } from '../db';
 import { formatDdMmYyyy, formatLongDate, isoDate } from '../lib/dates';
 import { usePresets } from '../hooks/useData';
 import { useCompanyLogo } from '../hooks/useBranding';
@@ -48,18 +48,16 @@ export function EntryEditor({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const loaded =
-        entryId === undefined
-          ? blankEntry(project.id!, initialDate ?? isoDate())
-          : await db.entries.get(entryId);
+      const fresh = () => blankEntry(project.id!, initialDate ?? isoDate(), project.uid);
+      const loaded = entryId === undefined ? fresh() : await db.entries.get(entryId);
       if (cancelled) return;
-      setEntry(loaded ?? blankEntry(project.id!, initialDate ?? isoDate()));
+      setEntry(loaded ?? fresh());
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [entryId, project.id, initialDate]);
+  }, [entryId, project.id, project.uid, initialDate]);
 
   latest.current = entry;
 
@@ -196,7 +194,7 @@ export function EntryEditor({
       return;
     }
     if (!window.confirm(t.confirmDeleteEntry(formatDdMmYyyy(entry.date)))) return;
-    await db.entries.delete(entry.id);
+    await deleteEntry(entry.id);
     toast.show(t.entryDeleted);
     navigate('/');
   };

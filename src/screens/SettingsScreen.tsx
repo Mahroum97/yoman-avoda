@@ -25,6 +25,7 @@ import { LANGUAGES, STRINGS } from '../i18n/strings';
 import { useTheme, type ThemePreference } from '../hooks/useTheme';
 import { clearCompanyLogo, saveCompanyLogo, useCompanyLogo } from '../hooks/useBranding';
 import { Card, Field } from '../components/ui';
+import { SyncCard } from '../components/SyncCard';
 
 
 
@@ -122,6 +123,8 @@ export function SettingsScreen() {
           ))}
         </div>
       </Card>
+
+      <SyncCard />
 
       <Card title={t.display} note={t.displayHint}>
         <div className="segmented">

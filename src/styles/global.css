@@ -608,6 +608,38 @@ button:focus-visible {
   color: var(--ink);
 }
 
+/* ---------------------------------------------------------------- sync */
+
+.sync-pair {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.sync-pair__label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.sync-pair__value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  /* An address is read out loud and typed on a phone: keep it unambiguous. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  user-select: all;
+}
+
+.sync-pair__value--code {
+  color: var(--accent);
+  letter-spacing: 0.14em;
+}
+
 /* --------------------------------------------------- segmented control */
 
 .segmented {

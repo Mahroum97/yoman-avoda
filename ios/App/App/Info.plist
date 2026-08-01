@@ -24,8 +24,15 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>כדי לצלם תמונות מהאתר ולצרף אותן ליומן העבודה</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>כדי לסנכרן את היומן עם המחשב שלך ברשת הביתית</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>כדי לשמור דוחות ותמונות מהיומן</string>
 	<key>NSPhotoLibraryUsageDescription</key>
