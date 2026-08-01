@@ -13,7 +13,15 @@ cd "$(dirname "$0")/.."
 
 export DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}
 BUNDLE_ID=com.mahroum.yoman
-DERIVED=tmp/ios-build
+
+# Build outside the project folder, on purpose.
+#
+# The Desktop is synced to iCloud Drive, and the file provider stamps every file
+# written there with com.apple.FinderInfo. codesign refuses to sign anything
+# carrying it ("resource fork, Finder information, or similar detritus not
+# allowed"), and clearing the attributes does not hold because they are re-added
+# as the build writes new files. ${TMPDIR} is not synced.
+DERIVED="${TMPDIR:-/tmp/}yoman-ios-build"
 
 step() { printf '\n▸ %s\n' "$1"; }
 
@@ -147,10 +155,9 @@ EOS
 fi
 echo "  צוות פיתוח: $TEAM_ID"
 
-# Files that have lived on the Desktop pick up Finder metadata, and codesign
-# refuses to sign anything carrying it ("resource fork ... not allowed").
+# The web assets are copied into the app bundle, so they must be clean too.
 step "מנקה תגיות Finder מהקבצים"
-xattr -cr ios tmp/ios-dev 2>/dev/null || true
+xattr -cr dist ios "$DERIVED" 2>/dev/null || true
 
 step "בונה את האפליקציה"
 xcodebuild \
