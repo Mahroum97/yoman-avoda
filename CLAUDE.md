@@ -27,7 +27,7 @@ npm run app:dev      # Electron against a running dev server
 npm run app:build    # packages release/*.dmg and release/mac-arm64/*.app
 npm run ios:sync     # build + copy the web assets into the iOS project
 npm run ios:run      # build, sign and install on *every* connected iPhone and iPad
-npm run deploy       # publish dist/ to the gh-pages branch (HTTPS, for iOS install)
+npm run deploy       # commit + push; GitHub Actions builds and publishes the site
 npm run push         # one build → the Mac, every connected device, and the web
 ```
 
@@ -52,6 +52,11 @@ copied into `/Applications`), every connected iPhone and iPad, and GitHub Pages.
 - **Sub-scripts honour `YOMAN_SKIP_BUILD=1`**, which is how one push avoids running four
   identical Vite builds (`ios-install.sh`, `deploy-pages.sh`, and `app:build` each build
   on their own when run directly).
+- **The web leg does not build anything.** `deploy-pages.sh` commits and pushes;
+  `.github/workflows/deploy.yml` builds the site on GitHub and deploys it to Pages from
+  the artifact, so the published site always comes from a committed state rather than
+  from whatever happened to be in `dist/`. Pages is configured with `build_type=workflow`,
+  so there is no `gh-pages` branch any more.
 - **`scripts/ios-devices.py` is the only place that enumerates devices**, and it lists
   *all* of them. Both `ios-install.sh` and `ios-check.sh` read it. Stopping at the first
   device — which both used to do — silently skips a working phone whenever an unready

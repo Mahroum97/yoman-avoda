@@ -109,14 +109,12 @@ elif ! git remote get-url origin >/dev/null 2>&1; then
   WEB_STATUS="דולג — עדיין אין מאגר ב-GitHub"
   cat <<'EOS'
   עוד לא יצרת מאגר ב-GitHub, אז אין לאן לפרסם.
-  זו פקודה אחת בטרמינל, ואחריה הפרסום יעבוד לבד בכל דחיפה:
+  זו פקודה אחת בטרמינל:
 
       cd "$HOME/Desktop/יומן עבודה" && gh repo create yoman-avoda --public --source=. --remote=origin --push
-
-  אחרי זה האייפד יוכל להתקין את היומן מהאינטרנט, בלי כבל.
 EOS
 elif bash scripts/deploy-pages.sh; then
-  WEB_STATUS="פורסם"
+  WEB_STATUS="נשלח ל-GitHub — האתר נבנה שם"
   PUSHED_ANY=1
 else
   WEB_STATUS="הפרסום נכשל"
