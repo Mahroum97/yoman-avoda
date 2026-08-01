@@ -45,8 +45,10 @@ for device in data.get("result", {}).get("devices", []):
     properties = device.get("deviceProperties", {})
     dev_mode = properties.get("developerModeStatus")
 
-    if dev_mode in (None, "disabled"):
+    if dev_mode == "disabled":
         state = "devmode"
+    elif dev_mode in (None, "unknown"):
+        state = "asleep" if connection.get("pairingState") == "paired" else "devmode"
     elif connection.get("pairingState") != "paired":
         state = "unpaired"
     else:
@@ -77,6 +79,16 @@ case "${DEVICE_STATE:-none}" in
 
    אם "מצב פיתוח" לא מופיע בכלל: משאירים את הטלפון מחובר בכבל,
    מריצים את הסקריפט פעם אחת, ואז הוא יופיע בהגדרות.
+
+EOS
+    exit 1
+    ;;
+  asleep)
+    cat >&2 <<'EOS'
+
+✖ הטלפון מחובר אבל ישן או נעול, ולכן המחשב לא מצליח לדבר איתו.
+
+   פתח את הטלפון (הזן קוד) והשאר אותו פתוח, ואז הרץ שוב.
 
 EOS
     exit 1

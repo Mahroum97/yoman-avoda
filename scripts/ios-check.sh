@@ -40,8 +40,14 @@ for device in data.get("result", {}).get("devices", []):
     mode = properties.get("developerModeStatus") or "unknown"
     paired = connection.get("pairingState") or "unknown"
     name = properties.get("name") or "iPhone"
-    state = "ready" if (mode == "enabled" and paired == "paired") else (
-        "devmode" if mode != "enabled" else "unpaired")
+    if mode == "enabled" and paired == "paired":
+        state = "ready"
+    elif mode == "disabled":
+        state = "devmode"
+    elif paired == "paired":
+        state = "asleep"
+    else:
+        state = "unpaired"
     print(f"{state}|{name}|{mode}|{paired}")
     break
 else:
@@ -61,6 +67,11 @@ case "$PHONE_STATE" in
   devmode)
     bad "האייפון מחובר ($PHONE_NAME) אבל מצב פיתוח כבוי — מצב: $PHONE_MODE"
     todo 'בטלפון: הגדרות ← פרטיות ואבטחה ← מצב פיתוח ← הדלק ← הפעל מחדש'
+    READY=0
+    ;;
+  asleep)
+    bad "האייפון מחובר ($PHONE_NAME) אבל ישן או נעול"
+    todo 'פתח את הטלפון (הזן קוד) והשאר אותו פתוח'
     READY=0
     ;;
   unpaired)
