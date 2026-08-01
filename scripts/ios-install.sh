@@ -135,6 +135,11 @@ EOS
 fi
 echo "  צוות פיתוח: $TEAM_ID"
 
+# Files that have lived on the Desktop pick up Finder metadata, and codesign
+# refuses to sign anything carrying it ("resource fork ... not allowed").
+step "מנקה תגיות Finder מהקבצים"
+xattr -cr ios tmp/ios-dev 2>/dev/null || true
+
 step "בונה את האפליקציה"
 xcodebuild \
   -project ios/App/App.xcodeproj \
@@ -148,7 +153,25 @@ xcodebuild \
   build
 
 APP_PATH=$(find "$DERIVED/Build/Products" -maxdepth 2 -name 'App.app' -print -quit)
-[ -n "$APP_PATH" ] || { echo "✖ הבנייה לא יצרה App.app" >&2; exit 1; }
+if [ -z "$APP_PATH" ]; then
+  cat >&2 <<'EOS'
+
+✖ הבנייה נכשלה.
+
+   אם ראית בשגיאות את המילה errSecInternalComponent — זו בקשת הרשאה של
+   ה-Keychain שלא הצליחה לקפוץ מהטרמינל. הפתרון הוא חד-פעמי:
+
+   1. פותחים את Xcode (הפרויקט כבר פתוח)
+   2. למעלה, ליד השם "App", בוחרים את האייפון שלך
+   3. לוחצים על כפתור ההפעלה ▶
+   4. כשקופץ חלון שמבקש סיסמה — זו סיסמת המחשב שלך —
+      מקלידים ולוחצים "Always Allow" (תמיד לאפשר)
+
+   מאותו רגע גם הסקריפט הזה יעבוד.
+
+EOS
+  exit 1
+fi
 
 step "מתקין על הטלפון"
 xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH"
