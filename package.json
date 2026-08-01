@@ -18,7 +18,8 @@
     "deploy": "bash scripts/deploy-pages.sh",
     "ios:sync": "npm run build && npx cap sync ios",
     "ios:open": "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer npx cap open ios",
-    "ios:run": "bash scripts/ios-install.sh"
+    "ios:run": "bash scripts/ios-install.sh",
+    "push": "bash scripts/push-all.sh"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.0",

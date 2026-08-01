@@ -10,6 +10,9 @@ tmp
 # generated samples and scratch
 *.local
 
+# marks the last push to the devices; local to this machine
+.push-stamp
+
 # native build artefacts (the iOS project itself is committed)
 ios/App/App/public
 ios/App/Pods

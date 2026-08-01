@@ -19,10 +19,26 @@ import {
 /** How long a tombstone is kept before it is assumed to have reached everyone. */
 const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
+/**
+ * A stamp list read from an index rather than from the records.
+ *
+ * `keys()` on a compound index yields `[uid, updatedAt]` pairs straight out of
+ * the index, so the record bodies — and with them every photo Blob — are never
+ * deserialised. This is the difference between a manifest costing kilobytes and
+ * costing the whole diary, and a manifest is built twice on every sync.
+ */
+async function stampsFrom(
+  table: typeof db.entries | typeof db.projects,
+  index: string,
+): Promise<{ uid: string; updatedAt: number }[]> {
+  const keys = (await table.orderBy(index).keys()) as unknown as [string, number][];
+  return keys.map(([uid, updatedAt]) => ({ uid, updatedAt }));
+}
+
 export async function buildManifest(deviceName: string): Promise<SyncManifest> {
   const [projects, entries, presets, tombstones, settings] = await Promise.all([
-    db.projects.toArray(),
-    db.entries.toArray(),
+    stampsFrom(db.projects, '[uid+createdAt]'),
+    stampsFrom(db.entries, '[uid+updatedAt]'),
     db.presets.toArray(),
     db.tombstones.toArray(),
     db.settings.toArray(),
@@ -31,8 +47,8 @@ export async function buildManifest(deviceName: string): Promise<SyncManifest> {
   return {
     version: SYNC_PROTOCOL_VERSION,
     deviceName,
-    projects: projects.map((p) => ({ uid: p.uid, updatedAt: p.createdAt })),
-    entries: entries.map((e) => ({ uid: e.uid, updatedAt: e.updatedAt })),
+    projects,
+    entries,
     presets: presets.map((p) => ({
       key: `${p.kind} ${p.value}`,
       uses: p.uses,
@@ -43,6 +59,44 @@ export async function buildManifest(deviceName: string): Promise<SyncManifest> {
       .filter((s) => (SYNCED_SETTINGS as readonly string[]).includes(s.key))
       .map((s) => ({ key: s.key, updatedAt: s.updatedAt ?? 0 })),
   };
+}
+
+/**
+ * Roughly how much JSON one request should carry.
+ *
+ * Photos travel as base64, so a handful of entries can be tens of megabytes.
+ * Sending the diary in one body meant building that whole string in memory on
+ * the phone, holding it again to send it, and the Mac holding it a third time
+ * to forward it over IPC — which is where a sync with real photos died. Chunks
+ * keep every step bounded no matter how large the diary grows.
+ */
+const CHUNK_BYTES = 4 * 1024 * 1024;
+const CHUNK_MAX_ENTRIES = 12;
+
+/**
+ * The next batch of entries to send, starting at `from`.
+ *
+ * At least one entry always goes into a batch even if it alone blows the
+ * budget, so a diary page with a lot of photos cannot stall the loop.
+ */
+export async function collectEntryChunk(
+  uids: string[],
+  from: number,
+): Promise<{ entries: WireEntry[]; next: number; bytes: number }> {
+  const entries: WireEntry[] = [];
+  let bytes = 0;
+  let index = from;
+
+  while (index < uids.length && entries.length < CHUNK_MAX_ENTRIES && bytes < CHUNK_BYTES) {
+    const record = await db.entries.where('uid').equals(uids[index]).first();
+    index += 1;
+    if (!record) continue;
+    const wire = await toWireEntry(record);
+    bytes += wire.photos.reduce((n, photo) => n + photo.dataUrl.length, 0) + 1024;
+    entries.push(wire);
+  }
+
+  return { entries, next: index, bytes };
 }
 
 /** Collects exactly the records the other side asked for. */
@@ -120,6 +174,11 @@ async function toWireEntry(entry: DiaryEntry): Promise<WireEntry> {
   };
 }
 
+/** Everything a payload carries apart from the entries, which travel chunked. */
+export async function collectMeta(request: SyncRequest): Promise<SyncPayload> {
+  return collectPayload({ ...request, entries: [] });
+}
+
 export interface ApplyResult {
   projects: number;
   entries: number;
@@ -134,6 +193,43 @@ export interface ApplyResult {
  * an incoming entry can always find its project's local id.
  */
 export async function applyPayload(payload: SyncPayload): Promise<ApplyResult> {
+  /*
+   * Photos are decoded before the transaction opens, not inside it.
+   *
+   * Two reasons, and both bite. A Dexie transaction commits as soon as it
+   * awaits anything that is not a Dexie promise, so decoding inside it would
+   * end the transaction underneath the writes that follow. And the merge used
+   * to run every read and write as its own transaction — hundreds of them for
+   * one sync — which was slower than the network it was waiting on.
+   */
+  const decoded = new Map<string, DiaryEntry['photos']>();
+  for (const wire of payload.entries) {
+    decoded.set(
+      wire.uid,
+      await Promise.all(
+        wire.photos.map(async (photo) => ({
+          id: photo.id || newUid(),
+          caption: photo.caption,
+          width: photo.width,
+          height: photo.height,
+          takenAt: photo.takenAt,
+          blob: await dataUrlToBlob(photo.dataUrl),
+        })),
+      ),
+    );
+  }
+
+  return db.transaction(
+    'rw',
+    [db.projects, db.entries, db.presets, db.settings, db.tombstones],
+    () => mergeInTransaction(payload, decoded),
+  );
+}
+
+async function mergeInTransaction(
+  payload: SyncPayload,
+  decoded: Map<string, DiaryEntry['photos']>,
+): Promise<ApplyResult> {
   const result: ApplyResult = { projects: 0, entries: 0, deleted: 0 };
 
   // --- deletions
@@ -227,16 +323,7 @@ export async function applyPayload(payload: SyncPayload): Promise<ApplyResult> {
       supervisorNotes: wire.supervisorNotes,
       supervisorSignature: wire.supervisorSignature,
       managerSignature: wire.managerSignature,
-      photos: await Promise.all(
-        wire.photos.map(async (photo) => ({
-          id: photo.id || newUid(),
-          caption: photo.caption,
-          width: photo.width,
-          height: photo.height,
-          takenAt: photo.takenAt,
-          blob: await dataUrlToBlob(photo.dataUrl),
-        })),
-      ),
+      photos: decoded.get(wire.uid) ?? [],
       status: wire.status,
       createdAt: wire.createdAt,
       updatedAt: wire.updatedAt,

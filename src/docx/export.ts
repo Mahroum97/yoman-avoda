@@ -4,6 +4,7 @@ import type { DiaryEntry, Project } from '../types';
 import { saveBlob } from '../lib/save';
 import { currentStrings } from '../i18n/useLanguage';
 import { currentDocThemeId } from '../hooks/useDocTheme';
+import { fileKind, logger } from '../lib/log';
 import {
   buildEntryDoc,
   buildRangeDoc,
@@ -13,6 +14,8 @@ import {
   type RangeDocOptions,
 } from './build';
 
+const log = logger('word');
+
 export async function exportEntry(
   entry: DiaryEntry,
   project: Project,
@@ -20,11 +23,28 @@ export async function exportEntry(
 ): Promise<string> {
   const t = options?.strings ?? currentStrings();
   const themeId = options?.themeId ?? (await currentDocThemeId());
-  const doc = await buildEntryDoc(entry, project, { ...options, strings: t, themeId });
-  const blob = await Packer.toBlob(doc);
-  const name = `${entryFileName(entry, project, t)}.docx`;
-  await saveBlob(blob, name);
-  return name;
+
+  const done = log.time('build entry docx');
+  log.debug('building entry docx', {
+    date: entry.date,
+    photos: entry.photos?.length ?? 0,
+    lang: t.locale,
+    theme: themeId,
+  });
+
+  try {
+    const doc = await buildEntryDoc(entry, project, { ...options, strings: t, themeId });
+    const blob = await Packer.toBlob(doc);
+    done();
+    const name = `${entryFileName(entry, project, t)}.docx`;
+    log.info('entry docx ready', { kind: fileKind(name), bytes: blob.size });
+    await saveBlob(blob, name);
+    return name;
+  } catch (error) {
+    done('failed');
+    log.error('entry docx failed', error);
+    throw error;
+  }
 }
 
 export async function exportRange(
@@ -36,13 +56,32 @@ export async function exportRange(
 ): Promise<string> {
   const t = options?.strings ?? currentStrings();
   const themeId = options?.themeId ?? (await currentDocThemeId());
-  const doc = await buildRangeDoc(entries, project, from, to, {
-    ...options,
-    strings: t,
-    themeId,
+
+  const done = log.time('build range docx');
+  log.debug('building range docx', {
+    days: entries.length,
+    photos: entries.reduce((n, e) => n + (e.photos?.length ?? 0), 0),
+    from,
+    to,
+    lang: t.locale,
+    theme: themeId,
   });
-  const blob = await Packer.toBlob(doc);
-  const name = `${rangeFileName(project, from, to, t)}.docx`;
-  await saveBlob(blob, name);
-  return name;
+
+  try {
+    const doc = await buildRangeDoc(entries, project, from, to, {
+      ...options,
+      strings: t,
+      themeId,
+    });
+    const blob = await Packer.toBlob(doc);
+    done();
+    const name = `${rangeFileName(project, from, to, t)}.docx`;
+    log.info('range docx ready', { kind: fileKind(name), bytes: blob.size });
+    await saveBlob(blob, name);
+    return name;
+  } catch (error) {
+    done('failed');
+    log.error('range docx failed', error);
+    throw error;
+  }
 }

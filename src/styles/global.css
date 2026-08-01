@@ -25,6 +25,9 @@
   --radius-sm: 8px;
   --shadow: 0 1px 2px rgb(16 20 24 / 8%), 0 8px 24px rgb(16 20 24 / 6%);
   --tap: 46px;
+  /* Height of the bottom tab bar, so anything floating above it can clear it.
+     Zeroed on wide screens, where the bar moves to the top of the page. */
+  --navh: 47px;
 
   --font: system-ui, -apple-system, 'SF Hebrew', 'Arial Hebrew', 'Segoe UI',
     Arial, sans-serif;
@@ -211,6 +214,10 @@ p {
 }
 
 @media (min-width: 860px) {
+  :root {
+    --navh: 0px;
+  }
+
   .nav {
     position: sticky;
     top: 0;
@@ -1430,4 +1437,420 @@ body {
   clip: rect(0 0 0 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ------------------------------------------------------------ activity log */
+
+/*
+ * The log is machine output, so it is monospaced and left-to-right even in the
+ * Hebrew and Arabic interfaces: timestamps, scopes and English messages read
+ * backwards under `direction: rtl`, and this is the one place in the app where
+ * the text is not the user's own.
+ */
+.log-list {
+  direction: ltr;
+  margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  list-style: none;
+}
+
+.log-row {
+  display: flex;
+  gap: 8px;
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--line);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.log-row:last-child {
+  border-bottom: 0;
+}
+
+.log-row__time {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.log-row__scope {
+  flex: none;
+  min-width: 4.5em;
+  color: var(--muted);
+}
+
+.log-row__message {
+  overflow-wrap: anywhere;
+}
+
+.log-row--warn {
+  background: var(--accent-soft);
+}
+
+.log-row--error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.log-row--debug .log-row__message {
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------- saved signatures */
+
+.sig-slot {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.sig-slot__label {
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+/*
+ * The saved signature is stored with its paper made transparent, so it needs a
+ * white bed to be read against — the same white it will be printed on.
+ */
+.sig-slot__preview {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: 90px;
+  margin-bottom: 10px;
+  padding: 6px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.sig-slot__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 90px;
+  max-width: 320px;
+  margin-bottom: 10px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.btn--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------- date fields */
+
+/*
+ * iOS draws `input[type=date]` itself and lays its own text out right-to-left
+ * inside an RTL page, which is how "1 Aug 2026" ended up reading backwards and
+ * hugging the wrong edge. Forcing the control to LTR puts the parts back in the
+ * order the picker itself uses, and the explicit height stops the native
+ * control from rendering shorter than every other field beside it.
+ */
+input[type='date'] {
+  direction: ltr;
+  text-align: center;
+  min-height: var(--tap);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* Safari hides its own indicator unless the field has room for it. */
+input[type='date']::-webkit-date-and-time-value {
+  text-align: center;
+  margin: 0;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  margin-inline-start: 0;
+  opacity: 0.55;
+}
+
+/*
+ * The month shortcuts under the period fields. They were a plain row, so on a
+ * phone the third button wrapped onto its own line and left a ragged gap; an
+ * equal-width grid keeps them tidy at any width.
+ */
+.month-jump {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.month-jump .btn {
+  width: 100%;
+  justify-content: center;
+  padding-inline: 6px;
+  text-align: center;
+}
+
+@media (max-width: 400px) {
+  .month-jump {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------- diary view menu + grid */
+
+.viewmenu {
+  position: relative;
+}
+
+.viewmenu__panel {
+  position: absolute;
+  inset-inline-end: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  min-width: 232px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 28%);
+}
+
+.viewmenu__item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.viewmenu__item:hover,
+.viewmenu__item:focus-visible {
+  background: var(--bg);
+}
+
+/* Fixed columns so the labels line up whether or not a row is ticked. */
+.viewmenu__tick,
+.viewmenu__glyph {
+  flex: none;
+  width: 1.1em;
+  text-align: center;
+  color: var(--accent);
+}
+
+.viewmenu__glyph {
+  color: var(--muted);
+}
+
+.viewmenu__rule {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--line);
+}
+
+.viewmenu__heading {
+  padding: 6px 10px 2px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.tile--selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent) inset;
+}
+
+.tile__preview {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  background: var(--bg);
+}
+
+.tile__preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The stand-in for a day with no photo: a ruled sheet carrying the date. */
+.tile__sheet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 16px,
+    var(--line) 16px 17px
+  );
+}
+
+.tile__day {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.tile__check {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-start: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 35%);
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.tile__check--on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.tile__count {
+  position: absolute;
+  inset-block-end: 8px;
+  inset-inline-end: 8px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  font-size: 0.72rem;
+}
+
+.tile__label {
+  display: block;
+  padding: 10px 10px 4px;
+}
+
+.tile__title {
+  display: block;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.tile__sub {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.tile__status {
+  display: block;
+  padding: 0 10px 10px;
+}
+
+/* ------------------------------------------------------------- selection */
+
+.entry--selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.entry__check {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--line-strong);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.entry__check--on {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+/*
+ * The selection bar sits above the tab bar, and the page gets padding to match
+ * so the last diary page is never trapped underneath it. On a wide screen the
+ * tab bar moves to the top, so there is nothing to clear.
+ */
+.selectionbar {
+  position: fixed;
+  inset-inline: 0;
+  /* Above the tab bar, not over it: at bottom:0 the shorter selection bar
+     covered the tab bar's labels and left its bottom edge poking out. */
+  bottom: calc(var(--navh) + env(safe-area-inset-bottom));
+  z-index: 50;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 0 -10px 30px rgb(0 0 0 / 22%);
+}
+
+.selectionbar__count {
+  flex: 1;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.has-selectionbar {
+  padding-bottom: 160px;
+}
+
+@media (min-width: 860px) {
+  .selectionbar {
+    bottom: 0;
+  }
+
+  .has-selectionbar {
+    padding-bottom: 96px;
+  }
 }

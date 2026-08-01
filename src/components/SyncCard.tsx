@@ -18,6 +18,7 @@ import {
   savePeer,
   syncNow,
   type Peer,
+  type SyncProgress,
 } from '../sync/client';
 import { Card, Field } from './ui';
 
@@ -107,6 +108,9 @@ function ClientPanel() {
   const [code, setCode] = useState(peer?.code ?? '');
   const [busy, setBusy] = useState(false);
   const [seen, setSeen] = useState<string | null>(formatTime(lastSyncAt(), language));
+  // A transfer full of photos takes real time; without this the phone just
+  // sits there and the user assumes it has hung — which is what they reported.
+  const [progress, setProgress] = useState<SyncProgress | null>(null);
 
   const connect = async () => {
     if (!address.trim() || code.trim().length < 4) {
@@ -130,8 +134,9 @@ function ClientPanel() {
 
   const run = async (target: Peer) => {
     setBusy(true);
+    setProgress(null);
     try {
-      const outcome = await syncNow(target);
+      const outcome = await syncNow(target, setProgress);
       setSeen(formatTime(Date.now(), language));
       toast.show(
         t.syncDone(
@@ -140,10 +145,23 @@ function ClientPanel() {
         ),
       );
     } catch (error) {
+      // Each of these means something different to someone standing on a site
+      // with a phone, and "sync failed" sent them looking in the wrong place.
       const message = error instanceof Error ? error.message : '';
-      toast.error(message === 'BAD_CODE' ? t.syncBadCode : t.syncFailed);
+      const reason =
+        message === 'BAD_CODE'
+          ? t.syncBadCode
+          : message === 'UNREACHABLE'
+            ? t.syncUnreachable
+            : message === 'TIMEOUT'
+              ? t.syncTimeout
+              : message === 'VERSION_MISMATCH'
+                ? t.syncVersionMismatch
+                : t.syncFailed;
+      toast.error(reason);
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   };
 
@@ -182,7 +200,13 @@ function ClientPanel() {
           disabled={busy}
           onClick={() => (peer ? void run({ address, code }) : void connect())}
         >
-          {busy ? t.syncWorking : peer ? t.syncNow : t.syncConnect}
+          {busy
+            ? progress && progress.total > 0
+              ? t.syncProgress(progress.done + 1, progress.total)
+              : t.syncWorking
+            : peer
+              ? t.syncNow
+              : t.syncConnect}
         </button>
         {peer && (
           <button

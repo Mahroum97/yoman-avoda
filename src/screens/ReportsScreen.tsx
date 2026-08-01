@@ -82,7 +82,7 @@ export function ReportsScreen({ project }: { project: Project }) {
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </Field>
         </div>
-        <div className="btn-row">
+        <div className="month-jump">
           <button type="button" className="btn btn--sm" onClick={() => shiftMonth(-1)}>
             ← {t.prevMonth}
           </button>

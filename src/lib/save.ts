@@ -9,6 +9,9 @@
  *    makes "Save to Files" work in Safari on iOS), otherwise a plain download.
  */
 import { saveAs } from 'file-saver';
+import { fileKind, logger } from './log';
+
+const log = logger('save');
 
 export interface SyncServerStatus {
   running: boolean;
@@ -89,10 +92,13 @@ async function saveNative(blob: Blob, name: string): Promise<boolean> {
     });
 
     await Share.share({ title: name, files: [written.uri] });
+    log.info('shared via iOS share sheet', { kind: fileKind(name), bytes: blob.size });
     return true;
   } catch (error) {
-    // A user dismissing the share sheet throws too; nothing to recover from.
-    if (import.meta.env.DEV) console.warn('native share failed', error);
+    // A user dismissing the share sheet throws too, so this is a warning rather
+    // than an error — but it is recorded either way, because "I pressed export
+    // and nothing happened" is otherwise indistinguishable from a real failure.
+    log.warn('native share failed or was dismissed', error);
     return false;
   }
 }
@@ -118,11 +124,16 @@ async function saveViaWebShare(blob: Blob, name: string): Promise<boolean> {
 
   try {
     await navigator.share({ files: [file], title: name });
+    log.info('shared via web share', { kind: fileKind(name), bytes: blob.size });
     return true;
   } catch (error) {
     // AbortError means the user closed the sheet — that is a completed action,
     // not a failure to fall back from.
-    if ((error as DOMException)?.name === 'AbortError') return true;
+    if ((error as DOMException)?.name === 'AbortError') {
+      log.debug('share sheet dismissed', { kind: fileKind(name) });
+      return true;
+    }
+    log.warn('web share failed', error);
     return false;
   }
 }
@@ -130,8 +141,13 @@ async function saveViaWebShare(blob: Blob, name: string): Promise<boolean> {
 /* -------------------------------------------------------------------- entry */
 
 export async function saveBlob(blob: Blob, name: string): Promise<void> {
+  // Which branch a file took is the first question when an export "does
+  // nothing", because the four routes fail in completely different ways.
+  log.debug('saving file', { kind: fileKind(name), bytes: blob.size });
+
   if (window.yoman) {
-    await window.yoman.saveFile(name, new Uint8Array(await blob.arrayBuffer()));
+    const result = await window.yoman.saveFile(name, new Uint8Array(await blob.arrayBuffer()));
+    log.info('saved via desktop dialog', { kind: fileKind(name), saved: result.saved });
     return;
   }
 
@@ -141,6 +157,7 @@ export async function saveBlob(blob: Blob, name: string): Promise<void> {
   if (isIos() && (await saveViaWebShare(blob, name))) return;
 
   saveAs(blob, name);
+  log.info('saved via browser download', { kind: fileKind(name) });
 }
 
 export async function saveBinary(

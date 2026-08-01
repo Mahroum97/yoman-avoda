@@ -12,6 +12,7 @@ import type {
   Tombstone,
 } from './types';
 import { emptyCasting } from './types';
+import type { LogEntry } from './lib/log';
 import { uid as newUid } from './lib/id';
 import { blobToDataUrl, dataUrlToBlob } from './lib/images';
 import { isoDate } from './lib/dates';
@@ -31,6 +32,7 @@ class YomanDb extends Dexie {
   settings!: Table<Setting, string>;
 
   tombstones!: Table<Tombstone, string>;
+  logs!: Table<LogEntry, number>;
 
   constructor() {
     super('yoman-avoda');
@@ -69,6 +71,37 @@ class YomanDb extends Dexie {
           });
         }
       });
+
+    // v3 adds the device's own log. It is indexed by `at` because every use of
+    // it is chronological: show the newest first, drop the oldest when full.
+    // No upgrade step — a new table starts empty, and there is nothing to
+    // backfill from a device that was not recording.
+    this.version(3).stores({
+      projects: '++id, &uid, name, archived, createdAt',
+      entries: '++id, &uid, projectUid, projectId, date, [projectId+date], status, updatedAt',
+      presets: '++id, kind, [kind+value], uses',
+      settings: 'key',
+      tombstones: '&uid, table, deletedAt',
+      logs: '++id, at, level',
+    });
+
+    // v4 adds two compound indexes that exist purely so sync can build its
+    // manifest from *index keys* instead of records.
+    //
+    // A manifest needs nothing but `uid` and `updatedAt`, but `entries.toArray()`
+    // deserialises every row — including the photo Blobs, which are the entire
+    // weight of the diary. On a phone with a few weeks of photos that read alone
+    // took longer than the network transfer, and it happened twice per sync.
+    // `orderBy('[uid+updatedAt]').keys()` never touches the record bodies.
+    this.version(4).stores({
+      projects: '++id, &uid, name, archived, createdAt, [uid+createdAt]',
+      entries:
+        '++id, &uid, projectUid, projectId, date, [projectId+date], status, updatedAt, [uid+updatedAt]',
+      presets: '++id, kind, [kind+value], uses',
+      settings: 'key',
+      tombstones: '&uid, table, deletedAt',
+      logs: '++id, at, level',
+    });
   }
 }
 

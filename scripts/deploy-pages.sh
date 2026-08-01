@@ -20,8 +20,12 @@ if ! git remote get-url origin >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "▸ בונה את האתר"
-npm run build
+if [ "${YOMAN_SKIP_BUILD:-0}" = 1 ]; then
+  echo "▸ משתמש באתר שכבר נבנה"
+else
+  echo "▸ בונה את האתר"
+  npm run build
+fi
 
 echo "▸ מכין את ענף $BRANCH"
 rm -rf "$WORKTREE"

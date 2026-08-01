@@ -25,6 +25,8 @@ import { LANGUAGES, STRINGS } from '../i18n/strings';
 import { useTheme, type ThemePreference } from '../hooks/useTheme';
 import { clearCompanyLogo, saveCompanyLogo, useCompanyLogo } from '../hooks/useBranding';
 import { Card, Field } from '../components/ui';
+import { LogCard } from '../components/LogCard';
+import { SignaturesCard } from '../components/SignaturesCard';
 import { SyncCard } from '../components/SyncCard';
 import { DocThemePicker } from '../components/DocThemePicker';
 import { setDocThemeId, useDocThemeId } from '../hooks/useDocTheme';
@@ -195,6 +197,8 @@ export function SettingsScreen() {
         </div>
       </Card>
 
+      <SignaturesCard />
+
       <Card title={t.backupTitle} note={t.backupHint}>
         <div className="btn-row">
           <button
@@ -288,6 +292,8 @@ export function SettingsScreen() {
           );
         })}
       </Card>
+
+      <LogCard />
 
       <Card title={t.about}>
         <p className="small">{t.aboutBody}</p>

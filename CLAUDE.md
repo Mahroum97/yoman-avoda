@@ -26,16 +26,51 @@ npm run icons        # rasterises public/favicon.svg into PWA icons + build/icon
 npm run app:dev      # Electron against a running dev server
 npm run app:build    # packages release/*.dmg and release/mac-arm64/*.app
 npm run ios:sync     # build + copy the web assets into the iOS project
-npm run ios:run      # build, sign and install on the connected iPhone
+npm run ios:run      # build, sign and install on *every* connected iPhone and iPad
 npm run deploy       # publish dist/ to the gh-pages branch (HTTPS, for iOS install)
+npm run push         # one build → the Mac, every connected device, and the web
 ```
 
 Xcode is installed but is not the selected developer directory on this machine, so every
 iOS command sets `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` rather than
 requiring `sudo xcode-select`.
 
-`עדכון.command` at the repo root is the user-facing updater: double-clicking it installs,
-rebuilds the site and rebuilds the Mac app, reporting progress in Hebrew.
+`עדכון.command` at the repo root is the user-facing updater: double-clicking it installs
+dependencies and then runs the push below, reporting progress in Hebrew.
+`דחיפה לכל המכשירים.command` runs the push on its own, without reinstalling anything.
+
+## Getting a build onto the devices
+
+`scripts/push-all.sh` is the one way a build reaches the user. It builds the web assets
+**once** and hands the same output to three independent legs — the Mac app (rebuilt and
+copied into `/Applications`), every connected iPhone and iPad, and GitHub Pages.
+
+- **No `set -e` in the push scripts, deliberately.** The legs must not depend on each
+  other: an iPad that has not been trusted yet cannot be allowed to stop the Mac app from
+  updating, and a missing GitHub remote cannot stop either. Each leg records its own
+  outcome and the summary at the end reports what reached where.
+- **Sub-scripts honour `YOMAN_SKIP_BUILD=1`**, which is how one push avoids running four
+  identical Vite builds (`ios-install.sh`, `deploy-pages.sh`, and `app:build` each build
+  on their own when run directly).
+- **`scripts/ios-devices.py` is the only place that enumerates devices**, and it lists
+  *all* of them. Both `ios-install.sh` and `ios-check.sh` read it. Stopping at the first
+  device — which both used to do — silently skips a working phone whenever an unready
+  iPad happens to enumerate ahead of it, and enumeration order is not stable.
+- It checks **reachability first**: `devicectl` keeps listing a device long after the
+  cable is out, still paired and with its developer mode remembered as enabled. Trusting
+  that reported an unplugged iPad as ready and then failed deep inside `xcodebuild` with
+  "unable to find a destination", which says nothing useful. No `transportType` means
+  not connected, whatever else the record claims.
+- It classifies pairing **before** developer mode: an untrusted device cannot report its
+  developer-mode status, and the setting does not appear on it until it has been connected
+  to a Mac it trusts. "Trust this computer" is genuinely the first step on a new device.
+- The Mac leg asks the running app to quit before replacing the bundle, and **skips the
+  replace** if it is still running after eight seconds rather than forcing it.
+
+`scripts/push-reminder.sh` runs on Claude Code's `Stop` hook (`.claude/settings.json`) and
+only prints a line when source files are newer than `.push-stamp`. It must stay a
+reminder: `Stop` fires after every reply, so pushing from it would rebuild for minutes at a
+time, put half-finished work on the phone mid-task, and publish unreviewed code to the web.
 
 There is no test runner. **`npm run sample` is the regression check for the documents.**
 After changing anything in `src/pdf/` or `src/docx/`, run it and *look* at the result:
@@ -115,6 +150,61 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
   **Settings must stay reachable with zero projects** (`App.tsx`) or restoring onto a new
   device is impossible — the onboarding redirect has an explicit exception for it.
 
+## The diary list
+
+`EntriesScreen` renders the same pages three ways: as a list, as a grid of tiles, and
+in selection mode. The view menu (`ViewMenu.tsx`) mirrors the shape people already know
+from file managers — select items · grid/list · sort — and picking the sort already in
+use flips its direction rather than doing nothing.
+
+- **View, sort and direction live in `localStorage`.** They describe the device, not the
+  diary, so they must never reach `SYNCED_SETTINGS`: a phone and a Mac want different
+  views of the same pages.
+- **Month headings only appear while sorting by date.** Grouping pages by month under any
+  other order produces headings that no longer describe what is under them.
+- A tile previews the day's **first photo**, which is what makes a day recognisable on
+  site; days without one fall back to a ruled sheet carrying the day number, so the grid
+  keeps its rhythm instead of collapsing into empty boxes.
+- `EntryTile` mints its object URL **and revokes it in the same effect** — the rule from
+  the photo grid applies here for the same StrictMode reason.
+- "דוח מהנבחרים" builds a range report from exactly the picked days, sorted oldest first
+  regardless of how the list is ordered, because a report reads forwards.
+
+`summary.ts` reads every field defensively. Pages the editor makes are complete, but one
+can arrive from a sync or a restored backup written by an older version, and a single
+absent quantity used to take the whole range report down.
+
+## The activity log
+
+`src/lib/log.ts` is how a fault on site becomes fixable. There is no console on a
+phone in a building site, so the app records what it did and Settings → יומן אירועים
+exports it through the same `saveBlob` share sheet the reports use.
+
+Four levels — debug · info · warn · error — with `info` the default. Three rules are
+load-bearing:
+
+- **Logging never throws.** Every path swallows its own failures; a lost line is the
+  worst case. `flush` drops its batch rather than retrying, because retrying grows the
+  buffer without bound when storage is full.
+- **The diary's contents never go in.** Counts, dates, sizes and language — never work
+  descriptions, worker names, notes or photos. **File names are redacted through
+  `fileKind()`**: export names are built from the project name, and this file gets sent
+  to other people. The privacy line in the card is a promise the code has to keep.
+- **The level lives in localStorage, not IndexedDB** — a broken database is exactly when
+  the log matters, so deciding what to record must not depend on it.
+
+`log.ts` reaches the `logs` table through a dynamic `import('../db')`, and `db.ts` imports
+only the *type* back. That is deliberate: it keeps `log.ts` safe to import from anywhere,
+including modules the database itself depends on, with no cycle at runtime.
+
+`describe()` handles a cross-engine detail worth keeping: V8 stacks already begin with
+`Name: message` while JavaScriptCore's are bare frames, so the message is added only when
+the stack lacks it — otherwise it prints twice on the Mac and vanishes on the phone.
+
+`installGlobalLogHandlers()` runs first in `main.tsx`, before anything can fail, and
+flushes on `visibilitychange` rather than `unload` — iOS does not reliably fire the latter
+when an app is backgrounded.
+
 ## iOS
 
 - **There is no downloads folder on iOS.** `src/lib/save.ts` therefore routes exports to
@@ -143,6 +233,33 @@ client talking to a server. `src/sync/` holds the whole thing:
 - `store.ts` — turns the local diary into wire records and merges them back.
 - `client.ts` — `syncNow` (the phone) and `answerExchange` (the Mac). Both sides
   run the same merge code.
+
+**The exchange is chunked (protocol v2).** v1 sent the whole diary in one request
+and could not finish once real photos were in it — the body had to be held in memory
+three times over (built on the phone, sent, forwarded over IPC by the Mac). A sync is
+now: manifests → pull in chunks → push in chunks, each round bounded to ~4 MB. Both
+devices must run the same version; a mismatch is reported rather than half-applied.
+
+Four things that made it slow, all fixed and all easy to reintroduce:
+
+- **`buildManifest` must never read records.** It needs `uid` and `updatedAt`, but
+  `entries.toArray()` deserialises every photo Blob with them — and a manifest is built
+  twice per sync. It reads the `[uid+updatedAt]` compound index with `.keys()` instead,
+  which is the only reason that index exists.
+- **The responder bounds its reply by weight**, so it may return fewer entries than were
+  asked for. The caller advances by *what arrived*, not by what it requested; a reply is
+  a prefix, not a refusal. Nothing at all means those pages are gone, so the slice is
+  skipped rather than retried forever.
+- **`applyPayload` decodes photos before opening its transaction.** A Dexie transaction
+  commits the moment it awaits a non-Dexie promise, so decoding inside it would end the
+  transaction underneath the writes; it also used to run every read and write as its own
+  transaction, hundreds per sync.
+- **`dataUrlToBlob` uses `atob`, not `fetch`.** `fetch(dataUrl)` pushes every photo
+  through the network stack, in a loop, on a phone.
+
+`post()` carries an `AbortController` — `fetch` has no timeout of its own, and without
+one a sleeping Mac left the phone spinning for as long as the platform felt like waiting.
+That was "it takes ages and then fails".
 
 Rules that are easy to get wrong, and are load-bearing:
 

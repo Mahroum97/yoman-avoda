@@ -18,6 +18,7 @@ import { navigate } from '../hooks/useRoute';
 import { Card, Combobox, Field, StatusChip } from '../components/ui';
 import { RowsEditor, type ColumnDef } from '../components/RowsEditor';
 import { SignaturePad } from '../components/SignaturePad';
+import { useSavedSignatures } from '../hooks/useSignatures';
 import { PhotoGrid } from '../components/PhotoGrid';
 
 const AUTOSAVE_MS = 1200;
@@ -35,6 +36,7 @@ export function EntryEditor({
   const { t } = useLanguage();
   const presets = usePresets();
   const logoDataUrl = useCompanyLogo();
+  const savedSignatures = useSavedSignatures();
 
   const [entry, setEntry] = useState<DiaryEntry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -359,11 +361,13 @@ export function EntryEditor({
           <SignaturePad
             label={t.labelSupervisorSignature}
             value={entry.supervisorSignature}
+            saved={savedSignatures.supervisor}
             onChange={(supervisorSignature) => patch({ supervisorSignature })}
           />
           <SignaturePad
             label={t.labelManagerSignature}
             value={entry.managerSignature}
+            saved={savedSignatures.manager}
             onChange={(managerSignature) => patch({ managerSignature })}
           />
         </div>

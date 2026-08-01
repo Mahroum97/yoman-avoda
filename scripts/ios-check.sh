@@ -21,72 +21,57 @@ else
   bad "Xcode לא זמין"; READY=0
 fi
 
-# 2 — the phone
-DEVICE_JSON=$(mktemp -t yoman-check)
-xcrun devicectl list devices --json-output "$DEVICE_JSON" >/dev/null 2>&1 || true
+# 2 — the devices
+#
+# Every connected iPhone and iPad is reported, not just the first one found.
+# With a phone and an iPad plugged in together, stopping at the first would hide
+# a working device behind an unready one — and which of the two enumerates first
+# is not something the Mac decides consistently.
+DEVICE_LIST=$(mktemp -t yoman-check)
+python3 "$(dirname "$0")/ios-devices.py" > "$DEVICE_LIST" 2>/dev/null
 
-STATE=$(python3 - "$DEVICE_JSON" <<'PY'
-import json, sys
-try:
-    data = json.load(open(sys.argv[1]))
-except Exception:
-    print("none|||"); raise SystemExit
+DEVICES=()
+while IFS= read -r line; do
+  [ -n "$line" ] && DEVICES+=("$line")
+done < "$DEVICE_LIST"
+rm -f "$DEVICE_LIST"
 
-for device in data.get("result", {}).get("devices", []):
-    if device.get("hardwareProperties", {}).get("platform") != "iOS":
-        continue
-    connection = device.get("connectionProperties", {})
-    properties = device.get("deviceProperties", {})
-    mode = properties.get("developerModeStatus") or "unknown"
-    paired = connection.get("pairingState") or "unknown"
-    name = properties.get("name") or "iPhone"
-    if mode == "enabled" and paired == "paired":
-        state = "ready"
-    elif mode == "disabled":
-        state = "devmode"
-    elif paired == "paired":
-        state = "asleep"
-    else:
-        state = "unpaired"
-    print(f"{state}|{name}|{mode}|{paired}")
-    break
-else:
-    print("none|||")
-PY
-)
-rm -f "$DEVICE_JSON"
-
-IFS='|' read -r PHONE_STATE PHONE_NAME PHONE_MODE PHONE_PAIR <<EOF
-$STATE
-EOF
-
-case "$PHONE_STATE" in
-  ready)
-    ok "האייפון מחובר ומוכן ($PHONE_NAME)"
-    ;;
-  devmode)
-    bad "האייפון מחובר ($PHONE_NAME) אבל מצב פיתוח כבוי — מצב: $PHONE_MODE"
-    todo 'בטלפון: הגדרות ← פרטיות ואבטחה ← מצב פיתוח ← הדלק ← הפעל מחדש'
-    READY=0
-    ;;
-  asleep)
-    bad "האייפון מחובר ($PHONE_NAME) אבל ישן או נעול"
-    todo 'פתח את הטלפון (הזן קוד) והשאר אותו פתוח'
-    READY=0
-    ;;
-  unpaired)
-    bad "האייפון מחובר ($PHONE_NAME) אבל לא מקושר למחשב — מצב: $PHONE_PAIR"
-    todo 'נעל ופתח את הטלפון ואשר "Trust This Computer"'
-    READY=0
-    ;;
-  *)
-    bad "לא נמצא אייפון מחובר"
-    todo 'חבר את הכבל לשתי הקצוות ובדוק שהוא כבל נתונים (לא כבל טעינה בלבד)'
-    todo 'פתח את הטלפון (הזן קוד) — כשהוא נעול הוא לא מזוהה'
-    todo 'אם קופץ "Trust This Computer" / "לתת אמון" — אשר'
-    READY=0
-    ;;
-esac
+if [ ${#DEVICES[@]} -eq 0 ]; then
+  bad "לא נמצא אף אייפון או אייפד מחובר"
+  todo 'חבר את הכבל לשתי הקצוות ובדוק שהוא כבל נתונים (לא כבל טעינה בלבד)'
+  todo 'פתח את המכשיר (הזן קוד) — כשהוא נעול הוא לא מזוהה'
+  todo 'אם קופץ "Trust This Computer" / "לתת אמון" — אשר'
+  READY=0
+else
+  ANY_READY=0
+  for entry in "${DEVICES[@]}"; do
+    IFS=$'\t' read -r _id state kind name <<< "$entry"
+    case "$state" in
+      ready)
+        ok "$name ($kind) — מחובר ומוכן"
+        ANY_READY=1
+        ;;
+      devmode)
+        bad "$name ($kind) — מחובר אבל מצב פיתוח כבוי"
+        todo 'במכשיר: הגדרות ← פרטיות ואבטחה ← מצב פיתוח ← הדלק ← הפעל מחדש'
+        ;;
+      asleep)
+        bad "$name ($kind) — מחובר אבל ישן או נעול"
+        todo 'פתח את המכשיר (הזן קוד) והשאר אותו פתוח'
+        ;;
+      gone)
+        bad "$name ($kind) — מוכר למחשב אבל לא מחובר כרגע"
+        todo 'חבר אותו בכבל, או ודא שהוא ער ועל אותה רשת Wi-Fi כמו המחשב'
+        ;;
+      unpaired)
+        bad "$name ($kind) — מחובר אבל עדיין לא נתן אמון במחשב הזה"
+        todo 'נעל ופתח את המכשיר ואשר "Trust This Computer" / "לתת אמון במחשב"'
+        todo 'במכשיר חדש זה תמיד השלב הראשון — מצב פיתוח מופיע רק אחריו'
+        ;;
+    esac
+  done
+  [ "$ANY_READY" = 1 ] || READY=0
+fi
 
 # 3 — signing
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "Apple Development"; then
@@ -98,7 +83,7 @@ fi
 
 printf '\n'
 if [ "$READY" = 1 ]; then
-  printf '%s%s✔ הכול מוכן — אפשר להריץ "התקנה לאייפון.command"%s\n' "$GREEN" "$BOLD" "$OFF"
+  printf '%s%s✔ הכול מוכן — אפשר להריץ "דחיפה לכל המכשירים.command"%s\n' "$GREEN" "$BOLD" "$OFF"
 else
   printf '%s%sעדיין חסר משהו — ראה למעלה%s\n' "$YELLOW" "$BOLD" "$OFF"
 fi

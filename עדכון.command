@@ -33,28 +33,18 @@ printf 'Node.js %s\n' "$(node -v)"
 step "מתקין תלויות"
 npm install --no-fund --no-audit || fail "התקנת התלויות נכשלה"
 
-step "בונה את האתר"
-npm run build || fail "בניית האתר נכשלה"
+# From here on the update *is* the push: building without putting the result on
+# the devices was the step that kept getting forgotten, which is how a phone
+# ends up running last week's diary. push-all.sh builds once and sends the same
+# build to the Mac, to every connected iPhone and iPad, and to the web.
+bash scripts/push-all.sh
+PUSH_RESULT=$?
 
-if [ -d ios ]; then
-  step "מעדכן את פרויקט האייפון"
-  npx cap sync ios || printf '⚠ עדכון פרויקט האייפון נכשל\n'
+if [ "$PUSH_RESULT" -ne 0 ]; then
+  printf '\n%s⚠ העדכון נבנה, אבל לא כל המכשירים עודכנו — ראה את הסיכום למעלה.%s\n' "$RED" "$OFF"
 fi
 
-step "בונה את אפליקציית ה-Mac"
-if npm run app:build; then
-  APP_PATH="$(find release -maxdepth 2 -name '*.app' -print -quit 2>/dev/null)"
-  DMG_PATH="$(find release -maxdepth 1 -name '*.dmg' -print -quit 2>/dev/null)"
-else
-  printf '\n%s⚠ בניית אפליקציית ה-Mac נכשלה, אבל האתר עודכן בהצלחה.%s\n' "$RED" "$OFF"
-fi
-
-printf '\n%s✔ העדכון הושלם%s\n' "$GREEN$BOLD" "$OFF"
-printf '  • האתר המעודכן נמצא בתיקייה: %s\n' "$(pwd)/dist"
-[ -n "$APP_PATH" ] && printf '  • האפליקציה: %s\n' "$APP_PATH"
-[ -n "$DMG_PATH" ] && printf '  • קובץ ההתקנה: %s\n' "$DMG_PATH"
 printf '\nלהרצת האתר מקומית: npm run dev\n'
-printf 'להתקנה על האייפון: לחיצה כפולה על "התקנה לאייפון.command"\n'
-printf 'לפרסום לאינטרנט:   לחיצה כפולה על "פרסום לאינטרנט.command"\n'
+printf 'לדחיפה חוזרת בלבד: לחיצה כפולה על "דחיפה לכל המכשירים.command"\n'
 
 read -r -p $'\nלחץ Enter לסגירה… ' _

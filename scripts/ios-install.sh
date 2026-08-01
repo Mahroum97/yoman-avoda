@@ -1,14 +1,19 @@
 #!/bin/bash
 #
-# Builds the iPhone app and installs it on the connected device.
+# Builds the diary and installs it on every iPhone and iPad connected to this Mac.
 #
-#   npm run ios:run
+#   npm run ios:run                        # everything that is connected
+#   IOS_DEVICE_ID=<udid> npm run ios:run   # one device only
+#   YOMAN_SKIP_BUILD=1 npm run ios:run     # assets already built by push-all.sh
 #
 # Signing is the one part this cannot do on its own: iOS refuses to run an
 # unsigned app. Add an Apple ID once in Xcode → Settings → Accounts, and this
 # script picks up the team automatically from then on.
+#
+# Note there is no `set -e`. A device that is asleep, or an iPad that has not
+# been trusted yet, must not stop the app reaching the devices that *are* ready.
 
-set -euo pipefail
+set -uo pipefail
 cd "$(dirname "$0")/.."
 
 export DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}
@@ -23,100 +28,119 @@ BUNDLE_ID=com.mahroum.yoman
 # as the build writes new files. ${TMPDIR} is not synced.
 DERIVED="${TMPDIR:-/tmp/}yoman-ios-build"
 
+GREEN=$'\033[32m'; RED=$'\033[31m'; YELLOW=$'\033[33m'; BOLD=$'\033[1m'; OFF=$'\033[0m'
 step() { printf '\n▸ %s\n' "$1"; }
 
-step "בונה את האתר ומעדכן את פרויקט ה-iOS"
-npm run build
-npx cap sync ios
+if [ "${YOMAN_SKIP_BUILD:-0}" = 1 ]; then
+  step "משתמש באתר שכבר נבנה"
+else
+  step "בונה את האתר"
+  npm run build || { echo "✖ בניית האתר נכשלה" >&2; exit 1; }
+fi
 
-step "מחפש את הטלפון"
-# devicectl prints a human-readable table to stdout as well, so the JSON has to
-# go to a file of its own — parsing stdout mixes the two and finds nothing.
-DEVICE_JSON=$(mktemp -t yoman-devices)
-xcrun devicectl list devices --json-output "$DEVICE_JSON" >/dev/null 2>&1 || true
+step "מעדכן את פרויקט ה-iOS"
+npx cap sync ios || { echo "✖ עדכון פרויקט ה-iOS נכשל" >&2; exit 1; }
 
-read -r DEVICE_ID DEVICE_STATE <<EOF
-$(python3 - "$DEVICE_JSON" <<'PYEOF'
-import json, sys
+# The device names are collected as plain comma-separated strings rather than
+# arrays. macOS ships bash 3.2, where expanding an empty array as "${a[@]}"
+# under `set -u` aborts the script with "unbound variable" — and "no devices
+# were skipped" is exactly the ordinary case that would trip it.
+INSTALLED_LIST=""
+SKIPPED_LIST=""
+FAILED_LIST=""
 
-try:
-    with open(sys.argv[1]) as handle:
-        data = json.load(handle)
-except Exception:
-    print(" none")
-    raise SystemExit
+append_to() {
+  local current=$1 item=$2
+  if [ -z "$current" ]; then printf '%s' "$item"; else printf '%s, %s' "$current" "$item"; fi
+}
 
-for device in data.get("result", {}).get("devices", []):
-    if device.get("hardwareProperties", {}).get("platform") != "iOS":
-        continue
-    connection = device.get("connectionProperties", {})
-    properties = device.get("deviceProperties", {})
-    dev_mode = properties.get("developerModeStatus")
+# push-all.sh passes a path in and prints back what it finds there, so a partial
+# install ("the phone got it, the iPad was skipped") is never reported as a
+# clean success in the final summary.
+write_status() {
+  [ -n "${YOMAN_STATUS_FILE:-}" ] || return 0
+  printf '%s\n' "$1" > "$YOMAN_STATUS_FILE"
+}
 
-    if dev_mode == "disabled":
-        state = "devmode"
-    elif dev_mode in (None, "unknown"):
-        state = "asleep" if connection.get("pairingState") == "paired" else "devmode"
-    elif connection.get("pairingState") != "paired":
-        state = "unpaired"
-    else:
-        state = "ready"
-    print(device["identifier"], state)
-    break
-else:
-    print(" none")
-PYEOF
-)
-EOF
-rm -f "$DEVICE_JSON"
+# A few words for the one-line summary push-all.sh prints at the end.
+short_reason() {
+  case "$1" in
+    gone)     printf 'לא מחובר' ;;
+    unpaired) printf 'לא נתן אמון במחשב' ;;
+    devmode)  printf 'מצב פיתוח כבוי' ;;
+    asleep)   printf 'נעול או ישן' ;;
+    *)        printf 'לא מוכן' ;;
+  esac
+}
 
-case "${DEVICE_STATE:-none}" in
-  ready)
-    echo "  נמצא: $DEVICE_ID"
-    ;;
-  devmode)
-    cat >&2 <<'EOS'
+# Why a device cannot take the app, and the one thing that fixes it.
+explain() {
+  case "$1" in
+    gone)
+      printf '     %s→ המכשיר מוכר למחשב אבל לא מחובר כרגע%s\n' "$YELLOW" "$OFF"
+      printf '     %s  חבר אותו בכבל, או ודא שהוא ער ועל אותה רשת Wi-Fi%s\n' "$YELLOW" "$OFF"
+      ;;
+    unpaired)
+      printf '     %s→ נעל ופתח את המכשיר ואשר "Trust This Computer" / "לתת אמון במחשב"%s\n' "$YELLOW" "$OFF"
+      printf '     %s  (במכשיר חדש זה תמיד השלב הראשון)%s\n' "$YELLOW" "$OFF"
+      ;;
+    devmode)
+      printf '     %s→ במכשיר: הגדרות ← פרטיות ואבטחה ← מצב פיתוח ← הדלק ← הפעל מחדש%s\n' "$YELLOW" "$OFF"
+      ;;
+    asleep)
+      printf '     %s→ פתח את המכשיר (הזן קוד) והשאר אותו פתוח, ואז הרץ שוב%s\n' "$YELLOW" "$OFF"
+      ;;
+  esac
+}
 
-✖ הטלפון מחובר, אבל "מצב פיתוח" כבוי — ובלי זה iOS לא מרשה להתקין אפליקציה.
+step "מחפש מכשירים"
+DEVICE_LIST=$(mktemp -t yoman-device-list)
+trap 'rm -f "$DEVICE_LIST"' EXIT
+python3 scripts/ios-devices.py > "$DEVICE_LIST" 2>/dev/null
 
-   בטלפון:
-   1. הגדרות ← פרטיות ואבטחה
-   2. גוללים למטה ל-"מצב פיתוח" (Developer Mode) ← מדליקים
-   3. הטלפון יבקש להפעיל מחדש — מאשרים
-   4. אחרי ההפעלה מחדש, מאשרים את החלון "להפעיל מצב פיתוח?"
+# Read the whole list before looping: xcodebuild and devicectl run inside the
+# loop and would otherwise eat the lines still waiting on stdin.
+DEVICES=()
+while IFS= read -r line; do
+  [ -n "$line" ] && DEVICES+=("$line")
+done < "$DEVICE_LIST"
 
-   אם "מצב פיתוח" לא מופיע בכלל: משאירים את הטלפון מחובר בכבל,
-   מריצים את הסקריפט פעם אחת, ואז הוא יופיע בהגדרות.
+if [ ${#DEVICES[@]} -eq 0 ]; then
+  cat >&2 <<'EOS'
+
+✖ לא נמצא אף אייפון או אייפד.
+
+   • חבר את הכבל בשני הקצוות, ובדוק שזה כבל נתונים ולא כבל טעינה בלבד
+   • פתח את המכשיר (הזן קוד) — כשהוא נעול הוא לא מזוהה
+   • אם קופץ "Trust This Computer" / "לתת אמון במחשב" — אשר
 
 EOS
-    exit 1
-    ;;
-  asleep)
-    cat >&2 <<'EOS'
+  write_status "לא נמצא אף אייפון או אייפד מחובר"
+  exit 1
+fi
 
-✖ הטלפון מחובר אבל ישן או נעול, ולכן המחשב לא מצליח לדבר איתו.
+READY=()
+SKIPPED=()
+for entry in "${DEVICES[@]}"; do
+  IFS=$'\t' read -r id state kind name <<< "$entry"
+  if [ -n "${IOS_DEVICE_ID:-}" ] && [ "$id" != "$IOS_DEVICE_ID" ]; then
+    continue
+  fi
+  if [ "$state" = ready ]; then
+    printf '  %s✔%s %s (%s)\n' "$GREEN" "$OFF" "$name" "$kind"
+    READY+=("$entry")
+  else
+    printf '  %s•%s %s (%s) — מדולג\n' "$YELLOW" "$OFF" "$name" "$kind"
+    explain "$state"
+    SKIPPED_LIST=$(append_to "$SKIPPED_LIST" "$name ($(short_reason "$state"))")
+  fi
+done
 
-   פתח את הטלפון (הזן קוד) והשאר אותו פתוח, ואז הרץ שוב.
-
-EOS
-    exit 1
-    ;;
-  unpaired)
-    cat >&2 <<'EOS'
-
-✖ הטלפון מחובר אבל עדיין לא מקושר למחשב הזה.
-
-   נעל ופתח את הטלפון, ואשר את החלון "Trust This Computer" / "לתת אמון במחשב",
-   ואז הרץ שוב.
-
-EOS
-    exit 1
-    ;;
-  *)
-    echo "✖ לא נמצא אייפון מחובר. חבר את הטלפון בכבל, פתח אותו, ואשר \"Trust This Computer\"." >&2
-    exit 1
-    ;;
-esac
+if [ ${#READY[@]} -eq 0 ]; then
+  printf '\n%s✖ אף מכשיר לא מוכן להתקנה — ראה את ההסבר ליד כל מכשיר למעלה.%s\n' "$RED" "$OFF" >&2
+  write_status "לא הותקן על אף מכשיר · דולג: ${SKIPPED_LIST:-אין מכשיר מוכן}"
+  exit 1
+fi
 
 # The development team can come from three places, in order of reliability:
 # an explicit override, the team already written into the Xcode project, or a
@@ -144,64 +168,99 @@ if [ -z "$TEAM_ID" ]; then
    3. בשורה "Team" לבחור מהתפריט: Mohamad Mahroum (Personal Team)
    4. לסגור את Xcode
 
-   ואז להריץ שוב את "התקנה לאייפון.command".
-
-   (אפשר גם פשוט ללחוץ ב-Xcode על כפתור ה-▶ עם האייפון נבחר למעלה —
-    זה יתקין את האפליקציה ישירות.)
+   ואז להריץ שוב.
 
 EOS
   open ios/App/App.xcodeproj 2>/dev/null || true
   exit 1
 fi
-echo "  צוות פיתוח: $TEAM_ID"
+printf '  צוות פיתוח: %s\n' "$TEAM_ID"
 
 # The web assets are copied into the app bundle, so they must be clean too.
 step "מנקה תגיות Finder מהקבצים"
 xattr -cr dist ios "$DERIVED" 2>/dev/null || true
 
-step "בונה את האפליקציה"
-xcodebuild \
-  -project ios/App/App.xcodeproj \
-  -scheme App \
-  -configuration Debug \
-  -destination "id=$DEVICE_ID" \
-  -derivedDataPath "$DERIVED" \
-  -allowProvisioningUpdates \
-  DEVELOPMENT_TEAM="$TEAM_ID" \
-  CODE_SIGN_STYLE=Automatic \
-  build
+INSTALLED=()
+FAILED=()
 
-APP_PATH=$(find "$DERIVED/Build/Products" -maxdepth 2 -name 'App.app' -print -quit)
-if [ -z "$APP_PATH" ]; then
+for entry in "${READY[@]}"; do
+  IFS=$'\t' read -r id state kind name <<< "$entry"
+
+  step "בונה עבור $name"
+  # Built per device rather than once for all of them: with automatic signing a
+  # new device has to be registered with the team, and that happens as part of a
+  # build aimed at it. The derived-data folder is shared, so every build after
+  # the first is incremental and mostly just re-signs.
+  if ! xcodebuild \
+      -project ios/App/App.xcodeproj \
+      -scheme App \
+      -configuration Debug \
+      -destination "id=$id" \
+      -derivedDataPath "$DERIVED" \
+      -allowProvisioningUpdates \
+      DEVELOPMENT_TEAM="$TEAM_ID" \
+      CODE_SIGN_STYLE=Automatic \
+      build < /dev/null; then
+    FAILED+=("$name|בנייה נכשלה")
+    FAILED_LIST=$(append_to "$FAILED_LIST" "$name")
+    continue
+  fi
+
+  APP_PATH=$(find "$DERIVED/Build/Products" -maxdepth 2 -name 'App.app' -print -quit)
+  if [ -z "$APP_PATH" ]; then
+    FAILED+=("$name|לא נמצאה אפליקציה בנויה")
+    FAILED_LIST=$(append_to "$FAILED_LIST" "$name")
+    continue
+  fi
+
+  step "מתקין על $name"
+  if ! xcrun devicectl device install app --device "$id" "$APP_PATH" < /dev/null; then
+    FAILED+=("$name|ההתקנה נכשלה — נסה לחבר בכבל")
+    FAILED_LIST=$(append_to "$FAILED_LIST" "$name")
+    continue
+  fi
+
+  xcrun devicectl device process launch --device "$id" "$BUNDLE_ID" < /dev/null >/dev/null 2>&1 || true
+  INSTALLED+=("$name")
+  INSTALLED_LIST=$(append_to "$INSTALLED_LIST" "$name")
+done
+
+printf '\n'
+if [ ${#INSTALLED[@]} -gt 0 ]; then
+  printf '%s%s✔ הותקן על %d מכשירים:%s\n' "$GREEN" "$BOLD" "${#INSTALLED[@]}" "$OFF"
+  for name in "${INSTALLED[@]}"; do printf '   • %s\n' "$name"; done
+fi
+
+if [ ${#FAILED[@]} -gt 0 ]; then
+  printf '%s%s✖ לא הצליח על:%s\n' "$RED" "$BOLD" "$OFF"
+  for row in "${FAILED[@]}"; do printf '   • %s — %s\n' "${row%%|*}" "${row#*|}"; done
   cat >&2 <<'EOS'
 
-✖ הבנייה נכשלה.
-
-   אם ראית בשגיאות את המילה errSecInternalComponent — זו בקשת הרשאה של
-   ה-Keychain שלא הצליחה לקפוץ מהטרמינל. הפתרון הוא חד-פעמי:
-
-   1. פותחים את Xcode (הפרויקט כבר פתוח)
-   2. למעלה, ליד השם "App", בוחרים את האייפון שלך
-   3. לוחצים על כפתור ההפעלה ▶
-   4. כשקופץ חלון שמבקש סיסמה — זו סיסמת המחשב שלך —
-      מקלידים ולוחצים "Always Allow" (תמיד לאפשר)
-
-   מאותו רגע גם הסקריפט הזה יעבוד.
-
+   אם בשגיאות הופיעה המילה errSecInternalComponent — זו בקשת הרשאה של
+   ה-Keychain שלא הצליחה לקפוץ מהטרמינל. הפתרון חד-פעמי:
+   פותחים את Xcode, בוחרים את המכשיר למעלה, לוחצים ▶, וכשמבקש סיסמה
+   (זו סיסמת המחשב) לוחצים "Always Allow".
 EOS
+fi
+
+# The wording is assembled so the summary reads as the truth and nothing more:
+# a skipped iPad or a failed device keeps the word "דולג"/"נכשל" in the line,
+# which is what makes push-all.sh mark it as a warning rather than a tick.
+if [ -n "$INSTALLED_LIST" ]; then
+  STATUS="הותקן על: $INSTALLED_LIST"
+else
+  STATUS="לא הותקן על אף מכשיר"
+fi
+[ -n "$SKIPPED_LIST" ] && STATUS="$STATUS · דולג: $SKIPPED_LIST"
+[ -n "$FAILED_LIST" ] && STATUS="$STATUS · נכשל: $FAILED_LIST"
+write_status "$STATUS"
+
+if [ ${#INSTALLED[@]} -eq 0 ]; then
   exit 1
 fi
 
-step "מתקין על הטלפון"
-xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH"
-
-step "מפעיל"
-xcrun devicectl device process launch --device "$DEVICE_ID" "$BUNDLE_ID" || true
-
 cat <<'EOS'
 
-✔ האפליקציה הותקנה על הטלפון.
-
-  בהפעלה הראשונה iOS יבקש לאשר את המפתח:
+  בהפעלה הראשונה על מכשיר חדש iOS יבקש לאשר את המפתח:
   הגדרות ← כללי ← VPN וניהול מכשיר ← בחר את החשבון שלך ← Trust
 EOS

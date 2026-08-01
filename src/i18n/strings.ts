@@ -9,6 +9,8 @@
  * three languages is a compile error rather than a missing label in a report.
  */
 
+import type { LogLevel } from '../lib/log';
+
 export const LANGUAGES = ['he', 'ar', 'en'] as const;
 export type Language = (typeof LANGUAGES)[number];
 
@@ -290,8 +292,61 @@ export interface Strings {
   syncNotFound: string;
   syncBadCode: string;
   syncFailed: string;
+  syncUnreachable: string;
+  syncTimeout: string;
+  syncVersionMismatch: string;
+  syncProgress: (done: number, total: number) => string;
   syncDone: (received: number, sent: number) => string;
   syncLastAt: (when: string) => string;
+
+  /* diary view: grid, list and selection */
+  viewOptions: string;
+  viewGrid: string;
+  viewList: string;
+  sortHeading: string;
+  sortByDate: string;
+  sortByUpdated: string;
+  sortByStatus: string;
+  selectItems: string;
+  selectDone: string;
+  selectAll: string;
+  selectNone: string;
+  selectedCount: (n: number) => string;
+  selectNothing: string;
+  deleteSelected: string;
+  confirmDeleteSelected: (n: number) => string;
+  deletedSelected: (n: number) => string;
+  reportFromSelected: string;
+
+  /* saved signatures */
+  signaturesTitle: string;
+  signaturesHint: string;
+  signatureEmpty: string;
+  signatureDraw: string;
+  signatureRedraw: string;
+  signatureUpload: string;
+  signatureUploadHint: string;
+  signatureSaved: string;
+  signatureRemoved: string;
+  signatureFailed: string;
+  signatureUseSaved: string;
+
+  /* activity log */
+  logTitle: string;
+  logHint: string;
+  logLevel: string;
+  logLevelHint: string;
+  logLevelNames: Record<LogLevel, string>;
+  logShare: string;
+  logShareFailed: string;
+  logClear: string;
+  logCleared: string;
+  logEmpty: string;
+  logEntries: (n: number) => string;
+  logShow: string;
+  logHide: string;
+  logPrivacy: string;
+  fileLogPrefix: string;
 
   /* documents */
   docWorkDiary: string;
@@ -588,8 +643,63 @@ const he: Strings = {
   syncNotFound: 'לא נמצא מחשב בכתובת הזו. ודא ששני המכשירים על אותה רשת ושאפליקציית המק פתוחה.',
   syncBadCode: 'הקוד שגוי',
   syncFailed: 'הסנכרון נכשל',
+  syncUnreachable: 'לא הצלחתי להגיע למחשב — ודא ששני המכשירים על אותה רשת Wi-Fi ושאפליקציית המק פתוחה',
+  syncTimeout: 'הסנכרון לקח יותר מדי זמן ונעצר — נסה שוב קרוב יותר לראוטר',
+  syncVersionMismatch: 'גרסאות שונות בשני המכשירים — עדכן את שניהם ונסה שוב',
+  syncProgress: (done, total) => `מסנכרן ${done} מתוך ${total}…`,
   syncDone: (received, sent) => `הסנכרון הושלם · התקבלו ${received}, נשלחו ${sent}`,
   syncLastAt: (when) => `סנכרון אחרון: ${when}`,
+
+  viewOptions: 'תצוגה',
+  viewGrid: 'רשת',
+  viewList: 'רשימה',
+  sortHeading: 'מיון',
+  sortByDate: 'תאריך',
+  sortByUpdated: 'עודכן לאחרונה',
+  sortByStatus: 'סטטוס',
+  selectItems: 'בחר פריטים',
+  selectDone: 'סיום',
+  selectAll: 'בחר הכל',
+  selectNone: 'נקה בחירה',
+  selectedCount: (n) => `${n} נבחרו`,
+  selectNothing: 'לא נבחר אף יומן',
+  deleteSelected: 'מחק',
+  confirmDeleteSelected: (n) => `למחוק ${n} יומנים? הפעולה אינה הפיכה.`,
+  deletedSelected: (n) => `${n} יומנים נמחקו`,
+  reportFromSelected: 'דוח מהנבחרים',
+
+  signaturesTitle: 'חתימות שמורות',
+  signaturesHint: 'חתימה אחת שנשמרת פעם אחת ומוחתמת על כל יומן בלחיצה — במקום לצייר באצבע כל בוקר.',
+  signatureEmpty: 'עוד אין חתימה',
+  signatureDraw: 'צייר חתימה',
+  signatureRedraw: 'צייר מחדש',
+  signatureUpload: 'העלה תמונה',
+  signatureUploadHint: 'אפשר גם לצלם חתימה על דף לבן ולהעלות — הרקע הלבן יוסר אוטומטית.',
+  signatureSaved: 'החתימה נשמרה',
+  signatureRemoved: 'החתימה נמחקה',
+  signatureFailed: 'לא ניתן היה לשמור את החתימה',
+  signatureUseSaved: 'השתמש בחתימה השמורה',
+
+  logTitle: 'יומן אירועים',
+  logHint: 'רישום פנימי של מה שהאפליקציה עשתה. עוזר להסביר תקלה שקרתה באתר, גם יום אחרי.',
+  logLevel: 'רמת פירוט',
+  logLevelHint: '"רגיל" מתאים לשימוש יומיומי. "הכול" מפרט הרבה יותר — כדאי להדליק רק כשמחפשים תקלה.',
+  logLevelNames: {
+    debug: 'הכול',
+    info: 'רגיל',
+    warn: 'אזהרות ושגיאות',
+    error: 'שגיאות בלבד',
+  },
+  logShare: 'שלח את היומן',
+  logShareFailed: 'שליחת היומן נכשלה',
+  logClear: 'נקה יומן',
+  logCleared: 'היומן נוקה',
+  logEmpty: 'עוד לא נרשם כלום',
+  logEntries: (n) => `${n} רשומות`,
+  logShow: 'הצג',
+  logHide: 'הסתר',
+  logPrivacy: 'היומן רושם פעולות ושגיאות בלבד — לא את תוכן הדוחות, לא שמות ולא תמונות.',
+  fileLogPrefix: 'יומן-אירועים',
 
   docWorkDiary: 'יומן עבודה',
   docCombinedReport: 'דוח מרוכז',
@@ -898,8 +1008,63 @@ const ar: Strings = {
   syncNotFound: 'لم يتم العثور على حاسوب بهذا العنوان. تأكد أن الجهازين على نفس الشبكة وأن تطبيق الماك مفتوح.',
   syncBadCode: 'الرمز غير صحيح',
   syncFailed: 'فشلت المزامنة',
+  syncUnreachable: 'تعذر الوصول إلى الحاسوب — تأكد أن الجهازين على نفس شبكة Wi-Fi وأن تطبيق الماك مفتوح',
+  syncTimeout: 'استغرقت المزامنة وقتاً طويلاً وتوقفت — حاول مجدداً بالقرب من الراوتر',
+  syncVersionMismatch: 'إصدارات مختلفة على الجهازين — حدّث كليهما وحاول مجدداً',
+  syncProgress: (done, total) => `تتم المزامنة ${done} من ${total}…`,
   syncDone: (received, sent) => `اكتملت المزامنة · وردت ${received}، أُرسلت ${sent}`,
   syncLastAt: (when) => `آخر مزامنة: ${when}`,
+
+  viewOptions: 'العرض',
+  viewGrid: 'شبكة',
+  viewList: 'قائمة',
+  sortHeading: 'الترتيب',
+  sortByDate: 'التاريخ',
+  sortByUpdated: 'آخر تحديث',
+  sortByStatus: 'الحالة',
+  selectItems: 'اختيار عناصر',
+  selectDone: 'تم',
+  selectAll: 'اختيار الكل',
+  selectNone: 'إلغاء الاختيار',
+  selectedCount: (n) => `${n} مختارة`,
+  selectNothing: 'لم تُختر أي يومية',
+  deleteSelected: 'حذف',
+  confirmDeleteSelected: (n) => `حذف ${n} يوميات؟ لا يمكن التراجع.`,
+  deletedSelected: (n) => `تم حذف ${n} يوميات`,
+  reportFromSelected: 'تقرير من المختارة',
+
+  signaturesTitle: 'التواقيع المحفوظة',
+  signaturesHint: 'توقيع يُحفظ مرة واحدة ويُختم على كل يومية بضغطة — بدل رسمه بالإصبع كل صباح.',
+  signatureEmpty: 'لا يوجد توقيع بعد',
+  signatureDraw: 'ارسم توقيعاً',
+  signatureRedraw: 'ارسم من جديد',
+  signatureUpload: 'رفع صورة',
+  signatureUploadHint: 'يمكن أيضاً تصوير توقيع على ورقة بيضاء ورفعه — ستُزال الخلفية البيضاء تلقائياً.',
+  signatureSaved: 'تم حفظ التوقيع',
+  signatureRemoved: 'تم حذف التوقيع',
+  signatureFailed: 'تعذر حفظ التوقيع',
+  signatureUseSaved: 'استخدم التوقيع المحفوظ',
+
+  logTitle: 'سجل الأحداث',
+  logHint: 'تسجيل داخلي لما قام به التطبيق. يساعد على تفسير عطل حدث في الموقع، حتى بعد يوم.',
+  logLevel: 'مستوى التفصيل',
+  logLevelHint: '"عادي" مناسب للاستخدام اليومي. "الكل" أكثر تفصيلاً بكثير — يُفضّل تفعيله فقط عند البحث عن عطل.',
+  logLevelNames: {
+    debug: 'الكل',
+    info: 'عادي',
+    warn: 'تحذيرات وأخطاء',
+    error: 'أخطاء فقط',
+  },
+  logShare: 'إرسال السجل',
+  logShareFailed: 'فشل إرسال السجل',
+  logClear: 'مسح السجل',
+  logCleared: 'تم مسح السجل',
+  logEmpty: 'لم يُسجَّل شيء بعد',
+  logEntries: (n) => `${n} سجلات`,
+  logShow: 'عرض',
+  logHide: 'إخفاء',
+  logPrivacy: 'السجل يسجّل الإجراءات والأخطاء فقط — لا محتوى التقارير ولا الأسماء ولا الصور.',
+  fileLogPrefix: 'سجل-الأحداث',
 
   docWorkDiary: 'سجل العمل',
   docCombinedReport: 'تقرير مجمّع',
@@ -1210,8 +1375,63 @@ const en: Strings = {
   syncNotFound: 'No computer found at that address. Check both devices are on the same network and the Mac app is open.',
   syncBadCode: 'Wrong code',
   syncFailed: 'Sync failed',
+  syncUnreachable: 'Could not reach the Mac — check both devices are on the same Wi-Fi and the Mac app is open',
+  syncTimeout: 'Sync took too long and stopped — try again closer to the router',
+  syncVersionMismatch: 'The two devices are on different versions — update both and try again',
+  syncProgress: (done, total) => `Syncing ${done} of ${total}…`,
   syncDone: (received, sent) => `Sync complete · ${received} in, ${sent} out`,
   syncLastAt: (when) => `Last sync: ${when}`,
+
+  viewOptions: 'View',
+  viewGrid: 'Grid',
+  viewList: 'List',
+  sortHeading: 'Sort by',
+  sortByDate: 'Date',
+  sortByUpdated: 'Last modified',
+  sortByStatus: 'Status',
+  selectItems: 'Select items',
+  selectDone: 'Done',
+  selectAll: 'Select all',
+  selectNone: 'Clear selection',
+  selectedCount: (n) => `${n} selected`,
+  selectNothing: 'No pages selected',
+  deleteSelected: 'Delete',
+  confirmDeleteSelected: (n) => `Delete ${n} pages? This cannot be undone.`,
+  deletedSelected: (n) => `${n} pages deleted`,
+  reportFromSelected: 'Report from selected',
+
+  signaturesTitle: 'Saved signatures',
+  signaturesHint: 'Sign once and stamp every diary page with a tap, instead of drawing with a fingertip each morning.',
+  signatureEmpty: 'No signature yet',
+  signatureDraw: 'Draw a signature',
+  signatureRedraw: 'Draw again',
+  signatureUpload: 'Upload an image',
+  signatureUploadHint: 'You can also photograph a signature on white paper and upload it — the white background is removed automatically.',
+  signatureSaved: 'Signature saved',
+  signatureRemoved: 'Signature removed',
+  signatureFailed: 'Could not save the signature',
+  signatureUseSaved: 'Use the saved signature',
+
+  logTitle: 'Activity log',
+  logHint: 'An internal record of what the app did. It makes a fault on site explainable a day later.',
+  logLevel: 'Detail level',
+  logLevelHint: '"Normal" suits everyday use. "Everything" is far noisier — turn it on only while chasing a fault.',
+  logLevelNames: {
+    debug: 'Everything',
+    info: 'Normal',
+    warn: 'Warnings and errors',
+    error: 'Errors only',
+  },
+  logShare: 'Send the log',
+  logShareFailed: 'Could not send the log',
+  logClear: 'Clear log',
+  logCleared: 'Log cleared',
+  logEmpty: 'Nothing recorded yet',
+  logEntries: (n) => `${n} entries`,
+  logShow: 'Show',
+  logHide: 'Hide',
+  logPrivacy: 'The log records actions and errors only — never report contents, names or photos.',
+  fileLogPrefix: 'activity-log',
 
   docWorkDiary: 'WORK DIARY',
   docCombinedReport: 'COMBINED REPORT',

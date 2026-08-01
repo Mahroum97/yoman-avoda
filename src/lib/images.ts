@@ -61,6 +61,50 @@ export async function prepareLogo(file: File | Blob): Promise<PreparedImage> {
   return { blob, width, height };
 }
 
+/**
+ * A photographed or scanned signature, made fit to sit on the form.
+ *
+ * The paper it was signed on becomes transparent. Without this, a signature
+ * uploaded as a photo prints as a white rectangle that covers the ruled line
+ * underneath it — recognisably a pasted-in picture rather than a signature.
+ * The threshold is deliberately forgiving, because paper photographed indoors
+ * is never actually white.
+ */
+const PAPER_THRESHOLD = 210;
+
+export async function prepareSignature(file: File | Blob): Promise<PreparedImage> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 600 / Math.max(bitmap.width, bitmap.height));
+  const width = Math.max(1, Math.round(bitmap.width * scale));
+  const height = Math.max(1, Math.round(bitmap.height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('לא ניתן לעבד את החתימה');
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+
+  const image = ctx.getImageData(0, 0, width, height);
+  const { data } = image;
+  for (let i = 0; i < data.length; i += 4) {
+    const lightest = Math.max(data[i], data[i + 1], data[i + 2]);
+    if (lightest >= PAPER_THRESHOLD) {
+      data[i + 3] = 0;
+    } else {
+      // Ink darkens towards the middle of a stroke; fading the edges in step
+      // with their lightness keeps the stroke smooth instead of jagged.
+      data[i + 3] = Math.min(255, Math.round(((PAPER_THRESHOLD - lightest) / PAPER_THRESHOLD) * 400));
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('לא ניתן לעבד את החתימה');
+  return { blob, width, height };
+}
+
 export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -70,9 +114,29 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/**
+ * Decodes a data URL without going through `fetch`.
+ *
+ * `fetch(dataUrl)` works and reads well, but it pushes every photo through the
+ * network stack, and sync decodes photos in a loop — on a phone that was one of
+ * the slowest parts of a merge. `atob` is synchronous and stays in memory.
+ */
 export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const res = await fetch(dataUrl);
-  return res.blob();
+  const comma = dataUrl.indexOf(',');
+  if (comma === -1) return new Blob([]);
+
+  const header = dataUrl.slice(0, comma);
+  const body = dataUrl.slice(comma + 1);
+  const mime = header.match(/^data:([^;,]+)/)?.[1] ?? 'application/octet-stream';
+
+  if (!header.includes(';base64')) {
+    return new Blob([decodeURIComponent(body)], { type: mime });
+  }
+
+  const binary = atob(body);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
 }
 
 /** `data:image/png;base64,AAA` -> `AAA`, as docx's ImageRun expects. */
