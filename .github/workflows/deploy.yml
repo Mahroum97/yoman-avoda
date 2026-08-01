@@ -1,0 +1,60 @@
+# Publishes the diary to GitHub Pages on every push to main.
+#
+# This is what makes "update the app" a single action: the Mac app and the
+# phones are rebuilt by scripts/push-all.sh, and the web version — the one the
+# iPad installs without a cable — is rebuilt here, by GitHub, from the same
+# commit. Nothing has to be uploaded by hand.
+#
+# The built app also refreshes itself on devices: the service worker is
+# registered with autoUpdate, so an installed home-screen copy picks up a new
+# version on its next launch.
+
+name: פרסום לאינטרנט
+
+on:
+  push:
+    branches: [main]
+  # Lets the site be rebuilt from the Actions tab without a code change.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; the newer commit is the one that matters.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # `ci` rather than `install`: it installs exactly the locked versions, so
+      # the site GitHub builds is the one that was tested on the Mac.
+      - run: npm ci
+
+      # The fonts are committed, so the build needs no network of its own.
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
