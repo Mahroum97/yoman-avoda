@@ -619,6 +619,25 @@ button:focus-visible {
   font-size: 0.82rem;
 }
 
+/* Why the last sync did not happen — stated where somebody goes to ask. */
+.sync-problem {
+  margin: 0 0 4px;
+  padding: 9px 11px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.sync-problem__hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  opacity: 0.75;
+}
+
 .entry {
   display: flex;
   align-items: center;

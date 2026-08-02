@@ -281,6 +281,9 @@ export interface Strings {
   syncHostHint: string;
   syncHostOffline: string;
   syncStartHost: string;
+  syncPortBusy: string;
+  syncHostRetrying: string;
+  syncAddressChanged: string;
   syncClientHint: string;
   syncAddress: string;
   syncAddressHint: string;
@@ -663,6 +666,9 @@ const he: Strings = {
     'המחשב הזה משמש כמרכז. בטלפון, בהגדרות ← סנכרון, מזינים את הכתובת והקוד שלמטה — פעם אחת בלבד.',
   syncHostOffline: 'שרת הסנכרון כבוי.',
   syncStartHost: 'הפעל סנכרון',
+  syncPortBusy: 'הפורט תפוס — כנראה נשארה גרסה קודמת של האפליקציה פתוחה.',
+  syncHostRetrying: 'מנסה שוב לבד…',
+  syncAddressChanged: 'ייתכן שכתובת המק השתנתה. בדקו אותה באפליקציית המק ← הגדרות ← סנכרון.',
   syncClientHint:
     'פותחים את אפליקציית המק, נכנסים להגדרות ← סנכרון, ומעתיקים מכאן את הכתובת והקוד. שני המכשירים צריכים להיות על אותה רשת Wi-Fi.',
   syncAddress: 'כתובת המחשב',
@@ -1057,6 +1063,9 @@ const ar: Strings = {
     'هذا الحاسوب هو المركز. في الهاتف، الإعدادات ← المزامنة، أدخل العنوان والرمز أدناه — مرة واحدة فقط.',
   syncHostOffline: 'خادم المزامنة متوقف.',
   syncStartHost: 'تشغيل المزامنة',
+  syncPortBusy: 'المنفذ مشغول — على الأرجح ما زالت نسخة سابقة من التطبيق مفتوحة.',
+  syncHostRetrying: 'تتم إعادة المحاولة تلقائيًا…',
+  syncAddressChanged: 'ربما تغيّر عنوان الماك. تحقق منه في تطبيق الماك ← الإعدادات ← المزامنة.',
   syncClientHint:
     'افتح تطبيق الماك، ادخل إلى الإعدادات ← المزامنة، وانسخ العنوان والرمز من هناك. يجب أن يكون الجهازان على نفس شبكة Wi-Fi.',
   syncAddress: 'عنوان الحاسوب',
@@ -1453,6 +1462,9 @@ const en: Strings = {
     'This Mac is the hub. On the phone, open Settings → Sync and enter the address and code below — once.',
   syncHostOffline: 'The sync server is not running.',
   syncStartHost: 'Start sync',
+  syncPortBusy: 'The port is taken — an earlier copy of the app is probably still open.',
+  syncHostRetrying: 'Retrying by itself…',
+  syncAddressChanged: "The Mac's address may have changed. Check it in the Mac app under Settings \u2190 Sync.",
   syncClientHint:
     'Open the Mac app, go to Settings → Sync, and copy the address and code from there. Both devices must be on the same Wi-Fi.',
   syncAddress: 'Computer address',

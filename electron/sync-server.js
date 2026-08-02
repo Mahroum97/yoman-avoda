@@ -22,6 +22,31 @@ let server = null;
 let pairingCode = null;
 let askRenderer = null;
 let lastSyncAt = null;
+/**
+ * Whether the socket is actually bound.
+ *
+ * Not the same as `server !== null`: `listen` is asynchronous, so for a moment
+ * — and forever, if the bind fails — there is a server object listening to
+ * nothing. Reporting that as "running" is how the Mac came to show an address
+ * and a code while the port was closed and every phone got a refused
+ * connection.
+ */
+let listening = false;
+/** Why the last bind failed, so the app can say something better than "off". */
+let lastError = null;
+let retryTimer = null;
+let retries = 0;
+
+/**
+ * Rebinding after a failure is worth doing on a timer rather than once.
+ *
+ * The common failure is EADDRINUSE straight after an update: `push-all.sh`
+ * quits the old app and replaces the bundle, and the previous process can still
+ * be holding the port for a few seconds when the new one starts. One swallowed
+ * error there used to disable sync until somebody noticed and restarted the app
+ * — which is exactly the silence this is meant to end.
+ */
+const RETRY_MS = [1000, 2000, 4000, 8000, 15_000, 30_000];
 
 /** The address a phone should be pointed at. */
 export function lanAddress() {
@@ -125,10 +150,13 @@ async function handle(request, response) {
  *             the renderer produced.
  */
 export function startSyncServer(ask) {
-  askRenderer = ask;
+  if (ask) askRenderer = ask;
   if (server) return status();
 
-  pairingCode = newCode();
+  // The code survives a rebind: a phone that was already paired should not have
+  // to be paired again because the port took a few seconds to come free.
+  if (!pairingCode) pairingCode = newCode();
+
   server = createServer((req, res) => {
     handle(req, res).catch(() => {
       try {
@@ -138,16 +166,47 @@ export function startSyncServer(ask) {
       }
     });
   });
-  server.on('error', () => {
-    server = null;
+
+  server.on('listening', () => {
+    listening = true;
+    lastError = null;
+    retries = 0;
   });
+
+  server.on('error', (error) => {
+    listening = false;
+    lastError = error?.code || 'UNKNOWN';
+    server = null;
+    scheduleRetry();
+  });
+
   server.listen(PORT, '0.0.0.0');
   return status();
 }
 
+function scheduleRetry() {
+  if (retryTimer) return;
+  const wait = RETRY_MS[Math.min(retries, RETRY_MS.length - 1)];
+  retries += 1;
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    // `stopSyncServer` clears the code; a retry after a deliberate stop would
+    // bring the host back up behind the user's back.
+    if (pairingCode) startSyncServer();
+  }, wait);
+  retryTimer.unref?.();
+}
+
 export function stopSyncServer() {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+  retries = 0;
   server?.close();
   server = null;
+  listening = false;
+  lastError = null;
   pairingCode = null;
 }
 
@@ -158,10 +217,14 @@ export function regenerateCode() {
 
 export function status() {
   return {
-    running: !!server,
+    // The bound socket, not the object. See `listening`.
+    running: listening,
     address: lanAddress(),
     code: pairingCode,
     lastSyncAt,
+    /** Set only when the port could not be taken; `EADDRINUSE` in practice. */
+    error: lastError,
+    retrying: !!retryTimer,
   };
 }
 

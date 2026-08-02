@@ -9,10 +9,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { useLanguage } from '../i18n/useLanguage';
 import { useToast } from '../hooks/toastContext';
 import type { SyncServerStatus } from '../lib/save';
+import type { Strings } from '../i18n/strings';
 import {
   canHost,
   forgetPeer,
   lastSyncAt,
+  lastSyncError,
   probe,
   readPeer,
   savePeer,
@@ -56,7 +58,10 @@ function HostPanel() {
   if (!status.running || !status.address) {
     return (
       <div className="stack">
-        <p className="card__note">{t.syncHostOffline}</p>
+        <p className="card__note">
+          {status.error === 'EADDRINUSE' ? t.syncPortBusy : t.syncHostOffline}
+        </p>
+        {status.retrying && <p className="muted small">{t.syncHostRetrying}</p>}
         <div>
           <button
             type="button"
@@ -99,6 +104,20 @@ function HostPanel() {
   );
 }
 
+/**
+ * Each of these means something different to someone standing on a site with a
+ * phone, and a bare "sync failed" sent them looking in the wrong place. Shared
+ * by the toast after a manual sync and by the card's own record of the last
+ * automatic attempt.
+ */
+function explainFailure(reason: string, t: Strings): string {
+  if (reason === 'BAD_CODE') return t.syncBadCode;
+  if (reason === 'UNREACHABLE') return t.syncUnreachable;
+  if (reason === 'TIMEOUT') return t.syncTimeout;
+  if (reason === 'VERSION_MISMATCH') return t.syncVersionMismatch;
+  return t.syncFailed;
+}
+
 /* --------------------------------------------------------------- the phone */
 
 function ClientPanel() {
@@ -113,6 +132,17 @@ function ClientPanel() {
   // sits there and the user assumes it has hung — which is what they reported.
   const [progress, setProgress] = useState<SyncProgress | null>(null);
   const [auto, setAuto] = useState(autoSyncEnabled);
+  const [failure, setFailure] = useState(lastSyncError);
+
+  // Automatic syncs run behind this card, so what it shows has to be re-read
+  // rather than only written by the button next to it.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setFailure(lastSyncError());
+      setSeen(formatTime(lastSyncAt(), language));
+    }, 4000);
+    return () => window.clearInterval(timer);
+  }, [language]);
 
   const connect = async () => {
     if (!address.trim() || code.trim().length < 4) {
@@ -140,6 +170,7 @@ function ClientPanel() {
     try {
       const outcome = await syncNow(target, setProgress);
       setSeen(formatTime(Date.now(), language));
+      setFailure(null);
       toast.show(
         t.syncDone(
           outcome.received.projects + outcome.received.entries,
@@ -147,20 +178,9 @@ function ClientPanel() {
         ),
       );
     } catch (error) {
-      // Each of these means something different to someone standing on a site
-      // with a phone, and "sync failed" sent them looking in the wrong place.
       const message = error instanceof Error ? error.message : '';
-      const reason =
-        message === 'BAD_CODE'
-          ? t.syncBadCode
-          : message === 'UNREACHABLE'
-            ? t.syncUnreachable
-            : message === 'TIMEOUT'
-              ? t.syncTimeout
-              : message === 'VERSION_MISMATCH'
-                ? t.syncVersionMismatch
-                : t.syncFailed;
-      toast.error(reason);
+      setFailure(lastSyncError());
+      toast.error(explainFailure(message, t));
     } finally {
       setBusy(false);
       setProgress(null);
@@ -214,6 +234,21 @@ function ClientPanel() {
       )}
 
       {seen && <p className="muted small">{t.syncLastAt(seen)}</p>}
+
+      {/*
+        The reason the last attempt failed, shown here rather than as a toast.
+        Automatic sync stays quiet on purpose, but "last sync: yesterday" with
+        nothing to explain it is its own kind of unhelpful — this answers the
+        question at the moment somebody comes looking for the answer.
+      */}
+      {failure && !busy && (
+        <p className="sync-problem">
+          ⚠ {explainFailure(failure.reason, t)}
+          {failure.reason === 'UNREACHABLE' && (
+            <span className="sync-problem__hint">{t.syncAddressChanged}</span>
+          )}
+        </p>
+      )}
 
       <div className="btn-row">
         <button

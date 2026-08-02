@@ -14,10 +14,15 @@ import { fileKind, logger } from './log';
 const log = logger('save');
 
 export interface SyncServerStatus {
+  /** The socket is bound — not merely that a server object exists. */
   running: boolean;
   address: string | null;
   code: string | null;
   lastSyncAt: number | null;
+  /** Why the port could not be taken; `EADDRINUSE` in practice. */
+  error?: string | null;
+  /** A rebind is already scheduled, so there is nothing for the user to do. */
+  retrying?: boolean;
 }
 
 export interface DesktopBridge {

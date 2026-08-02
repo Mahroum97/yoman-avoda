@@ -43,6 +43,46 @@ const log = logger('sync');
 
 const PAIR_KEY = 'yoman-sync-peer';
 const LAST_SYNC_KEY = 'yoman-sync-last';
+/**
+ * Why the last attempt failed.
+ *
+ * Automatic sync stays silent when it fails, deliberately — a phone on a site
+ * drops off the Wi-Fi constantly and a toast every time is noise people learn
+ * to ignore. But silence left "last sync: yesterday" with nothing to explain
+ * it, which is worse. The reason is kept here so the sync card can answer the
+ * question at the moment somebody actually goes looking.
+ */
+const LAST_ERROR_KEY = 'yoman-sync-error';
+
+export interface SyncFailure {
+  reason: string;
+  at: number;
+}
+
+export function lastSyncError(): SyncFailure | null {
+  try {
+    const raw = localStorage.getItem(LAST_ERROR_KEY);
+    return raw ? (JSON.parse(raw) as SyncFailure) : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberFailure(reason: string): void {
+  try {
+    localStorage.setItem(LAST_ERROR_KEY, JSON.stringify({ reason, at: Date.now() }));
+  } catch {
+    /* the log still has it */
+  }
+}
+
+function clearFailure(): void {
+  try {
+    localStorage.removeItem(LAST_ERROR_KEY);
+  } catch {
+    /* nothing to clear */
+  }
+}
 
 export interface Peer {
   address: string;
@@ -65,6 +105,7 @@ export function savePeer(peer: Peer): void {
 export function forgetPeer(): void {
   localStorage.removeItem(PAIR_KEY);
   localStorage.removeItem(LAST_SYNC_KEY);
+  clearFailure();
 }
 
 export function lastSyncAt(): number | null {
@@ -183,12 +224,15 @@ async function runSyncGuarded(
   });
 
   try {
-    return await runSync(peer, manifest, done, onProgress);
+    const outcome = await runSync(peer, manifest, done, onProgress);
+    clearFailure();
+    return outcome;
   } catch (error) {
     done('failed');
     // BAD_CODE and HTTP_* are thrown by `post` above and are the two the user
     // can actually act on, so they are named rather than buried in a stack.
     log.error('sync failed', error);
+    rememberFailure(error instanceof Error ? error.message : 'UNKNOWN');
     throw error;
   }
 }
