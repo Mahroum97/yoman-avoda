@@ -9,6 +9,7 @@ import { EntryEditor } from './screens/EntryEditor';
 import { PreviewScreen } from './screens/PreviewScreen';
 import { ProjectsScreen } from './screens/ProjectsScreen';
 import { ReportsScreen } from './screens/ReportsScreen';
+import { ReportPreviewScreen } from './screens/ReportPreviewScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { EmptyState } from './components/ui';
 import { Logo } from './components/Logo';
@@ -172,6 +173,21 @@ function Screen({
     const id = Number(target);
     if (Number.isNaN(id)) return <NotFound />;
     return <EntryEditor entryId={id} project={project} />;
+  }
+
+  if (section === 'report-preview') {
+    const from = route.query.get('from');
+    const to = route.query.get('to');
+    if (!from || !to) return <NotFound />;
+    return (
+      <ReportPreviewScreen
+        project={project}
+        from={from}
+        to={to}
+        includePhotos={route.query.get('photos') === '1'}
+        includeSummary={route.query.get('summary') === '1'}
+      />
+    );
   }
 
   if (section === 'preview') {

@@ -30,6 +30,11 @@ export interface DesktopBridge {
     name: string,
     data: Uint8Array,
   ) => Promise<{ saved: boolean; path?: string }>;
+  /** The macOS share sheet. Absent on older builds of the Mac app. */
+  shareFile?: (
+    name: string,
+    data: Uint8Array,
+  ) => Promise<{ shared: boolean; error?: string }>;
   platform: string;
   version: string;
   /** Present only in the Mac app, which hosts local-network sync. */
@@ -171,6 +176,78 @@ export async function saveBinary(
   mime: string,
 ): Promise<void> {
   await saveBlob(new Blob([bytes as BlobPart], { type: mime }), name);
+}
+
+/* -------------------------------------------------------------------- share */
+
+/**
+ * Whether this device can hand a file to other apps.
+ *
+ * Used to decide whether to offer a share button at all: on a plain desktop
+ * browser there is nothing behind it but a download, which the export buttons
+ * already do, so a second button that does the same thing would be a lie.
+ */
+export function canShareFiles(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (window.yoman) return !!window.yoman.shareFile && window.yoman.platform === 'darwin';
+  if (isNativeApp()) return true;
+  return typeof navigator !== 'undefined' && !!navigator.canShare;
+}
+
+/**
+ * Hands a finished file to the system share sheet — WhatsApp, Mail, AirDrop.
+ *
+ * The distinction from `saveBlob` only exists on the Mac. On iOS the two are
+ * the same thing, because the share sheet *is* how a file leaves the app;
+ * on the Mac saving opens a file dialog and sharing opens the picker, and the
+ * report someone wants to send to the site manager needs the second one.
+ *
+ * Returns false when nothing could be opened, so the caller can say so rather
+ * than leaving the user staring at a button that did nothing.
+ */
+export async function shareBlob(blob: Blob, name: string): Promise<boolean> {
+  log.debug('sharing file', { kind: fileKind(name), bytes: blob.size });
+
+  const bridge = window.yoman;
+  if (bridge?.shareFile) {
+    const result = await bridge.shareFile(name, new Uint8Array(await blob.arrayBuffer()));
+    log.info('shared via desktop share sheet', {
+      kind: fileKind(name),
+      shared: result.shared,
+    });
+    if (result.shared) return true;
+    // The Mac app on a platform without a share sheet, or a failure writing the
+    // temporary copy: saving is still better than nothing happening.
+    await saveBlob(blob, name);
+    return true;
+  }
+
+  if (isNativeApp() && (await saveNative(blob, name))) return true;
+  if (await saveViaWebShare(blob, name)) return true;
+
+  log.warn('no share route available', { kind: fileKind(name) });
+  return false;
+}
+
+/** How a finished export should reach the user. */
+export type Deliver = 'save' | 'share';
+
+/**
+ * One call for both buttons.
+ *
+ * Sharing falls back to saving when no sheet can be opened, so the file is
+ * never simply lost: the worst case is that it lands where "save" would have
+ * put it, which is still in front of the user.
+ */
+export async function deliverBinary(
+  bytes: Uint8Array,
+  name: string,
+  mime: string,
+  how: Deliver = 'save',
+): Promise<void> {
+  const blob = new Blob([bytes as BlobPart], { type: mime });
+  if (how === 'share' && (await shareBlob(blob, name))) return;
+  await saveBlob(blob, name);
 }
 
 /**

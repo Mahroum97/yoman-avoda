@@ -1,13 +1,15 @@
 /**
  * The only bridge between the page and the system.
  *
- * Deliberately narrow: one function that hands bytes to the main process for a
- * user-confirmed "save as". The page gets no file system access of its own.
+ * Deliberately narrow: hands bytes to the main process for a user-confirmed
+ * "save as" or for the system share sheet. The page gets no file system access
+ * of its own — it can neither choose where a file lands nor read one back.
  */
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('yoman', {
   saveFile: (name, data) => ipcRenderer.invoke('yoman:saveFile', name, data),
+  shareFile: (name, data) => ipcRenderer.invoke('yoman:shareFile', name, data),
   platform: process.platform,
   version: process.versions.electron,
 

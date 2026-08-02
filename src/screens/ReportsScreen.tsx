@@ -8,6 +8,8 @@ import { useCompanyLogo } from '../hooks/useBranding';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { Card, EmptyState, Field } from '../components/ui';
+import { navigate } from '../hooks/useRoute';
+import { canShareFiles } from '../lib/save';
 
 export function ReportsScreen({ project }: { project: Project }) {
   const toast = useToast();
@@ -19,7 +21,8 @@ export function ReportsScreen({ project }: { project: Project }) {
   const [includePhotos, setIncludePhotos] = useState(false);
   const [includeSummary, setIncludeSummary] = useState(true);
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
-  const [busy, setBusy] = useState<'pdf' | 'word' | 'excel' | null>(null);
+  const [busy, setBusy] = useState<'pdf' | 'word' | 'excel' | 'share' | null>(null);
+  const canShare = useMemo(() => canShareFiles(), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,6 +66,35 @@ export function ReportsScreen({ project }: { project: Project }) {
     } finally {
       setBusy(null);
     }
+  };
+
+  /** The finished report, handed to the share sheet instead of a save dialog. */
+  const shareReport = async () => {
+    if (!entries?.length) return;
+    setBusy('share');
+    try {
+      const { exportRangePdf } = await import('../pdf/export');
+      await exportRangePdf(entries, project, from, to, {
+        includePhotos,
+        includeSummary,
+        logoDataUrl,
+        deliver: 'share',
+      });
+    } catch {
+      toast.error(t.reportFailed);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const openPreview = () => {
+    const q = new URLSearchParams({
+      from,
+      to,
+      photos: includePhotos ? '1' : '0',
+      summary: includeSummary ? '1' : '0',
+    });
+    navigate(`/report-preview?${q.toString()}`);
   };
 
   const shiftMonth = (delta: number) => {
@@ -182,6 +214,24 @@ export function ReportsScreen({ project }: { project: Project }) {
           onClick={() => void download('excel')}
         >
           {busy === 'excel' ? t.exporting : `▦ ${t.exportExcel}`}
+        </button>
+        {canShare && (
+          <button
+            type="button"
+            className="btn"
+            disabled={busy !== null || !entries?.length}
+            onClick={() => void shareReport()}
+          >
+            {busy === 'share' ? t.sharing : `↗ ${t.shareButton}`}
+          </button>
+        )}
+        <button
+          type="button"
+          className="btn"
+          disabled={busy !== null || !entries?.length}
+          onClick={openPreview}
+        >
+          {t.previewButton}
         </button>
       </div>
 

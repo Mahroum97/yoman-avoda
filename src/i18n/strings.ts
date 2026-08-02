@@ -40,6 +40,7 @@ export interface Strings {
   add: string;
   loading: string;
   back: string;
+  backToReports: string;
   print: string;
 
   /* diary list */
@@ -96,6 +97,11 @@ export interface Strings {
   entryExistsBody: string;
   previewButton: string;
   exportPdf: string;
+  shareButton: string;
+  sharing: string;
+  shareNoRoute: string;
+  reportPreviewTitle: string;
+  reportPreviewOf: (shown: number, total: number) => string;
   exportWord: string;
   generating: string;
   exporting: string;
@@ -422,6 +428,7 @@ const he: Strings = {
   add: 'הוסף',
   loading: 'טוען…',
   back: 'חזרה לעריכה',
+  backToReports: 'חזרה לדוחות',
   print: 'הדפס',
 
   diaryTitle: 'יומן עבודה',
@@ -476,6 +483,11 @@ const he: Strings = {
   entryExistsBody: 'בחר תאריך אחר כדי לשמור את הדף.',
   previewButton: 'תצוגה מקדימה',
   exportPdf: 'הפק PDF',
+  shareButton: 'שתף',
+  sharing: 'מכין לשיתוף…',
+  shareNoRoute: 'המכשיר הזה לא תומך בשיתוף — הקובץ נשמר במקום',
+  reportPreviewTitle: 'תצוגה מקדימה של הדוח',
+  reportPreviewOf: (shown, total) => `מוצגים ${shown} מתוך ${total} ימים`,
   exportWord: 'ייצא ל-Word',
   generating: 'מפיק…',
   exporting: 'מייצא…',
@@ -819,6 +831,7 @@ const ar: Strings = {
   add: 'إضافة',
   loading: 'جارٍ التحميل…',
   back: 'العودة للتحرير',
+  backToReports: 'العودة إلى التقارير',
   print: 'طباعة',
 
   diaryTitle: 'سجل العمل',
@@ -873,6 +886,11 @@ const ar: Strings = {
   entryExistsBody: 'اختر تاريخًا آخر لحفظ الصفحة.',
   previewButton: 'معاينة',
   exportPdf: 'إنشاء PDF',
+  shareButton: 'مشاركة',
+  sharing: 'جارٍ التحضير للمشاركة…',
+  shareNoRoute: 'هذا الجهاز لا يدعم المشاركة — تم حفظ الملف بدلاً من ذلك',
+  reportPreviewTitle: 'معاينة التقرير',
+  reportPreviewOf: (shown, total) => `يتم عرض ${shown} من ${total} أيام`,
   exportWord: 'تصدير إلى Word',
   generating: 'جارٍ الإنشاء…',
   exporting: 'جارٍ التصدير…',
@@ -1216,6 +1234,7 @@ const en: Strings = {
   add: 'Add',
   loading: 'Loading…',
   back: 'Back to editing',
+  backToReports: 'Back to reports',
   print: 'Print',
 
   diaryTitle: 'Work Diary',
@@ -1271,6 +1290,11 @@ const en: Strings = {
   entryExistsBody: 'Choose another date to save this page.',
   previewButton: 'Preview',
   exportPdf: 'Create PDF',
+  shareButton: 'Share',
+  sharing: 'Preparing to share…',
+  shareNoRoute: "This device can't share — the file was saved instead",
+  reportPreviewTitle: 'Report preview',
+  reportPreviewOf: (shown, total) => `Showing ${shown} of ${total} days`,
   exportWord: 'Export to Word',
   generating: 'Creating…',
   exporting: 'Exporting…',

@@ -5,9 +5,9 @@
  * codebase and one set of behaviour. What the desktop build adds is a native
  * save dialog for exports and a Hebrew menu bar.
  */
-import { app, BrowserWindow, dialog, ipcMain, Menu, shell } from 'electron';
-import { writeFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { app, BrowserWindow, dialog, ipcMain, Menu, shell, ShareMenu } from 'electron';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import {
@@ -109,6 +109,37 @@ ipcMain.handle('yoman:saveFile', async (_event, name, data) => {
   await writeFile(filePath, Buffer.from(data));
   shell.showItemInFolder(filePath);
   return { saved: true, path: filePath };
+});
+
+/**
+ * The macOS share sheet — WhatsApp, Mail, Messages, AirDrop.
+ *
+ * The phone has had this all along: on iOS every export goes out through the
+ * share sheet because there is no downloads folder. The Mac only ever had a
+ * "save as" dialog, so sending a day's report to someone meant saving it and
+ * then finding it again in another app. `ShareMenu` is the same picker Finder
+ * uses, and it needs a real file on disk, so the bytes are written to a
+ * temporary copy first.
+ */
+ipcMain.handle('yoman:shareFile', async (_event, name, data) => {
+  // ShareMenu is macOS-only; elsewhere the renderer falls back to saving.
+  if (process.platform !== 'darwin' || !mainWindow) return { shared: false };
+
+  try {
+    const dir = join(app.getPath('temp'), 'yoman-share');
+    await mkdir(dir, { recursive: true });
+    // `name` is built in the renderer from the project name, so it is treated
+    // as untrusted here: `basename` keeps a crafted name from escaping the
+    // temp directory and writing somewhere it should not.
+    const file = join(dir, basename(String(name)) || 'yoman.pdf');
+    await writeFile(file, Buffer.from(data));
+
+    new ShareMenu({ filePaths: [file] }).popup({ window: mainWindow });
+    return { shared: true };
+  } catch (error) {
+    // Falling back to the save dialog is better than nothing happening.
+    return { shared: false, error: String(error?.message ?? error) };
+  }
 });
 
 function buildMenu() {

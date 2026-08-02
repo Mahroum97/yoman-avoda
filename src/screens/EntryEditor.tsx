@@ -20,6 +20,7 @@ import { RowsEditor, type ColumnDef } from '../components/RowsEditor';
 import { SignaturePad } from '../components/SignaturePad';
 import { useSavedSignatures } from '../hooks/useSignatures';
 import { PhotoGrid } from '../components/PhotoGrid';
+import { canShareFiles } from '../lib/save';
 
 const AUTOSAVE_MS = 1200;
 
@@ -43,7 +44,10 @@ export function EntryEditor({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dateConflict, setDateConflict] = useState(false);
-  const [exporting, setExporting] = useState<'pdf' | 'word' | null>(null);
+  const [exporting, setExporting] = useState<'pdf' | 'word' | 'share' | null>(null);
+  // Offered only where a share sheet exists; on a plain desktop browser it
+  // would do nothing the export buttons do not already do.
+  const canShare = useMemo(() => canShareFiles(), []);
   const latest = useRef<DiaryEntry | null>(null);
 
   // Load once; afterwards this component owns the draft in local state.
@@ -185,6 +189,24 @@ export function EntryEditor({
       }
     } catch {
       toast.error(format === 'pdf' ? t.pdfFailed : t.wordFailed);
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  /**
+   * The same PDF, handed to the system share sheet instead of a save dialog —
+   * which is how a day's page reaches WhatsApp without being saved and hunted
+   * down again.
+   */
+  const doShare = async () => {
+    setExporting('share');
+    try {
+      if (dirty) await persist(entry);
+      const { exportEntryPdf } = await import('../pdf/export');
+      await exportEntryPdf(entry, project, { logoDataUrl, deliver: 'share' });
+    } catch {
+      toast.error(t.pdfFailed);
     } finally {
       setExporting(null);
     }
@@ -402,6 +424,16 @@ export function EntryEditor({
         >
           {exporting === 'pdf' ? t.generating : `⬇ ${t.exportPdf}`}
         </button>
+        {canShare && (
+          <button
+            type="button"
+            className="btn"
+            disabled={exporting !== null}
+            onClick={() => void doShare()}
+          >
+            {exporting === 'share' ? t.sharing : `↗ ${t.shareButton}`}
+          </button>
+        )}
         <button
           type="button"
           className="btn"

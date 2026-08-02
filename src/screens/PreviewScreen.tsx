@@ -2,7 +2,7 @@
  * Full-page preview of the form as it will be printed. Printing this screen
  * produces a PDF of the same layout, which is the app's PDF route.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Project } from '../types';
 import { useEntry } from '../hooks/useData';
 import { useCompanyLogo } from '../hooks/useBranding';
@@ -11,7 +11,7 @@ import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
 import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
-import { needsShareToPrint } from '../lib/save';
+import { canShareFiles, needsShareToPrint } from '../lib/save';
 import { useDocThemeId } from '../hooks/useDocTheme';
 
 export function PreviewScreen({
@@ -26,7 +26,8 @@ export function PreviewScreen({
   const themeId = useDocThemeId();
   const toast = useToast();
   const { t } = useLanguage();
-  const [busy, setBusy] = useState<'pdf' | 'word' | null>(null);
+  const [busy, setBusy] = useState<'pdf' | 'word' | 'share' | null>(null);
+  const canShare = useMemo(() => canShareFiles(), []);
 
   if (!entry) return <p className="muted">{t.loading}</p>;
 
@@ -58,6 +59,19 @@ export function PreviewScreen({
     try {
       const { exportEntryPdf } = await import('../pdf/export');
       await exportEntryPdf(entry, project, { logoDataUrl });
+    } catch {
+      toast.error(t.pdfFailed);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  /** The same PDF, straight into WhatsApp, Mail or AirDrop. */
+  const share = async () => {
+    setBusy('share');
+    try {
+      const { exportEntryPdf } = await import('../pdf/export');
+      await exportEntryPdf(entry, project, { logoDataUrl, deliver: 'share' });
     } catch {
       toast.error(t.pdfFailed);
     } finally {
@@ -104,6 +118,16 @@ export function PreviewScreen({
         >
           {busy === 'word' ? t.exporting : t.exportWord}
         </button>
+        {canShare && (
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={busy !== null}
+            onClick={() => void share()}
+          >
+            {busy === 'share' ? t.sharing : `↗ ${t.shareButton}`}
+          </button>
+        )}
         <button
           type="button"
           className="btn btn--sm"
