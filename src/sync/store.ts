@@ -156,6 +156,7 @@ async function toWireEntry(entry: DiaryEntry): Promise<WireEntry> {
     workDescription: entry.workDescription,
     casting: entry.casting,
     supervisorNotes: entry.supervisorNotes,
+    receivedToday: entry.receivedToday ?? '',
     supervisorSignature: entry.supervisorSignature,
     managerSignature: entry.managerSignature,
     photos: await Promise.all(
@@ -169,6 +170,7 @@ async function toWireEntry(entry: DiaryEntry): Promise<WireEntry> {
       })),
     ),
     status: entry.status,
+    pinned: entry.pinned ?? false,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
@@ -321,10 +323,12 @@ async function mergeInTransaction(
       workDescription: wire.workDescription,
       casting: wire.casting as DiaryEntry['casting'],
       supervisorNotes: wire.supervisorNotes,
+      receivedToday: wire.receivedToday ?? '',
       supervisorSignature: wire.supervisorSignature,
       managerSignature: wire.managerSignature,
       photos: decoded.get(wire.uid) ?? [],
       status: wire.status,
+      pinned: wire.pinned ?? false,
       createdAt: wire.createdAt,
       updatedAt: wire.updatedAt,
     };

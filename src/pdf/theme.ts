@@ -98,6 +98,7 @@ export const METRICS = {
   descriptionLines: 13,
   descriptionLine: 15.5,
   supervisorLines: 9,
+  receivedLines: 3,
   signatureBox: 62,
   footerBand: 16,
   hairline: 0.6,

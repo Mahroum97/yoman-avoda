@@ -67,6 +67,7 @@ export interface Strings {
   sectionWorkDescription: string;
   sectionCasting: string;
   sectionSupervisorNotes: string;
+  sectionReceivedToday: string;
   sectionSignatures: string;
   sectionPhotos: string;
   hintProjectDate: string;
@@ -135,6 +136,7 @@ export interface Strings {
   labelConcreteQty: string;
   labelNotes: string;
   labelSupervisorNotes: string;
+  labelReceivedToday: string;
   labelSupervisorSignature: string;
   labelManagerSignature: string;
   labelConcreteTypeNote: string;
@@ -153,6 +155,7 @@ export interface Strings {
   phConcreteQty: string;
   phWorkDescription: string;
   phSupervisorNotes: string;
+  phReceivedToday: string;
   phProjectName: string;
   phAddress: string;
   phCompany: string;
@@ -333,6 +336,20 @@ export interface Strings {
   deletedSelected: (n: number) => string;
   reportFromSelected: string;
 
+  /* pin and delete, by swipe or from the selection bar */
+  pinAction: string;
+  unpinAction: string;
+  deleteAction: string;
+  pinnedHeading: string;
+  pinnedDone: string;
+  unpinnedDone: string;
+  undo: string;
+  pinSelected: string;
+  pinnedSelected: (n: number) => string;
+  swipeHint: string;
+  /** When an action on the diary itself fails, rather than an export. */
+  actionFailed: string;
+
   /* saved signatures */
   signaturesTitle: string;
   signaturesHint: string;
@@ -427,6 +444,7 @@ const he: Strings = {
   sectionWorkDescription: 'תיאור העבודה שבוצעה',
   sectionCasting: 'פרטי יציקה',
   sectionSupervisorNotes: 'הערות המפקח',
+  sectionReceivedToday: 'התקבל היום',
   sectionSignatures: 'חתימות',
   sectionPhotos: 'תמונות מהאתר',
   hintProjectDate: 'שם הפרויקט, הכתובת ושם החברה נלקחים מהפרויקט הפעיל ומודפסים בראש הדף.',
@@ -494,6 +512,7 @@ const he: Strings = {
   labelConcreteQty: 'כמות בטון',
   labelNotes: 'הערות',
   labelSupervisorNotes: 'הערות המפקח',
+  labelReceivedToday: 'התקבל היום',
   labelSupervisorSignature: 'חתימת מפקח',
   labelManagerSignature: 'חתימת מנ"ע',
   labelConcreteTypeNote: 'סוג בטון (שורת הערות)',
@@ -511,6 +530,7 @@ const he: Strings = {
   phConcreteQty: '58',
   phWorkDescription: 'המשך יציקת תקרה קומה 3…',
   phSupervisorNotes: 'נבדק ברזל הזיון לפני היציקה…',
+  phReceivedToday: '20 טון ברזל · 3 משטחי בלוקים…',
   phProjectName: 'מגדלי הים התיכון',
   phAddress: 'רחוב הרצל 15, חיפה',
   phCompany: 'חברה לבנייה בע"מ',
@@ -697,6 +717,18 @@ const he: Strings = {
   deletedSelected: (n) => `${n} יומנים נמחקו`,
   reportFromSelected: 'דוח מהנבחרים',
 
+  pinAction: 'הצמד',
+  unpinAction: 'בטל הצמדה',
+  deleteAction: 'מחק',
+  pinnedHeading: 'מוצמדים',
+  pinnedDone: 'היומן הוצמד',
+  unpinnedDone: 'ההצמדה בוטלה',
+  undo: 'בטל',
+  pinSelected: 'הצמד',
+  pinnedSelected: (n) => `${n} יומנים הוצמדו`,
+  swipeHint: 'החליקו יומן הצידה כדי להצמיד או למחוק',
+  actionFailed: 'הפעולה נכשלה',
+
   signaturesTitle: 'חתימות שמורות',
   signaturesHint: 'חתימה אחת שנשמרת פעם אחת ומוחתמת על כל יומן בלחיצה — במקום לצייר באצבע כל בוקר.',
   signatureEmpty: 'עוד אין חתימה',
@@ -806,6 +838,7 @@ const ar: Strings = {
   sectionWorkDescription: 'وصف العمل المنفَّذ',
   sectionCasting: 'تفاصيل الصب',
   sectionSupervisorNotes: 'ملاحظات المشرف',
+  sectionReceivedToday: 'ما تم استلامه اليوم',
   sectionSignatures: 'التواقيع',
   sectionPhotos: 'صور من الموقع',
   hintProjectDate: 'اسم المشروع والعنوان واسم الشركة تؤخذ من المشروع النشط وتُطبع أعلى الصفحة.',
@@ -873,6 +906,7 @@ const ar: Strings = {
   labelConcreteQty: 'كمية الخرسانة',
   labelNotes: 'ملاحظات',
   labelSupervisorNotes: 'ملاحظات المشرف',
+  labelReceivedToday: 'ما تم استلامه اليوم',
   labelSupervisorSignature: 'توقيع المشرف',
   labelManagerSignature: 'توقيع مدير العمل',
   labelConcreteTypeNote: 'نوع الخرسانة (سطر الملاحظات)',
@@ -890,6 +924,7 @@ const ar: Strings = {
   phConcreteQty: '58',
   phWorkDescription: 'متابعة صب سقف الطابق 3…',
   phSupervisorNotes: 'تم فحص حديد التسليح قبل الصب…',
+  phReceivedToday: '20 طن حديد · 3 منصات بلوك…',
   phProjectName: 'أبراج البحر المتوسط',
   phAddress: 'شارع هرتسل 15، حيفا',
   phCompany: 'شركة للبناء م.ض',
@@ -1076,6 +1111,18 @@ const ar: Strings = {
   deletedSelected: (n) => `تم حذف ${n} يوميات`,
   reportFromSelected: 'تقرير من المختارة',
 
+  pinAction: 'تثبيت',
+  unpinAction: 'إلغاء التثبيت',
+  deleteAction: 'حذف',
+  pinnedHeading: 'المثبتة',
+  pinnedDone: 'تم تثبيت اليومية',
+  unpinnedDone: 'أُلغي التثبيت',
+  undo: 'تراجع',
+  pinSelected: 'تثبيت',
+  pinnedSelected: (n) => `تم تثبيت ${n} يوميات`,
+  swipeHint: 'اسحب اليومية جانبًا للتثبيت أو الحذف',
+  actionFailed: 'فشل تنفيذ العملية',
+
   signaturesTitle: 'التواقيع المحفوظة',
   signaturesHint: 'توقيع يُحفظ مرة واحدة ويُختم على كل يومية بضغطة — بدل رسمه بالإصبع كل صباح.',
   signatureEmpty: 'لا يوجد توقيع بعد',
@@ -1185,6 +1232,7 @@ const en: Strings = {
   sectionWorkDescription: 'Description of work performed',
   sectionCasting: 'Casting details',
   sectionSupervisorNotes: "Supervisor's remarks",
+  sectionReceivedToday: 'Received today',
   sectionSignatures: 'Signatures',
   sectionPhotos: 'Site photos',
   hintProjectDate:
@@ -1253,6 +1301,7 @@ const en: Strings = {
   labelConcreteQty: 'Volume',
   labelNotes: 'Notes',
   labelSupervisorNotes: "Supervisor's remarks",
+  labelReceivedToday: 'Received today',
   labelSupervisorSignature: 'Supervisor signature',
   labelManagerSignature: 'Site manager signature',
   labelConcreteTypeNote: 'Concrete grade (notes line)',
@@ -1270,6 +1319,7 @@ const en: Strings = {
   phConcreteQty: '58',
   phWorkDescription: 'Continued pouring the level 3 slab…',
   phSupervisorNotes: 'Reinforcement checked before the pour…',
+  phReceivedToday: '20 t rebar · 3 pallets of blocks…',
   phProjectName: 'Mediterranean Towers',
   phAddress: '15 Herzl St, Haifa',
   phCompany: 'Construction Ltd',
@@ -1456,6 +1506,18 @@ const en: Strings = {
   confirmDeleteSelected: (n) => `Delete ${n} pages? This cannot be undone.`,
   deletedSelected: (n) => `${n} pages deleted`,
   reportFromSelected: 'Report from selected',
+
+  pinAction: 'Pin',
+  unpinAction: 'Unpin',
+  deleteAction: 'Delete',
+  pinnedHeading: 'Pinned',
+  pinnedDone: 'Page pinned',
+  unpinnedDone: 'Pin removed',
+  undo: 'Undo',
+  pinSelected: 'Pin',
+  pinnedSelected: (n) => `${n} pages pinned`,
+  swipeHint: 'Swipe a page sideways to pin or delete it',
+  actionFailed: 'The action failed',
 
   signaturesTitle: 'Saved signatures',
   signaturesHint: 'Sign once and stamp every diary page with a tap, instead of drawing with a fingertip each morning.',

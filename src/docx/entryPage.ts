@@ -52,6 +52,7 @@ const MIN_CREW_ROWS = 6;
 /** Ruled lines reserved for the work description and the supervisor notes. */
 const DESCRIPTION_LINES = 13;
 const SUPERVISOR_LINES = 9;
+const RECEIVED_LINES = 3;
 
 /**
  * Column widths of the crew + equipment grid, right to left:
@@ -405,6 +406,11 @@ function footerBlock(entry: DiaryEntry, t: Strings): Table {
   const notesWidth = HALF;
   const signWidth = CONTENT_WIDTH - notesWidth;
 
+  // The side column: what arrived on site today, then the two signatures
+  // sharing the row below it — the shape the printed form took when
+  // "התקבל היום" was added to it. The halves must sum to `signWidth` exactly,
+  // or Word rescales the table.
+  const halfSign = Math.floor(signWidth / 2);
   const signatures = new Table({
     width: { size: signWidth, type: WidthType.DXA },
     columnWidths: [signWidth],
@@ -414,11 +420,57 @@ function footerBlock(entry: DiaryEntry, t: Strings): Table {
     rows: [
       new TableRow({
         height: { value: 1850, rule: HeightRule.ATLEAST },
-        children: [signatureCell(t.labelSupervisorSignature, entry.supervisorSignature, signWidth)],
+        children: [
+          new TableCell({
+            width: { size: signWidth, type: WidthType.DXA },
+            verticalAlign: VerticalAlign.TOP,
+            margins: { top: 60, bottom: 60, left: 120, right: 120 },
+            borders: boxBorders(THIN),
+            children: [
+              hePara(`${t.labelReceivedToday} :-`, {
+                bold: true,
+                size: SIZE.label,
+                underline: true,
+                align: AlignmentType.CENTER,
+                spacingAfter: 80,
+              }),
+              ...ruledLines(entry.receivedToday ?? '', RECEIVED_LINES, { charsPerLine: 34 }),
+            ],
+          }),
+        ],
       }),
+      // No height on this row: the nested table sets it. Asking for both left a
+      // band of dead space under the signatures wherever the two disagreed.
       new TableRow({
-        height: { value: 1850, rule: HeightRule.ATLEAST },
-        children: [signatureCell(t.labelManagerSignature, entry.managerSignature, signWidth)],
+        children: [
+          new TableCell({
+            width: { size: signWidth, type: WidthType.DXA },
+            margins: { top: 0, bottom: 0, left: 0, right: 0 },
+            borders: boxBorders(NONE),
+            children: [
+              new Table({
+                width: { size: signWidth, type: WidthType.DXA },
+                columnWidths: [halfSign, signWidth - halfSign],
+                layout: TableLayoutType.FIXED,
+                visuallyRightToLeft: isRtl(),
+                borders: framedBorders(),
+                rows: [
+                  new TableRow({
+                    height: { value: 1850, rule: HeightRule.ATLEAST },
+                    children: [
+                      signatureCell(t.labelManagerSignature, entry.managerSignature, halfSign),
+                      signatureCell(
+                        t.labelSupervisorSignature,
+                        entry.supervisorSignature,
+                        signWidth - halfSign,
+                      ),
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
       }),
     ],
   });

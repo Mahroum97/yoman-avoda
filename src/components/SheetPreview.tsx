@@ -21,6 +21,7 @@ const pct = (twips: number) => `${((twips / CREW_TOTAL) * 100).toFixed(2)}%`;
 const MIN_CREW_ROWS = 6;
 const DESCRIPTION_LINES = 13;
 const SUPERVISOR_LINES = 9;
+const RECEIVED_LINES = 3;
 
 /** Splits text onto the ruled lines, padding out to `minLines`. */
 function useRuled(text: string, minLines: number, perLine: number): string[] {
@@ -158,6 +159,7 @@ export function SheetPreview({
   const { t, dir } = useLanguage();
   const description = useRuled(entry.workDescription, DESCRIPTION_LINES, 92);
   const notes = useRuled(entry.supervisorNotes, SUPERVISOR_LINES, 44);
+  const received = useRuled(entry.receivedToday ?? '', RECEIVED_LINES, 34);
   const rowCount = Math.max(
     MIN_CREW_ROWS,
     entry.management.length,
@@ -294,16 +296,26 @@ export function SheetPreview({
             </div>
           ))}
         </div>
-        <div className="sheet__signatures">
-          {[
-            [t.labelSupervisorSignature, entry.supervisorSignature],
-            [t.labelManagerSignature, entry.managerSignature],
-          ].map(([label, src]) => (
-            <div className="sheet__sign" key={label}>
-              <div className="sheet__sign-label">{label}</div>
-              {src ? <img src={src} alt={label} /> : <div className="sheet__sign-line" />}
-            </div>
-          ))}
+        <div className="sheet__side">
+          <div className="sheet__received">
+            <div className="sheet__notes-head">{t.labelReceivedToday}</div>
+            {received.map((line, i) => (
+              <div className="sheet__rule" key={i}>
+                {line}
+              </div>
+            ))}
+          </div>
+          <div className="sheet__signatures">
+            {[
+              [t.labelManagerSignature, entry.managerSignature],
+              [t.labelSupervisorSignature, entry.supervisorSignature],
+            ].map(([label, src]) => (
+              <div className="sheet__sign" key={label}>
+                <div className="sheet__sign-label">{label}</div>
+                {src ? <img src={src} alt={label} /> : <div className="sheet__sign-line" />}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -45,6 +45,7 @@ function daysSheet(entries: DiaryEntry[], t: Strings): Sheet {
     t.xlsxConcreteQty,
     t.xlsxPhotos,
     t.xlsxStatus,
+    t.labelReceivedToday,
     t.labelSupervisorNotes,
   ];
 
@@ -70,6 +71,7 @@ function daysSheet(entries: DiaryEntry[], t: Strings): Sheet {
       num(entry.casting?.concreteQty),
       entry.photos?.length ?? 0,
       entry.status === 'signed' ? t.statusSigned : t.statusDraft,
+      (entry.receivedToday ?? '').replace(/\r/g, ''),
       (entry.supervisorNotes ?? '').replace(/\r/g, ''),
     ]);
   }
@@ -78,7 +80,7 @@ function daysSheet(entries: DiaryEntry[], t: Strings): Sheet {
     name: t.xlsxSheetDays,
     rows,
     headerRows: 1,
-    widths: [12, 10, 12, 46, 26, 20, 10, 20, 10, 14, 12, 8, 12, 40],
+    widths: [12, 10, 12, 46, 26, 20, 10, 20, 10, 14, 12, 8, 12, 30, 40],
   };
 }
 

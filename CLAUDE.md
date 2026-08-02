@@ -93,7 +93,18 @@ Check the page is one sheet, the Hebrew reads correctly, and **digits are not re
 comment. `src/i18n/strings.ts` then holds the printed label in all three languages.
 
 Sections, top to bottom: פרויקט / תאריך-מזג האוויר · רישום יומי של עובדים וציוד
-(צוות הנהלה, קבלן, ציוד) · תיאור העבודה שבוצעה + פרטי יציקה · הערות המפקח + חתימות.
+(צוות הנהלה, קבלן, ציוד) · תיאור העבודה שבוצעה + פרטי יציקה · הערות המפקח +
+התקבל היום + חתימות.
+
+**The printed form is revised occasionally, and `  A יומן עבודה בבניה.pdf` is the
+current one** — `יומן עבודה לעבודות בנייה.pdf` is the original the app was first built
+from, kept for comparison. The bottom block is where they differ: the newer form added
+**התקבל היום** (`receivedToday`, what was delivered to site that day) and moved the two
+signature boxes side by side underneath it to make room. That block's total height did
+*not* change, and must not: `METRICS.signatureBox * 2 + gap` is what the page budget
+allows. When a field arrives this way it is **optional** in `DiaryEntry` and read with
+`?? ''`, because pages written by an older build, restored from an older backup, or
+synced from a device that has not been updated simply do not have it.
 
 **Three renderers draw that one page, and they must move together:**
 
@@ -178,6 +189,32 @@ use flips its direction rather than doing nothing.
 `summary.ts` reads every field defensively. Pages the editor makes are complete, but one
 can arrive from a sync or a restored backup written by an older version, and a single
 absent quantity used to take the whole range report down.
+
+### Pin and delete, by swipe
+
+A list row is wrapped in `SwipeRow.tsx`: dragging toward the inline end uncovers **הצמד**
+at the start edge, toward the inline start uncovers **מחק** at the end edge. Both flip
+with the language, and both are also reachable from the selection bar, which is the only
+way to do it in the grid or with a keyboard.
+
+- **`pinned` belongs to the record, not the device** — unlike view and sort. The page you
+  keep coming back to is the same page on the phone and on the Mac, so it travels in
+  `WireEntry` and bumps `updatedAt` like any other edit.
+- **Pointer events plus `touch-action: pan-y`, never touch events.** React attaches
+  `touchstart`/`touchmove` at the root as *passive* listeners, so `preventDefault` in a
+  React touch handler is discarded — the same trap the signature pad hit. `pan-y` leaves
+  vertical scrolling to the browser and needs no `preventDefault` at all.
+- **A gesture is owned by its `pointerId`, and an up from any other pointer is ignored.**
+  `pointercancel` is not guaranteed to arrive — iOS drops it when a swipe races the
+  scroller — which used to leave a row armed so the *next plain tap on it* ran the action.
+  A tap deleting a day's page is the worst thing this component could do.
+- **The panels do not use `--accent`/`--danger`.** Those are lightened at night to read as
+  text on a dark page; as a fill behind white they fall to about 2:1. A swipe panel is a
+  fill, and "delete" should not change colour with the time of day.
+- **Deleting offers an undo instead of a confirmation.** `toast.show` takes an optional
+  action for it and stays up for 7s rather than 3.2s when there is one. `restoreEntry`
+  drops the tombstone along with putting the record back — leaving it would let the *other*
+  device delete the page again on the next sync, outliving the undo.
 
 ## Spreadsheet export
 

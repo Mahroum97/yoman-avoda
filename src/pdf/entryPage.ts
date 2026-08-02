@@ -487,8 +487,14 @@ function footerBlock(
 ): number {
   const a = axisOf(p);
   const gap = 7;
-  const notesW = CONTENT_W * 0.56;
-  const signW = CONTENT_W - notesW - gap;
+  // Half and half, as the form draws it. The side column holds what was
+  // delivered on top and the two signatures beneath it, side by side —
+  // which is what the printed form gained when "התקבל היום" was added to it.
+  const notesW = CONTENT_W * 0.5;
+  const sideW = CONTENT_W - notesW - gap;
+  // Unchanged: the same two rows the signatures used to occupy on their own.
+  // The block must not grow — METRICS are tuned so a full day fits one sheet,
+  // and a second sheet is the defect this renderer exists to make impossible.
   const h = METRICS.signatureBox * 2 + gap;
 
   const notesX = a.boxX(0, notesW);
@@ -515,38 +521,68 @@ function footerBlock(
     y += 14;
   }
 
-  const signX = a.boxX(notesW + gap, signW);
+  /* התקבל היום — the deliveries box, above the signatures. */
+  const sideX = a.boxX(notesW + gap, sideW);
+  p.rect(sideX, top, sideW, METRICS.signatureBox, {
+    stroke: p.colors.line,
+    lineWidth: METRICS.border,
+  });
+  p.rect(sideX, top, sideW, 16, { fill: p.colors.tintHead });
+  p.textStartBox(t.labelReceivedToday, a.dir === 'rtl' ? sideX + sideW : sideX, top, 16, {
+    size: TYPE.group,
+    bold: true,
+    color: p.colors.navy,
+    pad: 9,
+  });
+
+  const received = p.wrap(entry.receivedToday ?? '', sideW - pad * 2, { size: TYPE.note });
+  const receivedStart = a.dir === 'rtl' ? sideX + sideW - pad : sideX + pad;
+  // Three ruled lines in the 46pt left under the heading bar, at 13pt each so
+  // the last rule keeps clear of the frame instead of sitting on it.
+  let ry = top + 18;
+  for (let i = 0; i < METRICS.receivedLines; i += 1) {
+    const lineY = ry + 11.5;
+    p.line(sideX + pad, lineY, sideX + sideW - pad, lineY, {
+      color: p.colors.lineSoft,
+      width: METRICS.hairline,
+    });
+    if (received[i]) p.textStart(received[i], receivedStart, ry + 0.5, { size: TYPE.note });
+    ry += 13;
+  }
+
+  /* The two signatures, sharing the row beneath it as the form now draws them. */
+  const signTop = top + METRICS.signatureBox + gap;
+  const signW = (sideW - gap) / 2;
   const boxes: [string, PDFImage | undefined][] = [
-    [t.labelSupervisorSignature, signatures.supervisor],
     [t.labelManagerSignature, signatures.manager],
+    [t.labelSupervisorSignature, signatures.supervisor],
   ];
-  let by = top;
-  for (const [label, image] of boxes) {
-    p.rect(signX, by, signW, METRICS.signatureBox, {
+  boxes.forEach(([label, image], i) => {
+    const x = a.boxX(notesW + gap + i * (signW + gap), signW);
+    p.rect(x, signTop, signW, METRICS.signatureBox, {
       stroke: p.colors.line,
       lineWidth: METRICS.border,
     });
-    p.textStart(label, a.dir === 'rtl' ? signX + signW - 9 : signX + 9, by + 6, {
+    p.textStart(label, a.dir === 'rtl' ? x + signW - 9 : x + 9, signTop + 6, {
       size: TYPE.label,
       bold: true,
       color: p.colors.navy,
     });
     if (image) {
-      const maxW = signW - 30;
+      const maxW = signW - 20;
       const maxH = METRICS.signatureBox - 26;
       const scale = Math.min(maxW / image.width, maxH / image.height);
       const w = image.width * scale;
       const hh = image.height * scale;
-      p.image(image, signX + (signW - w) / 2, by + 20, w, hh);
+      p.image(image, x + (signW - w) / 2, signTop + 20, w, hh);
     } else {
-      const lineY = by + METRICS.signatureBox - 12;
-      p.line(signX + 16, lineY, signX + signW - 16, lineY, {
+      const lineY = signTop + METRICS.signatureBox - 12;
+      p.line(x + 12, lineY, x + signW - 12, lineY, {
         color: p.colors.lineSoft,
         width: METRICS.hairline,
       });
     }
-    by += METRICS.signatureBox + gap;
-  }
+  });
 
   return top + h;
 }

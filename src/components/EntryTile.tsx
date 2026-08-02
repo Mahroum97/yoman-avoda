@@ -73,6 +73,11 @@ export function EntryTile({
             📷 {entry.photos.length}
           </span>
         )}
+        {entry.pinned && (
+          <span className="tile__pin" title={t.pinnedHeading}>
+            📌
+          </span>
+        )}
       </span>
 
       <span className="tile__label">

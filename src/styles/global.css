@@ -532,6 +532,93 @@ button:focus-visible {
   gap: 10px;
 }
 
+/* ---------------------------------------------------- swipe to pin/delete */
+
+.swipe {
+  position: relative;
+  border-radius: var(--radius);
+  /*
+   * The whole gesture rests on this line. It hands vertical panning back to the
+   * browser — so the list still scrolls normally under a finger — while leaving
+   * horizontal movement to the pointer handlers. Without it the browser claims
+   * both axes and the row never moves; React's passive touch listeners mean
+   * preventDefault could not take it back.
+   */
+  touch-action: pan-y;
+  /* Keeps the coloured panel inside the row's rounded corners. */
+  overflow: hidden;
+}
+
+.swipe__action {
+  position: absolute;
+  inset-block: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  color: #fff;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.swipe__action--start {
+  inset-inline-start: 0;
+}
+
+.swipe__action--end {
+  inset-inline-end: 0;
+}
+
+/*
+ * Fixed in both themes, and deliberately not `--accent`/`--danger`.
+ * Those two are lightened at night so they read as *text* on a dark page; used
+ * as a fill behind white they drop to about 2:1, which is unreadable outdoors.
+ * A swipe panel is a fill, and "delete" should not change colour with the time
+ * of day either.
+ */
+.swipe__action--pin {
+  background: #b45309;
+}
+
+.swipe__action--danger {
+  background: #b42318;
+}
+
+/* Past the threshold: letting go now acts, so the row says so before it does. */
+.swipe__action--armed .swipe__icon {
+  transform: scale(1.25);
+}
+
+.swipe__icon {
+  font-size: 1.15rem;
+  transition: transform 120ms ease;
+}
+
+/* Hidden until the panel is wide enough to hold it without clipping mid-word. */
+.swipe__label {
+  display: none;
+}
+
+.swipe__action--armed .swipe__label {
+  display: inline;
+}
+
+.swipe__content {
+  position: relative;
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.swipe__content--dragging {
+  transition: none;
+}
+
+.swipe-hint {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .entry {
   display: flex;
   align-items: center;
@@ -542,6 +629,11 @@ button:focus-visible {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+}
+
+.entry__pin {
+  margin-inline-end: 5px;
+  font-size: 0.85em;
 }
 
 /* The whole left part of a row is one big tap target. */
@@ -887,6 +979,9 @@ button:focus-visible {
   inset-inline: 16px;
   bottom: calc(76px + env(safe-area-inset-bottom));
   z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin: 0 auto;
   max-width: 460px;
   padding: 12px 16px;
@@ -896,6 +991,29 @@ button:focus-visible {
   box-shadow: var(--shadow);
   text-align: center;
   font-weight: 600;
+}
+
+.toast__text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Full tap height, since undo is reached in a hurry and often with gloves. */
+.toast__action {
+  flex: none;
+  min-height: var(--tap);
+  margin-block: -12px;
+  margin-inline-end: -16px;
+  padding-inline: 16px;
+  border: 0;
+  border-inline-start: 1px solid rgb(255 255 255 / 20%);
+  border-start-end-radius: var(--radius);
+  border-end-end-radius: var(--radius);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .toast--error {
@@ -1142,12 +1260,21 @@ button:focus-visible {
   align-items: stretch;
 }
 
+/* Half and half, matching the PDF's notesW = CONTENT_W * 0.5. */
 .sheet__body--footer {
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 1fr 1fr;
+}
+
+/* התקבל היום above the two signatures, as the printed form draws them. */
+.sheet__side {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 7px;
 }
 
 .sheet__ruled,
-.sheet__notes {
+.sheet__notes,
+.sheet__received {
   border: 1px solid var(--s-line);
   padding: 6px 10px;
 }
@@ -1218,9 +1345,10 @@ button:focus-visible {
   color: var(--s-muted);
 }
 
+/* Side by side now, sharing the row the pair used to have one each. */
 .sheet__signatures {
   display: grid;
-  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 7px;
 }
 
@@ -1772,6 +1900,18 @@ input[type='date']::-webkit-calendar-picker-indicator {
   background: rgb(0 0 0 / 55%);
   color: #fff;
   font-size: 0.72rem;
+}
+
+/* Opposite corner to the checkbox, so selecting a pinned tile hides neither. */
+.tile__pin {
+  position: absolute;
+  inset-block-start: 8px;
+  inset-inline-end: 8px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 55%);
+  font-size: 0.8rem;
+  line-height: 1;
 }
 
 .tile__label {

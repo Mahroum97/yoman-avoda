@@ -149,6 +149,7 @@ function sampleEntry(date: string, index: number): DiaryEntry {
     supervisorNotes:
       'נבדק ברזל הזיון לפני היציקה ונמצא תקין. יש להקפיד על אשפרה במשך 7 ימים.\n' +
       'להשלים גידור בטיחות בפתח המדרגות עד מחר בבוקר.',
+    receivedToday: '20 טון ברזל זיון קוטר 12, 3 משטחי בלוקים, 40 שקי צמנט',
     supervisorSignature: signatureDataUrl,
     managerSignature: signatureDataUrl,
     photos: [

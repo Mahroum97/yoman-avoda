@@ -104,12 +104,30 @@ export interface DiaryEntry {
   casting: CastingDetails;
   /** הערות המפקח */
   supervisorNotes: string;
+  /**
+   * התקבל היום — what was delivered to the site that day.
+   *
+   * Added to the printed form after the app was first built from it, so it is
+   * optional: a page written by an earlier version, or arriving from a backup
+   * or a device that has not been updated, simply has nothing to say here.
+   */
+  receivedToday?: string;
   /** חתימת מפקח — PNG data URL */
   supervisorSignature: string;
   /** חתימת מנ"ע — PNG data URL */
   managerSignature: string;
   photos: Photo[];
   status: EntryStatus;
+  /**
+   * Held at the top of the diary list.
+   *
+   * A property of the day, not of the device: the page you keep coming back to
+   * is the same one on the phone and on the Mac, so this travels with the record
+   * rather than living in localStorage beside the view and sort settings.
+   * Optional — a page from an older version or an older backup is simply
+   * unpinned.
+   */
+  pinned?: boolean;
   createdAt: number;
   updatedAt: number;
 }

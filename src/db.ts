@@ -178,6 +178,7 @@ export function blankEntry(
     workDescription: '',
     casting: emptyCasting(),
     supervisorNotes: '',
+    receivedToday: '',
     supervisorSignature: '',
     managerSignature: '',
     photos: [],
@@ -210,6 +211,42 @@ export async function deleteEntry(id: number): Promise<void> {
     }
     await db.entries.delete(id);
   });
+}
+
+/**
+ * Puts a deleted page back, for the undo offered right after a swipe.
+ *
+ * The tombstone has to go with it. Leaving it behind would let the *other*
+ * device delete the page again the next time they sync — the deletion would
+ * have outlived the undo, which is precisely the failure undo exists to
+ * prevent. The record is stamped afresh so it also wins against any copy the
+ * peer is still holding.
+ */
+export async function restoreEntry(entry: DiaryEntry): Promise<void> {
+  await db.transaction('rw', db.entries, db.tombstones, async () => {
+    // One page per project per day still holds. Nothing stops a new page for
+    // that date being started inside the undo window, and putting the old one
+    // back on top of it would break the invariant the whole editor relies on.
+    const clash = await db.entries
+      .where({ projectId: entry.projectId, date: entry.date })
+      .first();
+    if (clash && clash.uid !== entry.uid) {
+      throw new Error(`קיים כבר יומן לתאריך ${entry.date}`);
+    }
+    await db.tombstones.delete(entry.uid);
+    await db.entries.put({ ...entry, updatedAt: Date.now() });
+  });
+}
+
+/**
+ * Pins or unpins a page.
+ *
+ * A targeted update rather than `saveEntry`: pinning is not an edit of the
+ * form, so it should not re-learn the presets, and the photos have no business
+ * being rewritten because a flag moved.
+ */
+export async function setEntryPinned(id: number, pinned: boolean): Promise<void> {
+  await db.entries.update(id, { pinned, updatedAt: Date.now() });
 }
 
 export async function entriesInRange(

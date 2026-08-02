@@ -356,7 +356,16 @@ export function EntryEditor({
         />
       </Card>
 
-      <Card title={t.sectionSignatures} step={8} note={t.hintSignatures}>
+      <Card title={t.sectionReceivedToday} step={8}>
+        <textarea
+          value={entry.receivedToday ?? ''}
+          onChange={(e) => patch({ receivedToday: e.target.value })}
+          placeholder={t.phReceivedToday}
+          rows={3}
+        />
+      </Card>
+
+      <Card title={t.sectionSignatures} step={9} note={t.hintSignatures}>
         <div className="stack">
           <SignaturePad
             label={t.labelSupervisorSignature}
@@ -373,7 +382,7 @@ export function EntryEditor({
         </div>
       </Card>
 
-      <Card title={t.sectionPhotos} step={9} note={t.hintPhotos}>
+      <Card title={t.sectionPhotos} step={10} note={t.hintPhotos}>
         <PhotoGrid
           photos={entry.photos}
           onChange={(photos) => patch({ photos })}

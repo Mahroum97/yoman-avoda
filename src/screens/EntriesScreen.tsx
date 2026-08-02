@@ -1,7 +1,14 @@
 /** The diary itself: every page of the active project, as a list or a grid. */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { DiaryEntry, Project } from '../types';
-import { deleteEntry, duplicateForDate, findEntryByDate, saveEntry } from '../db';
+import {
+  deleteEntry,
+  duplicateForDate,
+  findEntryByDate,
+  restoreEntry,
+  saveEntry,
+  setEntryPinned,
+} from '../db';
 import { formatDdMmYyyy, isoDate, monthKey, monthLabel, weekday } from '../lib/dates';
 import { useEntries } from '../hooks/useData';
 import { useCompanyLogo } from '../hooks/useBranding';
@@ -11,6 +18,7 @@ import { navigate } from '../hooks/useRoute';
 import { logger } from '../lib/log';
 import { EmptyState, StatusChip } from '../components/ui';
 import { EntryTile } from '../components/EntryTile';
+import { SwipeRow } from '../components/SwipeRow';
 import { ViewMenu } from '../components/ViewMenu';
 import type { SortKey, ViewMode } from '../components/viewOptions';
 
@@ -23,6 +31,8 @@ const log = logger('diary');
 const VIEW_KEY = 'diaryView';
 const SORT_KEY = 'diarySort';
 const DIR_KEY = 'diarySortDesc';
+/** A gesture nobody has been told about is invisible; the hint retires itself. */
+const SWIPE_SEEN_KEY = 'diarySwipeSeen';
 
 function stored<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
   try {
@@ -57,6 +67,13 @@ export function EntriesScreen({ project }: { project: Project }) {
       return localStorage.getItem(DIR_KEY) !== 'false';
     } catch {
       return true;
+    }
+  });
+  const [showHint, setShowHint] = useState(() => {
+    try {
+      return localStorage.getItem(SWIPE_SEEN_KEY) !== 'yes';
+    } catch {
+      return false;
     }
   });
   const [menuOpen, setMenuOpen] = useState(false);
@@ -116,17 +133,49 @@ export function EntriesScreen({ project }: { project: Project }) {
   /* Month headings only make sense while the pages are in date order. */
   const grouped = sort === 'date';
 
-  const months = useMemo(() => {
-    if (!grouped) return [['', sorted] as [string, DiaryEntry[]]];
-    const map = new Map<string, DiaryEntry[]>();
-    for (const entry of sorted) {
-      const key = monthKey(entry.date);
-      const list = map.get(key) ?? [];
-      list.push(entry);
-      map.set(key, list);
+  /**
+   * The pinned pages, lifted out and held at the top.
+   *
+   * They have to leave their month behind rather than be marked in place: a
+   * page pinned in March sitting under a "March" heading at the top of the
+   * diary would make the heading a lie about everything after it. Their own
+   * heading describes them exactly, whatever the list is sorted by, so unlike
+   * the month headings it is shown under every sort order.
+   */
+  const groups = useMemo(() => {
+    const out: { key: string; heading: string | null; list: DiaryEntry[] }[] = [];
+    const pinned = sorted.filter((entry) => entry.pinned);
+    const loose = sorted.filter((entry) => !entry.pinned);
+
+    if (pinned.length > 0) {
+      out.push({
+        key: '__pinned',
+        heading: `📌 ${t.pinnedHeading} · ${t.daysCount(pinned.length)}`,
+        list: pinned,
+      });
     }
-    return [...map.entries()];
-  }, [sorted, grouped]);
+
+    if (!grouped) {
+      if (loose.length > 0) out.push({ key: '__all', heading: null, list: loose });
+      return out;
+    }
+
+    const byMonth = new Map<string, DiaryEntry[]>();
+    for (const entry of loose) {
+      const key = monthKey(entry.date);
+      const list = byMonth.get(key) ?? [];
+      list.push(entry);
+      byMonth.set(key, list);
+    }
+    for (const [key, list] of byMonth) {
+      out.push({
+        key,
+        heading: `${monthLabel(list[0].date, t)} · ${t.daysCount(list.length)}`,
+        list,
+      });
+    }
+    return out;
+  }, [sorted, grouped, t]);
 
   const today = isoDate();
 
@@ -199,6 +248,84 @@ export function EntriesScreen({ project }: { project: Project }) {
     } catch (error) {
       log.error('report from selection failed', error);
       toast.error(t.reportFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* ---------------------------------------------------------- pin & delete */
+
+  const retireHint = useCallback(() => {
+    setShowHint(false);
+    remember(SWIPE_SEEN_KEY, 'yes');
+  }, []);
+
+  const togglePin = async (entry: DiaryEntry) => {
+    if (entry.id === undefined) return;
+    const id = entry.id;
+    const next = !entry.pinned;
+    retireHint();
+    try {
+      await setEntryPinned(id, next);
+      log.info('pin changed', { pinned: next, date: entry.date });
+      toast.show(next ? t.pinnedDone : t.unpinnedDone, {
+        label: t.undo,
+        run: () => void setEntryPinned(id, !next),
+      });
+    } catch (error) {
+      log.error('changing the pin failed', error);
+      toast.error(t.actionFailed);
+    }
+  };
+
+  /**
+   * Deletes one page and offers it straight back.
+   *
+   * No confirmation dialog: a swipe is deliberate enough, and an undo that
+   * costs one tap is both faster and safer than a prompt people learn to
+   * dismiss without reading. The whole record — photos included — is already in
+   * memory here, so holding it for the life of the message costs nothing.
+   */
+  const removeOne = async (entry: DiaryEntry) => {
+    if (entry.id === undefined) return;
+    retireHint();
+    try {
+      await deleteEntry(entry.id);
+      log.info('deleted a page', { date: entry.date, photos: entry.photos.length });
+      toast.show(t.entryDeleted, {
+        label: t.undo,
+        run: () => {
+          void restoreEntry(entry).catch((error: unknown) => {
+            log.error('restoring the page failed', error);
+            // A date clash names the day it could not go back to, which is the
+            // one thing the user can act on.
+            toast.error(error instanceof Error ? error.message : t.actionFailed);
+          });
+        },
+      });
+    } catch (error) {
+      log.error('deleting a page failed', error);
+      toast.error(t.actionFailed);
+    }
+  };
+
+  /** Pins every picked page — or unpins them, if they are all pinned already. */
+  const pinSelected = async () => {
+    const picked = sorted.filter((entry) => entry.id !== undefined && selected.has(entry.id));
+    if (picked.length === 0) {
+      toast.error(t.selectNothing);
+      return;
+    }
+    const next = !picked.every((entry) => entry.pinned);
+    setBusy(true);
+    try {
+      for (const entry of picked) await setEntryPinned(entry.id!, next);
+      log.info('pinned selected pages', { count: picked.length, pinned: next });
+      toast.show(next ? t.pinnedSelected(picked.length) : t.unpinnedDone);
+      leaveSelection();
+    } catch (error) {
+      log.error('pinning selected pages failed', error);
+      toast.error(t.actionFailed);
     } finally {
       setBusy(false);
     }
@@ -293,13 +420,13 @@ export function EntriesScreen({ project }: { project: Project }) {
 
       {entries.length > 0 && filtered.length === 0 && <EmptyState icon="🔍" title={t.noMatches} />}
 
-      {months.map(([key, list]) => (
-        <div key={key || 'all'}>
-          {grouped && (
-            <h2 className="month-heading">
-              {monthLabel(list[0].date, t)} · {t.daysCount(list.length)}
-            </h2>
-          )}
+      {showHint && !selecting && mode === 'list' && filtered.length > 0 && (
+        <p className="swipe-hint">↔ {t.swipeHint}</p>
+      )}
+
+      {groups.map(({ key, heading, list }) => (
+        <div key={key}>
+          {heading && <h2 className="month-heading">{heading}</h2>}
 
           {mode === 'grid' ? (
             <div className="tile-grid">
@@ -323,7 +450,23 @@ export function EntriesScreen({ project }: { project: Project }) {
                 );
                 const isOn = entry.id !== undefined && selected.has(entry.id);
                 return (
-                  <div className={`entry${isOn ? ' entry--selected' : ''}`} key={entry.id}>
+                  <SwipeRow
+                    key={entry.id}
+                    disabled={selecting}
+                    start={{
+                      label: entry.pinned ? t.unpinAction : t.pinAction,
+                      icon: '📌',
+                      tone: 'pin',
+                      run: () => void togglePin(entry),
+                    }}
+                    end={{
+                      label: t.deleteAction,
+                      icon: '🗑',
+                      tone: 'danger',
+                      run: () => void removeOne(entry),
+                    }}
+                  >
+                  <div className={`entry${isOn ? ' entry--selected' : ''}`}>
                     <button
                       type="button"
                       className="entry__open"
@@ -345,6 +488,11 @@ export function EntriesScreen({ project }: { project: Project }) {
                       </span>
                       <span className="entry__body">
                         <span className="entry__title">
+                          {entry.pinned && (
+                            <span className="entry__pin" title={t.pinnedHeading}>
+                              📌
+                            </span>
+                          )}
                           {entry.workDescription.split('\n')[0] || t.noDescription}
                         </span>
                         <span className="entry__meta">
@@ -374,6 +522,7 @@ export function EntriesScreen({ project }: { project: Project }) {
                       </button>
                     )}
                   </div>
+                  </SwipeRow>
                 );
               })}
             </div>
@@ -391,6 +540,14 @@ export function EntriesScreen({ project }: { project: Project }) {
             {allSelected ? t.selectNone : t.selectAll}
           </button>
           <span className="selectionbar__count">{t.selectedCount(selected.size)}</span>
+          <button
+            type="button"
+            className="btn btn--sm"
+            disabled={busy || selected.size === 0}
+            onClick={() => void pinSelected()}
+          >
+            📌 {t.pinSelected}
+          </button>
           <button
             type="button"
             className="btn btn--sm btn--primary"
