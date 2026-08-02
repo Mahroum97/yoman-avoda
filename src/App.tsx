@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useActiveProject, useProjects } from './hooks/useData';
 import { useRoute, navigate } from './hooks/useRoute';
 import { ToastProvider } from './components/ToastProvider';
+import { useToast } from './hooks/toastContext';
 import { EntriesScreen } from './screens/EntriesScreen';
 import { EntryEditor } from './screens/EntryEditor';
 import { PreviewScreen } from './screens/PreviewScreen';
@@ -13,6 +14,7 @@ import { EmptyState } from './components/ui';
 import { Logo } from './components/Logo';
 import { useTheme, type ThemePreference } from './hooks/useTheme';
 import { useLanguage } from './i18n/useLanguage';
+import { useAutoSync } from './hooks/useAutoSync';
 
 const TAB_KEYS = ['', 'reports', 'projects', 'settings'] as const;
 const TAB_ICONS = ['📋', '📊', '🏗️', '⚙️'];
@@ -27,10 +29,17 @@ export default function App() {
 
 function Shell() {
   const { t } = useLanguage();
+  const toast = useToast();
   const route = useRoute();
   const projects = useProjects();
   const { project, loading } = useActiveProject();
   const section = route.segments[0] ?? '';
+
+  // Mounted once, for the whole app: the diary keeps itself current while it is
+  // open, and only speaks up when something actually arrived.
+  useAutoSync((received) => {
+    if (received > 0) toast.show(t.syncAutoReceived(received));
+  });
 
   // A first run has no project, and the diary screens need one. Settings stays
   // reachable regardless — restoring a backup onto a new device starts there.

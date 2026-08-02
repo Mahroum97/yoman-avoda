@@ -12,6 +12,7 @@ import { deflateSync } from 'node:zlib';
 import { Packer } from 'docx';
 import { buildEntryDoc, buildRangeDoc } from '../src/docx/build';
 import { buildEntryPdf, buildRangePdf } from '../src/pdf/build';
+import { buildRangeWorkbook } from '../src/xlsx/export';
 import { LANGUAGES, STRINGS } from '../src/i18n/strings';
 import type { DiaryEntry, Project } from '../src/types';
 
@@ -250,8 +251,15 @@ async function main(): Promise<void> {
     }),
   );
 
+  // The spreadsheet, in both writing directions: the RTL flag changes the sheet
+  // XML, so an LTR-only check would miss a broken Hebrew workbook.
+  for (const lang of ['he', 'en'] as const) {
+    const book = await buildRangeWorkbook(week, project, STRINGS[lang]);
+    await writeFile(`tmp/sample-range-${lang}.xlsx`, Buffer.from(await book.arrayBuffer()));
+  }
+
   console.log(
-    'נוצרו: tmp/sample-entry.{docx,pdf}, tmp/sample-range.{docx,pdf} ' +
+    'נוצרו: tmp/sample-entry.{docx,pdf}, tmp/sample-range.{docx,pdf,xlsx} ' +
       `ובנוסף דף לכל שפה: ${LANGUAGES.map((l) => `sample-entry-${l}`).join(', ')}`,
   );
 }

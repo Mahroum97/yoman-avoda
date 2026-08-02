@@ -142,7 +142,32 @@ export async function probe(address: string): Promise<boolean> {
   }
 }
 
+/**
+ * One sync at a time, across the whole app.
+ *
+ * The automatic sync and the button run the same code, and two of them
+ * overlapping would have both sides merging half-delivered chunks from each
+ * other. The lock lives here rather than in the UI so it cannot be bypassed by
+ * a caller that forgets.
+ */
+let inFlight = false;
+
+export const isSyncing = (): boolean => inFlight;
+
 export async function syncNow(
+  peer: Peer,
+  onProgress?: (step: SyncProgress) => void,
+): Promise<SyncOutcome> {
+  if (inFlight) throw new Error('BUSY');
+  inFlight = true;
+  try {
+    return await runSyncGuarded(peer, onProgress);
+  } finally {
+    inFlight = false;
+  }
+}
+
+async function runSyncGuarded(
   peer: Peer,
   onProgress?: (step: SyncProgress) => void,
 ): Promise<SyncOutcome> {

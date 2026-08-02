@@ -296,8 +296,23 @@ export interface Strings {
   syncTimeout: string;
   syncVersionMismatch: string;
   syncProgress: (done: number, total: number) => string;
+  syncAuto: string;
+  syncAutoHint: string;
+  syncAutoReceived: (n: number) => string;
   syncDone: (received: number, sent: number) => string;
   syncLastAt: (when: string) => string;
+
+  /* excel export */
+  exportExcel: string;
+  excelFailed: string;
+  xlsxSheetDays: string;
+  xlsxSheetSummary: string;
+  xlsxSummaryTitle: string;
+  xlsxWeekday: string;
+  xlsxManagement: string;
+  xlsxConcreteQty: string;
+  xlsxPhotos: string;
+  xlsxStatus: string;
 
   /* diary view: grid, list and selection */
   viewOptions: string;
@@ -647,8 +662,22 @@ const he: Strings = {
   syncTimeout: 'הסנכרון לקח יותר מדי זמן ונעצר — נסה שוב קרוב יותר לראוטר',
   syncVersionMismatch: 'גרסאות שונות בשני המכשירים — עדכן את שניהם ונסה שוב',
   syncProgress: (done, total) => `מסנכרן ${done} מתוך ${total}…`,
+  syncAuto: 'סנכרון אוטומטי',
+  syncAutoHint: 'מסנכרן לבד כשהאפליקציה פתוחה ושני המכשירים על אותה רשת — בפתיחה, בחזרה לאפליקציה, וכל כמה דקות.',
+  syncAutoReceived: (n) => `התקבלו ${n} עדכונים מהמכשיר השני`,
   syncDone: (received, sent) => `הסנכרון הושלם · התקבלו ${received}, נשלחו ${sent}`,
   syncLastAt: (when) => `סנכרון אחרון: ${when}`,
+
+  exportExcel: 'ייצוא ל-Excel',
+  excelFailed: 'ייצוא ל-Excel נכשל',
+  xlsxSheetDays: 'ימי עבודה',
+  xlsxSheetSummary: 'סיכום',
+  xlsxSummaryTitle: 'סיכום תקופה',
+  xlsxWeekday: 'יום',
+  xlsxManagement: 'צוות הנהלה',
+  xlsxConcreteQty: 'כמות בטון (מ"ק)',
+  xlsxPhotos: 'תמונות',
+  xlsxStatus: 'סטטוס',
 
   viewOptions: 'תצוגה',
   viewGrid: 'רשת',
@@ -1012,8 +1041,22 @@ const ar: Strings = {
   syncTimeout: 'استغرقت المزامنة وقتاً طويلاً وتوقفت — حاول مجدداً بالقرب من الراوتر',
   syncVersionMismatch: 'إصدارات مختلفة على الجهازين — حدّث كليهما وحاول مجدداً',
   syncProgress: (done, total) => `تتم المزامنة ${done} من ${total}…`,
+  syncAuto: 'مزامنة تلقائية',
+  syncAutoHint: 'تتم المزامنة تلقائياً عندما يكون التطبيق مفتوحاً والجهازان على نفس الشبكة — عند الفتح، وعند العودة للتطبيق، وكل بضع دقائق.',
+  syncAutoReceived: (n) => `تم استلام ${n} تحديثات من الجهاز الآخر`,
   syncDone: (received, sent) => `اكتملت المزامنة · وردت ${received}، أُرسلت ${sent}`,
   syncLastAt: (when) => `آخر مزامنة: ${when}`,
+
+  exportExcel: 'تصدير إلى Excel',
+  excelFailed: 'فشل التصدير إلى Excel',
+  xlsxSheetDays: 'أيام العمل',
+  xlsxSheetSummary: 'ملخص',
+  xlsxSummaryTitle: 'ملخص الفترة',
+  xlsxWeekday: 'اليوم',
+  xlsxManagement: 'طاقم الإدارة',
+  xlsxConcreteQty: 'كمية الباطون (م³)',
+  xlsxPhotos: 'صور',
+  xlsxStatus: 'الحالة',
 
   viewOptions: 'العرض',
   viewGrid: 'شبكة',
@@ -1379,8 +1422,22 @@ const en: Strings = {
   syncTimeout: 'Sync took too long and stopped — try again closer to the router',
   syncVersionMismatch: 'The two devices are on different versions — update both and try again',
   syncProgress: (done, total) => `Syncing ${done} of ${total}…`,
+  syncAuto: 'Automatic sync',
+  syncAutoHint: 'Syncs by itself while the app is open and both devices are on the same network — on opening, on returning to the app, and every few minutes.',
+  syncAutoReceived: (n) => `${n} updates received from the other device`,
   syncDone: (received, sent) => `Sync complete · ${received} in, ${sent} out`,
   syncLastAt: (when) => `Last sync: ${when}`,
+
+  exportExcel: 'Export to Excel',
+  excelFailed: 'Export to Excel failed',
+  xlsxSheetDays: 'Work days',
+  xlsxSheetSummary: 'Summary',
+  xlsxSummaryTitle: 'Period summary',
+  xlsxWeekday: 'Day',
+  xlsxManagement: 'Management crew',
+  xlsxConcreteQty: 'Concrete (m³)',
+  xlsxPhotos: 'Photos',
+  xlsxStatus: 'Status',
 
   viewOptions: 'View',
   viewGrid: 'Grid',

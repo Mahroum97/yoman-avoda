@@ -19,7 +19,7 @@ export function ReportsScreen({ project }: { project: Project }) {
   const [includePhotos, setIncludePhotos] = useState(false);
   const [includeSummary, setIncludeSummary] = useState(true);
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
-  const [busy, setBusy] = useState<'pdf' | 'word' | null>(null);
+  const [busy, setBusy] = useState<'pdf' | 'word' | 'excel' | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,21 +38,28 @@ export function ReportsScreen({ project }: { project: Project }) {
 
   const stats = useMemo(() => (entries ? summarise(entries) : null), [entries]);
 
-  const download = async (format: 'pdf' | 'word') => {
+  const download = async (format: 'pdf' | 'word' | 'excel') => {
     if (!entries?.length) return;
     setBusy(format);
     try {
       const options = { includePhotos, includeSummary };
-      const name =
-        format === 'pdf'
-          ? await (await import('../pdf/export')).exportRangePdf(entries, project, from, to, {
-              ...options,
-              logoDataUrl,
-            })
-          : await (await import('../docx/export')).exportRange(entries, project, from, to, options);
+      let name: string;
+      if (format === 'pdf') {
+        name = await (await import('../pdf/export')).exportRangePdf(entries, project, from, to, {
+          ...options,
+          logoDataUrl,
+        });
+      } else if (format === 'word') {
+        name = await (await import('../docx/export')).exportRange(entries, project, from, to, options);
+      } else {
+        // The spreadsheet ignores includePhotos and includeSummary: it always
+        // carries both sheets, because a column is free and a photo cannot go
+        // in one anyway.
+        name = await (await import('../xlsx/export')).exportRangeXlsx(entries, project, from, to);
+      }
       toast.show(t.fileCreated(name));
     } catch {
-      toast.error(t.reportFailed);
+      toast.error(format === 'excel' ? t.excelFailed : t.reportFailed);
     } finally {
       setBusy(null);
     }
@@ -167,6 +174,14 @@ export function ReportsScreen({ project }: { project: Project }) {
           onClick={() => void download('word')}
         >
           {busy === 'word' ? t.exporting : t.exportWord}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          disabled={busy !== null || !entries?.length}
+          onClick={() => void download('excel')}
+        >
+          {busy === 'excel' ? t.exporting : `▦ ${t.exportExcel}`}
         </button>
       </div>
 

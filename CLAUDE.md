@@ -179,6 +179,19 @@ use flips its direction rather than doing nothing.
 can arrive from a sync or a restored backup written by an older version, and a single
 absent quantity used to take the whole range report down.
 
+## Spreadsheet export
+
+`src/xlsx/` writes a real .xlsx by hand — an xlsx is a zip of XML parts, and jszip is
+already in the tree because `docx` builds on it. A spreadsheet library was not worth its
+weight for this, and writing the parts directly buys the thing a generic library will not
+give: **`<sheetView rightToLeft="1"/>`**, without which a Hebrew workbook opens mirrored
+with column A on the wrong side.
+
+Quantities are written as **numbers**, not as the free text the form stores, or a column
+of workers will not sum — which is the only reason to export a spreadsheet rather than a
+PDF. `npm run sample` writes `tmp/sample-range-{he,en}.xlsx`; check both, since the RTL
+flag changes the sheet XML.
+
 ## The activity log
 
 `src/lib/log.ts` is how a fault on site becomes fixable. There is no console on a
@@ -265,6 +278,21 @@ Four things that made it slow, all fixed and all easy to reintroduce:
 `post()` carries an `AbortController` — `fetch` has no timeout of its own, and without
 one a sleeping Mac left the phone spinning for as long as the platform felt like waiting.
 That was "it takes ages and then fails".
+
+**Sync runs by itself** (`src/hooks/useAutoSync.ts`, mounted once in `App`). It fires on
+open, on returning to the foreground, on regaining the network, and every five minutes —
+and it is shaped as much by what it refuses to do:
+
+- **It only runs while the app is visible.** A web app cannot sync while closed, and a
+  timer that fires in a hidden tab would drain a phone for nothing.
+- **A sync that moves nothing says nothing.** Only a sync that actually transferred
+  records raises a toast; failures go to the log alone, because a phone on a site drops
+  off the Wi-Fi constantly and a toast each time would be noise.
+- **`syncNow` holds a module-level lock** (`isSyncing()`), so the button and the timer can
+  never run at once — two overlapping syncs would have both sides merging each other's
+  half-delivered chunks.
+- The Mac never auto-syncs: it is the host and has no peer stored, so the hook is inert
+  there without needing to know what kind of device it is on.
 
 Rules that are easy to get wrong, and are load-bearing:
 

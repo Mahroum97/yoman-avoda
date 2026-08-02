@@ -28,11 +28,24 @@ function resolve(preference: ThemePreference): Theme {
   return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light';
 }
 
+/**
+ * The colour iOS paints the status-bar strip above the app.
+ *
+ * It has to match the top bar exactly, or the strip reads as a separate band
+ * of the wrong colour — which is what a navy strip over a light page looked
+ * like. Kept in step with `--topbar` in global.css, and duplicated in the
+ * pre-paint script in index.html so the strip is right on the very first frame.
+ */
+export const STRIP_COLOUR: Record<Theme, string> = {
+  light: '#ffffff',
+  dark: '#16293f',
+};
+
 function apply(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
   document
     .querySelector('meta[name="theme-color"]')
-    ?.setAttribute('content', theme === 'dark' ? '#12161c' : '#0f2d4a');
+    ?.setAttribute('content', STRIP_COLOUR[theme]);
 }
 
 export function useTheme() {

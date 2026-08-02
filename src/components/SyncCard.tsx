@@ -20,6 +20,7 @@ import {
   type Peer,
   type SyncProgress,
 } from '../sync/client';
+import { autoSyncEnabled, setAutoSyncEnabled } from '../hooks/useAutoSync';
 import { Card, Field } from './ui';
 
 function formatTime(stamp: number | null, locale: string): string | null {
@@ -111,6 +112,7 @@ function ClientPanel() {
   // A transfer full of photos takes real time; without this the phone just
   // sits there and the user assumes it has hung — which is what they reported.
   const [progress, setProgress] = useState<SyncProgress | null>(null);
+  const [auto, setAuto] = useState(autoSyncEnabled);
 
   const connect = async () => {
     if (!address.trim() || code.trim().length < 4) {
@@ -190,6 +192,26 @@ function ClientPanel() {
           placeholder="123456"
         />
       </Field>
+
+      {peer && (
+        <label className="row" style={{ marginBottom: 10 }}>
+          <input
+            type="checkbox"
+            checked={auto}
+            onChange={(e) => {
+              setAutoSyncEnabled(e.target.checked);
+              setAuto(e.target.checked);
+            }}
+            style={{ width: 20, height: 20, minHeight: 0 }}
+          />
+          <span>
+            <span>{t.syncAuto}</span>
+            <span className="field__hint" style={{ display: 'block' }}>
+              {t.syncAutoHint}
+            </span>
+          </span>
+        </label>
+      )}
 
       {seen && <p className="muted small">{t.syncLastAt(seen)}</p>}
 
