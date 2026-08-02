@@ -1,5 +1,5 @@
 /** Shell, routing and the "no project yet" onboarding path. */
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useActiveProject, useProjects } from './hooks/useData';
 import { useRoute, navigate } from './hooks/useRoute';
 import { ToastProvider } from './components/ToastProvider';
@@ -16,6 +16,11 @@ import { Logo } from './components/Logo';
 import { useTheme, type ThemePreference } from './hooks/useTheme';
 import { useLanguage } from './i18n/useLanguage';
 import { useAutoSync } from './hooks/useAutoSync';
+import { UndoButtons } from './components/UndoButtons';
+import {
+  EditorActionsContext,
+  type EditorActions,
+} from './hooks/editorActionsContext';
 
 const TAB_KEYS = ['', 'reports', 'projects', 'settings'] as const;
 const TAB_ICONS = ['📋', '📊', '🏗️', '⚙️'];
@@ -36,6 +41,14 @@ function Shell() {
   const { project, loading } = useActiveProject();
   const section = route.segments[0] ?? '';
 
+  // Undo and redo live in the bar above, but the history belongs to whichever
+  // screen is being edited. It publishes here and the bar reads it.
+  const [editorActions, setEditorActions] = useState<EditorActions | null>(null);
+  const registry = useMemo(
+    () => ({ actions: editorActions, publish: setEditorActions }),
+    [editorActions],
+  );
+
   // Mounted once, for the whole app: the diary keeps itself current while it is
   // open, and only speaks up when something actually arrived.
   useAutoSync((received) => {
@@ -54,6 +67,7 @@ function Shell() {
   const isPreview = section === 'preview';
 
   return (
+    <EditorActionsContext.Provider value={registry}>
     <div className="app">
       {!isPreview && (
         <header className="topbar">
@@ -62,6 +76,7 @@ function Shell() {
             <div className="topbar__title">{t.appName}</div>
             {project && <div className="topbar__sub">{project.name}</div>}
           </div>
+          <UndoButtons />
           <ThemeButton />
         </header>
       )}
@@ -108,6 +123,7 @@ function Shell() {
         </nav>
       )}
     </div>
+    </EditorActionsContext.Provider>
   );
 }
 

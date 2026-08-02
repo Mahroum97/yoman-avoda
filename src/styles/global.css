@@ -653,23 +653,24 @@ button:focus-visible {
   font-size: 0.85em;
 }
 
-/* Undo and redo, side by side beside the status chip in the editor header. */
-.undo-pair {
+/*
+ * Undo and redo in the app bar, beside the day/night button — reachable
+ * without scrolling back up through a long form to find them.
+ */
+.topbar__undo {
   display: flex;
   gap: 6px;
   flex: none;
 }
 
-.undo-pair .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
+/* Unavailable, not a second live control. */
+.topbar__icon:disabled {
+  opacity: 0.32;
+  cursor: default;
 }
 
-/* A disabled step should read as unavailable, not as a second live control. */
-.undo-pair .btn:disabled {
-  opacity: 0.35;
+.topbar__icon:disabled:hover {
+  border-color: var(--topbar-btn-line);
 }
 
 /* The whole left part of a row is one big tap target. */

@@ -22,37 +22,9 @@ import { useSavedSignatures } from '../hooks/useSignatures';
 import { PhotoGrid } from '../components/PhotoGrid';
 import { canShareFiles } from '../lib/save';
 import { useUndoable } from '../hooks/useUndoable';
+import { useEditorActions } from '../hooks/editorActionsContext';
 
 const AUTOSAVE_MS = 1200;
-
-/**
- * The undo arrow, mirrored for redo.
- *
- * Drawn rather than typed: the ↶/↷ characters come out as hairlines at button
- * size in most system fonts, and unreadable on a phone in daylight. It does
- * *not* flip with the writing direction — the curl-to-the-left undo arrow is
- * the same in every app on every platform, and recognising it instantly
- * matters more here than agreeing with the text beside it.
- */
-function UndoIcon({ forward = false }: { forward?: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width="19"
-      height="19"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      style={forward ? { transform: 'scaleX(-1)' } : undefined}
-    >
-      <path d="M9 14 4 9l5-5" />
-      <path d="M4 9h10a5.5 5.5 0 0 1 0 11h-3" />
-    </svg>
-  );
-}
 
 export function EntryEditor({
   entryId,
@@ -81,6 +53,7 @@ export function EntryEditor({
   const { value: entry, commit, amend, reset, undo, redo, canUndo, canRedo } =
     useUndoable<DiaryEntry>();
   const [loading, setLoading] = useState(true);
+  const { publish } = useEditorActions();
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dateConflict, setDateConflict] = useState(false);
@@ -196,6 +169,15 @@ export function EntryEditor({
     redo();
     setDirty(true);
   }, [redo]);
+
+  /*
+   * The bar at the top of the app renders the buttons; this is where they get
+   * something to do. Cleared on the way out so they vanish with the editor.
+   */
+  useEffect(() => {
+    publish({ undo: stepBack, redo: stepForward, canUndo, canRedo });
+    return () => publish(null);
+  }, [publish, stepBack, stepForward, canUndo, canRedo]);
 
   /*
    * ⌘Z / ⌘⇧Z, but never while the caret is in a field.
@@ -320,33 +302,6 @@ export function EntryEditor({
             {project.name}
             {` · ${saving ? t.savingNote : dirty ? t.unsavedNote : t.savedNote}`}
           </p>
-        </div>
-        {/*
-          Arrows rather than words: they sit in a tight row beside the status
-          chip, and the direction is the meaning. They point along the writing
-          direction, so they swap over with the layout in Hebrew and Arabic.
-        */}
-        <div className="undo-pair">
-          <button
-            type="button"
-            className="btn btn--sm btn--icon"
-            disabled={!canUndo}
-            aria-label={t.undoEdit}
-            title={t.undoEdit}
-            onClick={stepBack}
-          >
-            <UndoIcon />
-          </button>
-          <button
-            type="button"
-            className="btn btn--sm btn--icon"
-            disabled={!canRedo}
-            aria-label={t.redoEdit}
-            title={t.redoEdit}
-            onClick={stepForward}
-          >
-            <UndoIcon forward />
-          </button>
         </div>
         <StatusChip status={entry.status} />
       </div>
