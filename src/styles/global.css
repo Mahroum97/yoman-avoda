@@ -228,22 +228,24 @@ p {
   line-height: 1;
 }
 
+/*
+ * On a wide window the bar keeps its place at the bottom and only changes
+ * shape — a centred row of labelled items instead of five equal columns.
+ *
+ * It used to try to become a sticky bar at the top here, and that never
+ * worked for a structural reason: `<nav>` is rendered after `<main>`, so an
+ * element with `top: 0` has nothing to stick to. It simply sat in normal flow
+ * at the end of the document, which is why on the Mac the tabs appeared only
+ * once you had scrolled all the way to the bottom. Staying fixed at the bottom
+ * also means the navigation is in the same place on the phone, the iPad and
+ * the Mac, which is the point of shipping one app three ways.
+ */
 @media (min-width: 860px) {
-  :root {
-    --navh: 0px;
-  }
-
   .nav {
-    position: sticky;
-    top: 0;
-    inset-inline: auto;
-    bottom: auto;
     grid-template-columns: none;
     grid-auto-flow: column;
     justify-content: center;
     gap: 4px;
-    border-top: 0;
-    border-bottom: 1px solid var(--line);
   }
 
   .nav__item {
@@ -251,10 +253,6 @@ p {
     gap: 8px;
     padding: 12px 18px;
     font-size: 0.9rem;
-  }
-
-  .main {
-    padding-bottom: 48px;
   }
 }
 
@@ -2026,12 +2024,9 @@ input[type='date']::-webkit-calendar-picker-indicator {
   padding-bottom: 160px;
 }
 
-@media (min-width: 860px) {
-  .selectionbar {
-    bottom: 0;
-  }
-
-  .has-selectionbar {
-    padding-bottom: 96px;
-  }
-}
+/*
+ * No desktop override any more. The selection bar sat at `bottom: 0` here
+ * because a wide window had no bottom navigation to clear; now that the tabs
+ * stay fixed at the bottom on every size, the shared rule — one bar's height
+ * above the other — is the correct one everywhere.
+ */
