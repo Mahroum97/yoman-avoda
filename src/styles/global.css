@@ -653,6 +653,25 @@ button:focus-visible {
   font-size: 0.85em;
 }
 
+/* Undo and redo, side by side beside the status chip in the editor header. */
+.undo-pair {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.undo-pair .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* A disabled step should read as unavailable, not as a second live control. */
+.undo-pair .btn:disabled {
+  opacity: 0.35;
+}
+
 /* The whole left part of a row is one big tap target. */
 .entry__open {
   display: flex;

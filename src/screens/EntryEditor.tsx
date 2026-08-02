@@ -21,8 +21,38 @@ import { SignaturePad } from '../components/SignaturePad';
 import { useSavedSignatures } from '../hooks/useSignatures';
 import { PhotoGrid } from '../components/PhotoGrid';
 import { canShareFiles } from '../lib/save';
+import { useUndoable } from '../hooks/useUndoable';
 
 const AUTOSAVE_MS = 1200;
+
+/**
+ * The undo arrow, mirrored for redo.
+ *
+ * Drawn rather than typed: the ↶/↷ characters come out as hairlines at button
+ * size in most system fonts, and unreadable on a phone in daylight. It does
+ * *not* flip with the writing direction — the curl-to-the-left undo arrow is
+ * the same in every app on every platform, and recognising it instantly
+ * matters more here than agreeing with the text beside it.
+ */
+function UndoIcon({ forward = false }: { forward?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="19"
+      height="19"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      style={forward ? { transform: 'scaleX(-1)' } : undefined}
+    >
+      <path d="M9 14 4 9l5-5" />
+      <path d="M4 9h10a5.5 5.5 0 0 1 0 11h-3" />
+    </svg>
+  );
+}
 
 export function EntryEditor({
   entryId,
@@ -39,7 +69,17 @@ export function EntryEditor({
   const logoDataUrl = useCompanyLogo();
   const savedSignatures = useSavedSignatures();
 
-  const [entry, setEntry] = useState<DiaryEntry | null>(null);
+  /*
+   * The page being edited, with its history. `commit` records an undoable step;
+   * `amend` moves the value without one — see useUndoable.
+   *
+   * Destructured rather than used through the object: the object's identity
+   * changes with every edit while these functions are stable, so depending on
+   * it would re-run the load effect on each keystroke and pull the page back
+   * from the database mid-sentence.
+   */
+  const { value: entry, commit, amend, reset, undo, redo, canUndo, canRedo } =
+    useUndoable<DiaryEntry>();
   const [loading, setLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -57,13 +97,15 @@ export function EntryEditor({
       const fresh = () => blankEntry(project.id!, initialDate ?? isoDate(), project.uid);
       const loaded = entryId === undefined ? fresh() : await db.entries.get(entryId);
       if (cancelled) return;
-      setEntry(loaded ?? fresh());
+      // A different page means a different history; nothing from the last one
+      // should be reachable by pressing undo here.
+      reset(loaded ?? fresh());
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
-  }, [entryId, project.id, project.uid, initialDate]);
+  }, [entryId, project.id, project.uid, initialDate, reset]);
 
   latest.current = entry;
 
@@ -83,12 +125,14 @@ export function EntryEditor({
         // "draft" for a page the database has already recorded as active.
         const settled = statusFor(candidate);
         if (settled !== candidate.status) {
-          setEntry((current) => (current ? { ...current, status: settled } : current));
+          // `amend`, not `commit`: the database decided this, not the user, so
+          // it must not be something undo steps back through.
+          amend((current) => ({ ...current, status: settled }));
         }
         if (candidate.id === undefined) {
           // First save of a new page: adopt the generated id, and swap the URL
           // so a refresh reopens the same page instead of a second blank one.
-          setEntry((current) => (current ? { ...current, id } : current));
+          amend((current) => ({ ...current, id }));
           window.history.replaceState(null, '', `#/entry/${id}`);
         }
         setDirty(false);
@@ -97,7 +141,7 @@ export function EntryEditor({
         setSaving(false);
       }
     },
-    [],
+    [amend],
   );
 
   // Debounced autosave.
@@ -122,20 +166,57 @@ export function EntryEditor({
     };
   }, [dirty, persist]);
 
-  const patch = useCallback((changes: Partial<DiaryEntry>) => {
-    setEntry((current) => (current ? { ...current, ...changes } : current));
-    setDirty(true);
-  }, []);
+  // The changed keys are the coalescing tag: typing into one field folds into
+  // a single step, but moving to another field starts a new one.
+  const patch = useCallback(
+    (changes: Partial<DiaryEntry>) => {
+      commit((current) => ({ ...current, ...changes }), Object.keys(changes).join(','));
+      setDirty(true);
+    },
+    [commit],
+  );
 
   const patchCasting = useCallback(
     (changes: Partial<DiaryEntry['casting']>) => {
-      setEntry((current) =>
-        current ? { ...current, casting: { ...current.casting, ...changes } } : current,
+      commit(
+        (current) => ({ ...current, casting: { ...current.casting, ...changes } }),
+        `casting.${Object.keys(changes).join(',')}`,
       );
       setDirty(true);
     },
-    [],
+    [commit],
   );
+
+  const stepBack = useCallback(() => {
+    undo();
+    setDirty(true);
+  }, [undo]);
+
+  const stepForward = useCallback(() => {
+    redo();
+    setDirty(true);
+  }, [redo]);
+
+  /*
+   * ⌘Z / ⌘⇧Z, but never while the caret is in a field.
+   *
+   * A text input has its own undo stack, and taking that over would make ⌘Z
+   * throw away a whole sentence when the user only meant to drop the last
+   * word. Inside a field the browser wins; everywhere else this does.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
+      const target = event.target as HTMLElement | null;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (target?.isContentEditable) return;
+      event.preventDefault();
+      if (event.shiftKey) stepForward();
+      else stepBack();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [stepBack, stepForward]);
 
   const managementColumns = useMemo<ColumnDef<DiaryEntry['management'][number]>[]>(
     () => [
@@ -177,7 +258,7 @@ export function EntryEditor({
       ...entry,
       status: entry.status === 'signed' ? 'draft' : 'signed',
     };
-    setEntry(next);
+    commit(() => next, 'status');
     const ok = await persist(next);
     if (ok) toast.show(next.status === 'signed' ? t.markedSigned : t.markedDraft);
   };
@@ -239,6 +320,33 @@ export function EntryEditor({
             {project.name}
             {` · ${saving ? t.savingNote : dirty ? t.unsavedNote : t.savedNote}`}
           </p>
+        </div>
+        {/*
+          Arrows rather than words: they sit in a tight row beside the status
+          chip, and the direction is the meaning. They point along the writing
+          direction, so they swap over with the layout in Hebrew and Arabic.
+        */}
+        <div className="undo-pair">
+          <button
+            type="button"
+            className="btn btn--sm btn--icon"
+            disabled={!canUndo}
+            aria-label={t.undoEdit}
+            title={t.undoEdit}
+            onClick={stepBack}
+          >
+            <UndoIcon />
+          </button>
+          <button
+            type="button"
+            className="btn btn--sm btn--icon"
+            disabled={!canRedo}
+            aria-label={t.redoEdit}
+            title={t.redoEdit}
+            onClick={stepForward}
+          >
+            <UndoIcon forward />
+          </button>
         </div>
         <StatusChip status={entry.status} />
       </div>

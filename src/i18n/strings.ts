@@ -353,6 +353,8 @@ export interface Strings {
   pinnedDone: string;
   unpinnedDone: string;
   undo: string;
+  undoEdit: string;
+  redoEdit: string;
   pinSelected: string;
   pinnedSelected: (n: number) => string;
   swipeHint: string;
@@ -742,6 +744,8 @@ const he: Strings = {
   pinnedDone: 'היומן הוצמד',
   unpinnedDone: 'ההצמדה בוטלה',
   undo: 'בטל',
+  undoEdit: 'בטל שינוי',
+  redoEdit: 'בצע שוב',
   pinSelected: 'הצמד',
   pinnedSelected: (n) => `${n} יומנים הוצמדו`,
   swipeHint: 'החליקו יומן הצידה כדי להצמיד או למחוק',
@@ -1145,6 +1149,8 @@ const ar: Strings = {
   pinnedDone: 'تم تثبيت اليومية',
   unpinnedDone: 'أُلغي التثبيت',
   undo: 'تراجع',
+  undoEdit: 'تراجع عن التغيير',
+  redoEdit: 'إعادة التغيير',
   pinSelected: 'تثبيت',
   pinnedSelected: (n) => `تم تثبيت ${n} يوميات`,
   swipeHint: 'اسحب اليومية جانبًا للتثبيت أو الحذف',
@@ -1550,6 +1556,8 @@ const en: Strings = {
   pinnedDone: 'Page pinned',
   unpinnedDone: 'Pin removed',
   undo: 'Undo',
+  undoEdit: 'Undo change',
+  redoEdit: 'Redo change',
   pinSelected: 'Pin',
   pinnedSelected: (n) => `${n} pages pinned`,
   swipeHint: 'Swipe a page sideways to pin or delete it',
