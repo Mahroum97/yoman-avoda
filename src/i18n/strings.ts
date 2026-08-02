@@ -848,7 +848,7 @@ const ar: Strings = {
   photosShort: (n) => `${n}`,
   noDescription: 'بدون وصف للعمل',
   statusDraft: 'مسودة',
-  statusSigned: '✓ ساري',
+  statusSigned: '✓ فعال',
 
   sectionProjectDate: 'المشروع والتاريخ',
   sectionManagement: 'طاقم الإدارة',
@@ -875,7 +875,7 @@ const ar: Strings = {
   moveUp: 'تحريك للأعلى',
   moveDown: 'تحريك للأسفل',
   deleteRow: 'حذف الصف',
-  markSigned: 'وضع علامة ساري',
+  markSigned: 'وضع علامة فعال',
   markDraft: 'إرجاع إلى مسودة',
   deleteEntry: 'حذف السجل',
   confirmDeleteEntry: (date) => `هل تريد حذف سجل تاريخ ${date}؟`,
@@ -899,7 +899,7 @@ const ar: Strings = {
   wordFailed: 'فشل التصدير إلى Word',
   entrySaved: 'تم حفظ السجل',
   entryDeleted: 'تم حذف السجل',
-  markedSigned: 'تم وضع علامة ساري',
+  markedSigned: 'تم وضع علامة فعال',
   markedDraft: 'أُعيد السجل إلى مسودة',
 
   labelProject: 'المشروع',
