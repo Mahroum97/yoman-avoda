@@ -701,6 +701,13 @@ button:focus-visible {
 }
 
 .entry__title {
+  /*
+   * `display: block` is load-bearing, not decoration: this is a <span>, and
+   * `overflow`/`text-overflow` are ignored on an inline box. Without it a long
+   * work description does not get its ellipsis — it overflows the row and is
+   * painted straight over the status chip beside it.
+   */
+  display: block;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;

@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiaryEntry, Project } from '../types';
-import { blankEntry, db, deleteEntry, findEntryByDate, saveEntry } from '../db';
+import { blankEntry, db, deleteEntry, findEntryByDate, saveEntry, statusFor } from '../db';
 import { formatDdMmYyyy, formatLongDate, isoDate } from '../lib/dates';
 import { usePresets } from '../hooks/useData';
 import { useCompanyLogo } from '../hooks/useBranding';
@@ -78,6 +78,13 @@ export function EntryEditor({
       setSaving(true);
       try {
         const id = await saveEntry(candidate);
+        // `saveEntry` decides the status from the מנ"ע signature. Without
+        // reflecting that back, the chip at the top of the screen keeps saying
+        // "draft" for a page the database has already recorded as active.
+        const settled = statusFor(candidate);
+        if (settled !== candidate.status) {
+          setEntry((current) => (current ? { ...current, status: settled } : current));
+        }
         if (candidate.id === undefined) {
           // First save of a new page: adopt the generated id, and swap the URL
           // so a refresh reopens the same page instead of a second blank one.
@@ -399,7 +406,16 @@ export function EntryEditor({
             label={t.labelManagerSignature}
             value={entry.managerSignature}
             saved={savedSignatures.manager}
-            onChange={(managerSignature) => patch({ managerSignature })}
+            // `saveEntry` applies the same rule, but only on the next save; the
+            // chip at the top of the screen has to answer straight away, or
+            // signing looks like it did nothing.
+            onChange={(managerSignature) =>
+              patch(
+                managerSignature.trim()
+                  ? { managerSignature, status: 'signed' }
+                  : { managerSignature },
+              )
+            }
           />
         </div>
       </Card>
@@ -451,9 +467,16 @@ export function EntryEditor({
             {t.previewButton}
           </button>
         )}
-        <button type="button" className="btn" onClick={() => void toggleSigned()}>
-          {entry.status === 'signed' ? t.markDraft : t.markSigned}
-        </button>
+        {/*
+          Only while the status is still a choice. Once the מנ"ע has signed,
+          the signature decides it — offering "back to draft" there would be a
+          button that undoes itself on the next save.
+        */}
+        {!entry.managerSignature?.trim() && (
+          <button type="button" className="btn" onClick={() => void toggleSigned()}>
+            {entry.status === 'signed' ? t.markDraft : t.markSigned}
+          </button>
+        )}
         <button type="button" className="btn btn--danger" onClick={() => void remove()}>
           {t.deleteEntry}
         </button>

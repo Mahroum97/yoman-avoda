@@ -102,6 +102,31 @@ class YomanDb extends Dexie {
       tombstones: '&uid, table, deletedAt',
       logs: '++id, at, level',
     });
+
+    // v5 changes no schema — it backfills the rule that a page carrying a
+    // מנ"ע signature is no longer a draft. Without this, pages signed before
+    // the rule existed would sit as drafts until each was opened and saved
+    // again, which is exactly the manual step the rule exists to remove.
+    this.version(5)
+      .stores({
+        projects: '++id, &uid, name, archived, createdAt, [uid+createdAt]',
+        entries:
+          '++id, &uid, projectUid, projectId, date, [projectId+date], status, updatedAt, [uid+updatedAt]',
+        presets: '++id, kind, [kind+value], uses',
+        settings: 'key',
+        tombstones: '&uid, table, deletedAt',
+        logs: '++id, at, level',
+      })
+      .upgrade((tx) =>
+        // `modify` streams the rows rather than loading them all, which matters
+        // here: every record carries its photos.
+        tx
+          .table('entries')
+          .toCollection()
+          .modify((entry: DiaryEntry) => {
+            if (entry.managerSignature?.trim()) entry.status = 'signed';
+          }),
+      );
   }
 }
 
@@ -195,8 +220,27 @@ export async function findEntryByDate(
   return db.entries.where({ projectId, date }).first();
 }
 
+/**
+ * A page stops being a draft the moment the מנ"ע has signed it.
+ *
+ * That signature is what puts the day's diary in force on an Israeli site —
+ * the מפקח's is not required for it, and waiting for one left pages sitting as
+ * drafts long after they were finished. So the signature decides the status
+ * rather than a button somebody has to remember to press.
+ *
+ * It only ever raises: with no signature the stored status is left alone, so
+ * marking a page by hand still works for the days it was signed on paper.
+ */
+export function statusFor(entry: DiaryEntry): DiaryEntry['status'] {
+  return entry.managerSignature?.trim() ? 'signed' : entry.status;
+}
+
 export async function saveEntry(entry: DiaryEntry): Promise<number> {
-  const toSave: DiaryEntry = { ...entry, updatedAt: Date.now() };
+  const toSave: DiaryEntry = {
+    ...entry,
+    status: statusFor(entry),
+    updatedAt: Date.now(),
+  };
   const id = await db.entries.put(toSave);
   await learnPresets(toSave);
   return id;
