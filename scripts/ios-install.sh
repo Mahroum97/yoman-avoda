@@ -21,12 +21,23 @@ BUNDLE_ID=com.mahroum.yoman
 
 # Build outside the project folder, on purpose.
 #
+# Not on the Desktop, and not in ${TMPDIR} either.
+#
 # The Desktop is synced to iCloud Drive, and the file provider stamps every file
 # written there with com.apple.FinderInfo. codesign refuses to sign anything
 # carrying it ("resource fork, Finder information, or similar detritus not
 # allowed"), and clearing the attributes does not hold because they are re-added
-# as the build writes new files. ${TMPDIR} is not synced.
-DERIVED="${TMPDIR:-/tmp/}yoman-ios-build"
+# as the build writes new files.
+#
+# ${TMPDIR} solved that and introduced a worse one: macOS reaps files under
+# /var/folders/…/T/ that have not been touched for a few days, and it does it
+# file by file. It emptied the capacitor-swift-pm checkout overnight while
+# leaving the directory and SPM's workspace-state.json behind, so every build
+# afterwards failed with "Package.swift … doesn't exist in file system" and
+# could not recover on its own. ~/Library/Caches is not synced and not reaped
+# on a timer.
+DERIVED="$HOME/Library/Caches/yoman-ios-build"
+mkdir -p "$DERIVED"
 
 GREEN=$'\033[32m'; RED=$'\033[31m'; YELLOW=$'\033[33m'; BOLD=$'\033[1m'; OFF=$'\033[0m'
 step() { printf '\n▸ %s\n' "$1"; }
@@ -52,6 +63,19 @@ FAILED_LIST=""
 append_to() {
   local current=$1 item=$2
   if [ -z "$current" ]; then printf '%s' "$item"; else printf '%s, %s' "$current" "$item"; fi
+}
+
+build_for() {
+  xcodebuild \
+    -project ios/App/App.xcodeproj \
+    -scheme App \
+    -configuration Debug \
+    -destination "id=$1" \
+    -derivedDataPath "$DERIVED" \
+    -allowProvisioningUpdates \
+    DEVELOPMENT_TEAM="$TEAM_ID" \
+    CODE_SIGN_STYLE=Automatic \
+    build < /dev/null
 }
 
 # push-all.sh passes a path in and prints back what it finds there, so a partial
@@ -191,19 +215,19 @@ for entry in "${READY[@]}"; do
   # new device has to be registered with the team, and that happens as part of a
   # build aimed at it. The derived-data folder is shared, so every build after
   # the first is incremental and mostly just re-signs.
-  if ! xcodebuild \
-      -project ios/App/App.xcodeproj \
-      -scheme App \
-      -configuration Debug \
-      -destination "id=$id" \
-      -derivedDataPath "$DERIVED" \
-      -allowProvisioningUpdates \
-      DEVELOPMENT_TEAM="$TEAM_ID" \
-      CODE_SIGN_STYLE=Automatic \
-      build < /dev/null; then
-    FAILED+=("$name|בנייה נכשלה")
-    FAILED_LIST=$(append_to "$FAILED_LIST" "$name")
-    continue
+  if ! build_for "$id"; then
+    # A Swift package checkout that has gone missing under the cache cannot be
+    # repaired by xcodebuild: its workspace state still claims the package is
+    # there, so resolution fails the same way every time. Throwing the checkouts
+    # away costs one re-fetch and is the only thing that fixes it — worth trying
+    # once before giving up on a device.
+    printf '   %s\n' "מנקה חבילות Swift ומנסה שוב…"
+    rm -rf "$DERIVED/SourcePackages"
+    if ! build_for "$id"; then
+      FAILED+=("$name|בנייה נכשלה")
+      FAILED_LIST=$(append_to "$FAILED_LIST" "$name")
+      continue
+    fi
   fi
 
   APP_PATH=$(find "$DERIVED/Build/Products" -maxdepth 2 -name 'App.app' -print -quit)
