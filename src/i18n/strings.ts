@@ -256,6 +256,13 @@ export interface Strings {
   backupHint: string;
   downloadBackup: string;
   restoreBackup: string;
+  exportAll: string;
+  exportAllHint: string;
+  exportAllFilePrefix: string;
+  exportAllWorking: (done: number, total: number) => string;
+  exportAllDone: (entries: number, projects: number) => string;
+  exportAllEmpty: string;
+  exportAllFailed: string;
   storageUsage: (used: string, quota: string) => string;
   storageNotPersisted: string;
   backupDownloaded: string;
@@ -639,8 +646,15 @@ const he: Strings = {
   logoFailed: 'לא ניתן היה לטעון את הלוגו',
   backupTitle: 'גיבוי ושחזור',
   backupHint: 'הנתונים נשמרים במכשיר בלבד. מומלץ לגבות מדי שבוע.',
-  downloadBackup: 'הורד גיבוי',
-  restoreBackup: 'שחזר מגיבוי',
+  downloadBackup: 'ייצוא נתונים',
+  restoreBackup: 'ייבוא נתונים',
+  exportAll: 'ייצוא הכול',
+  exportAllHint: 'כל ימי היומן כקובצי PDF, בתיקייה לכל פרויקט, עם גיליון סיכום לצידם — הכול בקובץ ZIP אחד.',
+  exportAllFilePrefix: 'יומן-עבודה-הכול',
+  exportAllWorking: (done, total) => `מכין ${done} מתוך ${total}…`,
+  exportAllDone: (entries, projects) => `${entries} ימים מ-${projects} פרויקטים`,
+  exportAllEmpty: 'אין עדיין ימים לייצוא',
+  exportAllFailed: 'הייצוא נכשל',
   storageUsage: (used, quota) => `בשימוש: ${used} מתוך ${quota} הזמינים לאפליקציה במכשיר.`,
   storageNotPersisted:
     'הדפדפן לא הבטיח שמירה קבועה של הנתונים. מומלץ להתקין את האפליקציה למסך הבית, ולגבות באופן קבוע.',
@@ -1044,8 +1058,15 @@ const ar: Strings = {
   logoFailed: 'تعذر تحميل الشعار',
   backupTitle: 'النسخ الاحتياطي والاستعادة',
   backupHint: 'تُحفظ البيانات على الجهاز فقط. يُنصح بعمل نسخة احتياطية أسبوعيًا.',
-  downloadBackup: 'تنزيل نسخة احتياطية',
-  restoreBackup: 'استعادة من نسخة',
+  downloadBackup: 'تصدير البيانات',
+  restoreBackup: 'استيراد البيانات',
+  exportAll: 'تصدير الكل',
+  exportAllHint: 'كل أيام السجل كملفات PDF، مجلد لكل مشروع، مع ورقة ملخّص بجانبها — كله في ملف ZIP واحد.',
+  exportAllFilePrefix: 'سجل-العمل-الكل',
+  exportAllWorking: (done, total) => `يجري التحضير ${done} من ${total}…`,
+  exportAllDone: (entries, projects) => `${entries} يومًا من ${projects} مشاريع`,
+  exportAllEmpty: 'لا توجد أيام للتصدير بعد',
+  exportAllFailed: 'فشل التصدير',
   storageUsage: (used, quota) => `مستخدم: ${used} من ${quota} المتاحة للتطبيق على الجهاز.`,
   storageNotPersisted:
     'لم يضمن المتصفح حفظ البيانات بشكل دائم. يُنصح بتثبيت التطبيق على الشاشة الرئيسية وعمل نسخ احتياطي بانتظام.',
@@ -1451,8 +1472,15 @@ const en: Strings = {
   logoFailed: 'Could not load the logo',
   backupTitle: 'Backup and restore',
   backupHint: 'Data is stored on this device only. Back up weekly.',
-  downloadBackup: 'Download backup',
-  restoreBackup: 'Restore from backup',
+  downloadBackup: 'Export data',
+  restoreBackup: 'Import data',
+  exportAll: 'Export all',
+  exportAllHint: 'Every diary day as a PDF, one folder per project, with a summary sheet beside them — all in a single ZIP.',
+  exportAllFilePrefix: 'work-diary-everything',
+  exportAllWorking: (done, total) => `Preparing ${done} of ${total}…`,
+  exportAllDone: (entries, projects) => `${entries} days from ${projects} projects`,
+  exportAllEmpty: 'No days to export yet',
+  exportAllFailed: 'The export failed',
   storageUsage: (used, quota) => `Using ${used} of the ${quota} available to the app.`,
   storageNotPersisted:
     'The browser has not guaranteed to keep this data. Install the app to your home screen, and back up regularly.',

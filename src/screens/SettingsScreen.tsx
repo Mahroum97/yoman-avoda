@@ -7,6 +7,7 @@
  */
 import { useEffect, useState } from 'react';
 import { saveBlob } from '../lib/save';
+import type { ExportAllProgress } from '../lib/exportAll';
 import type { PresetKind } from '../types';
 import {
   addPreset,
@@ -68,6 +69,8 @@ export function SettingsScreen() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [newValue, setNewValue] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  // Non-null only while the archive is being built, so the button can count.
+  const [exportAll, setExportAll] = useState<ExportAllProgress | null>(null);
 
   useEffect(() => {
     void estimateUsage().then(setUsage);
@@ -87,6 +90,29 @@ export function SettingsScreen() {
       toast.error(t.backupFailed);
     } finally {
       setBusy(false);
+    }
+  };
+
+  /**
+   * Everything, as documents, in one archive.
+   *
+   * The slowest thing the app does — a PDF per day, each with its photos — so
+   * it reports progress rather than freezing behind a spinner.
+   */
+  const exportEverything = async () => {
+    setBusy(true);
+    setExportAll({ done: 0, total: 0, project: '' });
+    try {
+      const { buildEverythingZip } = await import('../lib/exportAll');
+      const result = await buildEverythingZip(setExportAll, companyLogo);
+      await saveBlob(result.blob, result.name);
+      toast.show(t.exportAllDone(result.entries, result.projects));
+    } catch (error) {
+      const empty = error instanceof Error && error.message === 'EMPTY';
+      toast.error(empty ? t.exportAllEmpty : t.exportAllFailed);
+    } finally {
+      setBusy(false);
+      setExportAll(null);
     }
   };
 
@@ -209,6 +235,17 @@ export function SettingsScreen() {
           >
             ⬇ {t.downloadBackup}
           </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={busy}
+            onClick={() => void exportEverything()}
+            title={t.exportAllHint}
+          >
+            {exportAll
+              ? t.exportAllWorking(exportAll.done, exportAll.total)
+              : `🗂 ${t.exportAll}`}
+          </button>
           <label className="btn">
             ⬆ {t.restoreBackup}
             <input
@@ -224,6 +261,9 @@ export function SettingsScreen() {
             />
           </label>
         </div>
+        <p className="card__note" style={{ marginTop: 12 }}>
+          {t.exportAllHint}
+        </p>
         {usage && usage.quota > 0 && (
           <p className="card__note" style={{ marginTop: 12 }}>
             {t.storageUsage(formatBytes(usage.used), formatBytes(usage.quota))}
