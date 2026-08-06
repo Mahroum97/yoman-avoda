@@ -65,6 +65,14 @@ append_to() {
   if [ -z "$current" ]; then printf '%s' "$item"; else printf '%s, %s' "$current" "$item"; fi
 }
 
+# Whether a device is still on the end of the cable. `ios-devices.py` is the one
+# place that decides what "connected" means, so this asks it again rather than
+# forming a second opinion.
+still_reachable() {
+  python3 "$(dirname "$0")/ios-devices.py" 2>/dev/null \
+    | awk -F'\t' -v id="$1" '$1 == id && $2 == "ready" { found = 1 } END { exit !found }'
+}
+
 build_for() {
   xcodebuild \
     -project ios/App/App.xcodeproj \
@@ -216,6 +224,20 @@ for entry in "${READY[@]}"; do
   # build aimed at it. The derived-data folder is shared, so every build after
   # the first is incremental and mostly just re-signs.
   if ! build_for "$id"; then
+    # A build only fails this way for two reasons, and they need opposite
+    # answers, so ask which one before reporting anything. A device that went
+    # away mid-run — the cable knocked out, the phone put down and locked —
+    # takes xcodebuild all the way to "unable to find a destination", a page of
+    # simulator names, and an exit code that looks exactly like a broken build.
+    # Saying "בנייה נכשלה" for that sends the user to look at the code when the
+    # answer is the cable.
+    if ! still_reachable "$id"; then
+      printf '   %s\n' "המכשיר התנתק באמצע — חבר אותו שוב והרץ שוב"
+      FAILED+=("$name|התנתק באמצע ההתקנה")
+      FAILED_LIST=$(append_to "$FAILED_LIST" "$name (התנתק)")
+      continue
+    fi
+
     # A Swift package checkout that has gone missing under the cache cannot be
     # repaired by xcodebuild: its workspace state still claims the package is
     # there, so resolution fails the same way every time. Throwing the checkouts
