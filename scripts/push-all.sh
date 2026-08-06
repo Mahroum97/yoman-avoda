@@ -55,25 +55,37 @@ if npx electron-builder --config electron-builder.yml; then
   else
     APP_DEST="/Applications/$(basename "$APP_SRC")"
 
-    # A bundle cannot be replaced from under a running process, so the open copy
+    # A bundle cannot be replaced from under a running process, so an open copy
     # is asked to quit first — asked, not killed: a graceful quit lets the window
     # close normally instead of dropping whatever is on screen.
-    app_running() { pgrep -f "$1/Contents/MacOS/" >/dev/null 2>&1; }
+    #
+    # *Any* copy, matched by bundle name rather than by path. This used to look
+    # only at /Applications, which missed the copy electron-builder leaves in
+    # release/. That one is launchable from Finder, it is never replaced by a
+    # push, and a window opened from it goes on showing old code for as long as
+    # it stays open — the answer to "why don't I see the update" two days
+    # running.
+    APP_NAME=$(basename "$APP_SRC")
+    app_running() { pgrep -f "/$APP_NAME/Contents/MacOS/" >/dev/null 2>&1; }
 
-    if app_running "$APP_DEST"; then
+    if app_running; then
       printf '  האפליקציה פתוחה — מבקש ממנה להיסגר\n'
       osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
       for _ in 1 2 3 4 5 6 7 8; do
-        app_running "$APP_DEST" || break
+        app_running || break
         sleep 1
       done
     fi
 
-    if app_running "$APP_DEST"; then
+    if app_running; then
       MAC_STATUS="דולג — האפליקציה עדיין פתוחה. סגור אותה והרץ שוב"
     elif rm -rf "$APP_DEST" && ditto "$APP_SRC" "$APP_DEST"; then
       MAC_STATUS="הותקן ב-$APP_DEST"
       PUSHED_ANY=1
+      # Leave nothing stale behind to be opened by mistake. The installed copy
+      # is the app; what electron-builder wrote under release/ is scaffolding,
+      # and the .dmg beside it is kept.
+      rm -rf "$APP_SRC"
     else
       MAC_STATUS="ההעתקה ל-/Applications נכשלה"
     fi
