@@ -349,7 +349,14 @@ async function runSync(
  */
 export async function answerExchange(exchange: SyncExchange): Promise<SyncResponse> {
   // Whatever they delivered goes in first, so our reply reflects it.
-  if (exchange.payload) await applyPayload(exchange.payload);
+  const received = exchange.payload ? await applyPayload(exchange.payload) : null;
+  if (received) {
+    log.info('answered a push', {
+      entries: received.entries,
+      projects: received.projects,
+      deleted: received.deleted,
+    });
+  }
 
   const ours = await buildManifest(deviceName());
 
@@ -361,6 +368,11 @@ export async function answerExchange(exchange: SyncExchange): Promise<SyncRespon
     const meta = await collectMeta(exchange.pull);
     const chunk = await collectEntryChunk(exchange.pull.entries, 0);
     payload = { ...meta, entries: chunk.entries };
+    log.info('answered a pull', {
+      asked: exchange.pull.entries.length,
+      sent: chunk.entries.length,
+      bytes: chunk.bytes,
+    });
   }
 
   return {
@@ -380,7 +392,19 @@ export const canHost = (): boolean => typeof window !== 'undefined' && !!window.
 /** Registers the answering side once, on the Mac app. */
 export function hostSync(): void {
   if (!canHost()) return;
-  window.yoman!.sync!.onRequest(async (exchange) => answerExchange(exchange as SyncExchange));
+  log.info('hosting sync for other devices');
+  window.yoman!.sync!.onRequest(async (exchange) => {
+    try {
+      return await answerExchange(exchange as SyncExchange);
+    } catch (error) {
+      // The phone gets a failed request either way, but on the Mac this used to
+      // vanish entirely: the host's half of a sync was the one part of the
+      // exchange that left no trace at all, so "the sync does not work" could
+      // only ever be investigated from one end of it.
+      log.error('failed to answer a sync request', error);
+      throw error;
+    }
+  });
 }
 
 /** Clears everything a sync could have brought in — used by tests and resets. */

@@ -1,7 +1,7 @@
 /** Turns the built documents into a downloaded .docx file. */
 import { Packer } from 'docx';
 import type { DiaryEntry, Project } from '../types';
-import { saveBlob } from '../lib/save';
+import { saveBlob, type ExportResult } from '../lib/save';
 import { currentStrings } from '../i18n/useLanguage';
 import { currentDocThemeId } from '../hooks/useDocTheme';
 import { fileKind, logger } from '../lib/log';
@@ -20,7 +20,7 @@ export async function exportEntry(
   entry: DiaryEntry,
   project: Project,
   options?: EntryDocOptions,
-): Promise<string> {
+): Promise<ExportResult> {
   const t = options?.strings ?? currentStrings();
   const themeId = options?.themeId ?? (await currentDocThemeId());
 
@@ -38,8 +38,7 @@ export async function exportEntry(
     done();
     const name = `${entryFileName(entry, project, t)}.docx`;
     log.info('entry docx ready', { kind: fileKind(name), bytes: blob.size });
-    await saveBlob(blob, name);
-    return name;
+    return (await saveBlob(blob, name)) ? name : null;
   } catch (error) {
     done('failed');
     log.error('entry docx failed', error);
@@ -53,7 +52,7 @@ export async function exportRange(
   from: string,
   to: string,
   options?: RangeDocOptions,
-): Promise<string> {
+): Promise<ExportResult> {
   const t = options?.strings ?? currentStrings();
   const themeId = options?.themeId ?? (await currentDocThemeId());
 
@@ -77,8 +76,7 @@ export async function exportRange(
     done();
     const name = `${rangeFileName(project, from, to, t)}.docx`;
     log.info('range docx ready', { kind: fileKind(name), bytes: blob.size });
-    await saveBlob(blob, name);
-    return name;
+    return (await saveBlob(blob, name)) ? name : null;
   } catch (error) {
     done('failed');
     log.error('range docx failed', error);

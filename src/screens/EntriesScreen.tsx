@@ -243,7 +243,7 @@ export function EntriesScreen({ project }: { project: Project }) {
         dates[dates.length - 1],
         { logoDataUrl, includeSummary: true },
       );
-      toast.show(t.fileCreated(name));
+      if (name) toast.show(t.fileCreated(name));
       leaveSelection();
     } catch (error) {
       log.error('report from selection failed', error);
@@ -290,8 +290,9 @@ export function EntriesScreen({ project }: { project: Project }) {
     if (entry.id === undefined) return;
     retireHint();
     try {
+      // The line itself is written by `deleteEntry`, so a page deleted from the
+      // editor is recorded the same way as one swiped away here.
       await deleteEntry(entry.id);
-      log.info('deleted a page', { date: entry.date, photos: entry.photos.length });
       toast.show(t.entryDeleted, {
         label: t.undo,
         run: () => {
@@ -356,7 +357,7 @@ export function EntriesScreen({ project }: { project: Project }) {
     try {
       const { exportEntryPdf } = await import('../pdf/export');
       const name = await exportEntryPdf(entry, project, { logoDataUrl });
-      toast.show(t.fileCreated(name));
+      if (name) toast.show(t.fileCreated(name));
     } catch {
       toast.error(t.pdfFailed);
     }

@@ -38,7 +38,7 @@ export function PreviewScreen({
     try {
       const { exportEntryPdf } = await import('../pdf/export');
       const name = await exportEntryPdf(entry, project, { logoDataUrl });
-      toast.show(t.fileCreated(name));
+      if (name) toast.show(t.fileCreated(name));
     } catch {
       toast.error(t.pdfFailed);
     } finally {
@@ -84,7 +84,7 @@ export function PreviewScreen({
     try {
       const { exportEntry } = await import('../docx/export');
       const name = await exportEntry(entry, project);
-      toast.show(t.fileCreated(name));
+      if (name) toast.show(t.fileCreated(name));
     } catch {
       toast.error(t.wordFailed);
     } finally {

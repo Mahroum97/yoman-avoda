@@ -12,7 +12,12 @@ import type {
   Tombstone,
 } from './types';
 import { emptyCasting } from './types';
-import type { LogEntry } from './lib/log';
+// A value import, and safe to be one: `log.ts` reaches this module through a
+// *dynamic* `import('../db')` and never a static one, so the two never form a
+// cycle at load time. Importing the logger here is what makes the diary's own
+// storage able to say what it did — which, until it could, made "the page I
+// wrote yesterday is gone" unanswerable from the log.
+import { logger, type LogEntry } from './lib/log';
 import { uid as newUid } from './lib/id';
 import { blobToDataUrl, dataUrlToBlob } from './lib/images';
 import { isoDate } from './lib/dates';
@@ -132,6 +137,31 @@ class YomanDb extends Dexie {
 
 export const db = new YomanDb();
 
+const log = logger('db');
+
+/*
+ * The database failing to open used to be completely silent.
+ *
+ * Every query simply rejected, the screens rendered empty, and the log — the
+ * one thing that exists to explain a fault on site — said nothing at all. That
+ * is not hypothetical: a second copy of the Mac app was left running for two
+ * days holding this database open, and the log has no trace of it.
+ *
+ * Opening eagerly rather than waiting for the first query is the point: the
+ * failure is recorded at startup, next to the `started` line, instead of
+ * surfacing later as a screen that is merely empty.
+ */
+if (typeof indexedDB !== 'undefined') {
+  void db
+    .open()
+    .then(() => log.info('database open', { version: db.verno }))
+    .catch((error: unknown) => log.error('database did not open', error));
+
+  // Another window or app instance holds an older version open, so the upgrade
+  // cannot run. The diary is unreadable until that one is closed.
+  db.on('blocked', () => log.error('database blocked by another window'));
+}
+
 /* ------------------------------------------------------------------ settings */
 
 export async function getSetting<T>(key: string, fallback: T): Promise<T> {
@@ -159,11 +189,15 @@ export async function createProject(
   // First project becomes the active one, so the app is usable immediately.
   const active = await getSetting<number | null>(ACTIVE_PROJECT_KEY, null);
   if (active === null) await setSetting(ACTIVE_PROJECT_KEY, id);
+  // Not the name: a project name is site data, and it is the same name the
+  // export file names are built from, which `fileKind` already redacts.
+  log.info('project created', { projects: await db.projects.count() });
   return id;
 }
 
 /** Deletes a project and every diary page under it. */
 export async function deleteProject(id: number): Promise<void> {
+  let removed = 0;
   await db.transaction('rw', db.projects, db.entries, db.settings, db.tombstones, async () => {
     const project = await db.projects.get(id);
     const entries = await db.entries.where('projectId').equals(id).toArray();
@@ -175,12 +209,15 @@ export async function deleteProject(id: number): Promise<void> {
     ]);
     await db.entries.where('projectId').equals(id).delete();
     await db.projects.delete(id);
+    removed = entries.length;
     const active = await getSetting<number | null>(ACTIVE_PROJECT_KEY, null);
     if (active === id) {
       const next = await db.projects.filter((p) => !p.archived).first();
       await setSetting(ACTIVE_PROJECT_KEY, next?.id ?? null);
     }
   });
+  // The single most destructive thing the app can do, and it left no trace.
+  log.warn('project deleted', { pages: removed });
 }
 
 /* ------------------------------------------------------------------- entries */
@@ -243,18 +280,33 @@ export async function saveEntry(entry: DiaryEntry): Promise<number> {
   };
   const id = await db.entries.put(toSave);
   await learnPresets(toSave);
+  // The date, the counts and the status — never a word of what was written on
+  // the page. This is the line that answers "I filled it in and it was gone
+  // the next morning": either it is here, or the save never happened.
+  log.info('page saved', {
+    date: toSave.date,
+    photos: toSave.photos.length,
+    status: toSave.status,
+    isNew: entry.id === undefined,
+  });
   return id;
 }
 
 /** Deletes one diary page, recording it so the deletion syncs. */
 export async function deleteEntry(id: number): Promise<void> {
+  let gone: DiaryEntry | undefined;
   await db.transaction('rw', db.entries, db.tombstones, async () => {
     const entry = await db.entries.get(id);
     if (entry) {
       await db.tombstones.put({ uid: entry.uid, table: 'entries', deletedAt: Date.now() });
     }
     await db.entries.delete(id);
+    gone = entry;
   });
+  // Logged here rather than at the button, so a page deleted from the editor
+  // leaves the same trace as one swiped away in the list. Deleting from the
+  // editor used to leave none at all.
+  if (gone) log.info('page deleted', { date: gone.date, photos: gone.photos.length });
 }
 
 /**
@@ -280,6 +332,7 @@ export async function restoreEntry(entry: DiaryEntry): Promise<void> {
     await db.tombstones.delete(entry.uid);
     await db.entries.put({ ...entry, updatedAt: Date.now() });
   });
+  log.info('page restored by undo', { date: entry.date });
 }
 
 /**
@@ -416,7 +469,14 @@ export async function backupToJson(): Promise<string> {
     presets,
     entries: serialisedEntries,
   };
-  return JSON.stringify(file);
+  const json = JSON.stringify(file);
+  log.info('backup written', {
+    projects: projects.length,
+    entries: entries.length,
+    photos: serialisedEntries.reduce((n, e) => n + e.photos.length, 0),
+    bytes: json.length,
+  });
+  return json;
 }
 
 export interface RestoreResult {
@@ -426,11 +486,24 @@ export interface RestoreResult {
 
 /** Replaces all local data with the contents of a backup file. */
 export async function restoreFromJson(json: string): Promise<RestoreResult> {
+  // Recorded before anything is touched, because the next line may throw and
+  // this is the operation that replaces the entire diary: whether a restore was
+  // even attempted is the first thing to know afterwards.
+  log.warn('restoring a backup', {
+    bytes: json.length,
+    replacing: { projects: await db.projects.count(), entries: await db.entries.count() },
+  });
+
   const parsed = JSON.parse(json) as BackupFile;
   if (parsed.format !== BACKUP_FORMAT) {
+    log.error('restore refused: not a diary backup');
     throw new Error('הקובץ אינו קובץ גיבוי של יומן עבודה');
   }
   if (parsed.version > BACKUP_VERSION) {
+    log.error('restore refused: backup is newer than this build', {
+      backup: parsed.version,
+      supported: BACKUP_VERSION,
+    });
     throw new Error('הגיבוי נוצר בגרסה חדשה יותר של האפליקציה');
   }
 
@@ -452,11 +525,27 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
     db.entries,
     db.presets,
     db.settings,
+    db.tombstones,
     async () => {
       await Promise.all([
         db.projects.clear(),
         db.entries.clear(),
         db.presets.clear(),
+        /*
+         * The tombstones go too, and leaving them behind was silent data loss.
+         *
+         * A tombstone is stamped with the moment of the deletion, and a page
+         * coming out of a backup carries whatever `updatedAt` it had when the
+         * backup was written — necessarily *earlier*, since the deletion came
+         * after. `applyPayload` resolves that pair by the stamps, so the next
+         * sync would look at a page the user had just deliberately restored,
+         * find a newer tombstone for it, and delete it again. The user would
+         * see the page come back and then vanish, with nothing to point at.
+         *
+         * A restore means "this file is now the diary", so a deletion that is
+         * not in the file is no longer part of it either.
+         */
+        db.tombstones.clear(),
       ]);
       // Backups written before sync existed have no uids; mint them on the way
       // in so a restored diary can still take part in syncing.
@@ -467,11 +556,23 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
         return { ...project, uid };
       });
       await db.projects.bulkAdd(projects);
+      /*
+       * Restored pages are stamped afresh, the same rule `restoreEntry` applies
+       * after a swipe-undo and for the same reason.
+       *
+       * Clearing our own tombstones is only half of it: the *other* device still
+       * holds its copy, keeps it for ninety days, and sends it on the next sync.
+       * A page carrying its original — necessarily older — `updatedAt` loses to
+       * that tombstone and is deleted all over again. Stamping is what makes the
+       * restore the last write, which is what the user just asked it to be.
+       */
+      const restoredAt = Date.now();
       await db.entries.bulkAdd(
         entries.map((entry) => ({
           ...entry,
           uid: entry.uid ?? newUid(),
           projectUid: entry.projectUid || uidByProjectId.get(entry.projectId) || '',
+          updatedAt: restoredAt,
         })),
       );
       await db.presets.bulkAdd(parsed.presets);
@@ -480,6 +581,11 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
     },
   );
 
+  log.info('backup restored', {
+    projects: parsed.projects.length,
+    entries: entries.length,
+    presets: parsed.presets.length,
+  });
   return { projects: parsed.projects.length, entries: entries.length };
 }
 

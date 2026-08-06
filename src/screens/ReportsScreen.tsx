@@ -9,7 +9,7 @@ import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { Card, EmptyState, Field } from '../components/ui';
 import { navigate } from '../hooks/useRoute';
-import { canShareFiles } from '../lib/save';
+import { canShareFiles, type ExportResult } from '../lib/save';
 
 export function ReportsScreen({ project }: { project: Project }) {
   const toast = useToast();
@@ -46,7 +46,7 @@ export function ReportsScreen({ project }: { project: Project }) {
     setBusy(format);
     try {
       const options = { includePhotos, includeSummary };
-      let name: string;
+      let name: ExportResult;
       if (format === 'pdf') {
         name = await (await import('../pdf/export')).exportRangePdf(entries, project, from, to, {
           ...options,
@@ -60,7 +60,7 @@ export function ReportsScreen({ project }: { project: Project }) {
         // in one anyway.
         name = await (await import('../xlsx/export')).exportRangeXlsx(entries, project, from, to);
       }
-      toast.show(t.fileCreated(name));
+      if (name) toast.show(t.fileCreated(name));
     } catch {
       toast.error(format === 'excel' ? t.excelFailed : t.reportFailed);
     } finally {

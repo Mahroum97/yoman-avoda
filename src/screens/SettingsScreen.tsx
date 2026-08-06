@@ -81,11 +81,11 @@ export function SettingsScreen() {
     setBusy(true);
     try {
       const json = await backupToJson();
-      await saveBlob(
+      const saved = await saveBlob(
         new Blob([json], { type: 'application/json' }),
         `${t.fileBackupPrefix}-${isoDate()}.json`,
       );
-      toast.show(t.backupDownloaded);
+      if (saved) toast.show(t.backupDownloaded);
     } catch {
       toast.error(t.backupFailed);
     } finally {
@@ -105,8 +105,12 @@ export function SettingsScreen() {
     try {
       const { buildEverythingZip } = await import('../lib/exportAll');
       const result = await buildEverythingZip(setExportAll, companyLogo);
-      await saveBlob(result.blob, result.name);
-      toast.show(t.exportAllDone(result.entries, result.projects));
+      // The archive is only "done" once it has somewhere to be. This is the
+      // one the log caught: nine pages built, the dialog cancelled, and the app
+      // announcing an export the user never received.
+      if (await saveBlob(result.blob, result.name)) {
+        toast.show(t.exportAllDone(result.entries, result.projects));
+      }
     } catch (error) {
       const empty = error instanceof Error && error.message === 'EMPTY';
       toast.error(empty ? t.exportAllEmpty : t.exportAllFailed);

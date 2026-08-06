@@ -84,7 +84,7 @@ export function ReportPreviewScreen({
         logoDataUrl,
         deliver,
       });
-      if (deliver === 'save') toast.show(t.fileCreated(name));
+      if (deliver === 'save' && name) toast.show(t.fileCreated(name));
     } catch {
       toast.error(t.reportFailed);
     } finally {

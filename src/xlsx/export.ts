@@ -15,7 +15,7 @@ import { currentStrings } from '../i18n/useLanguage';
 import { formatDdMmYyyy, weekday } from '../lib/dates';
 import { summarise, parseNum } from '../docx/summary';
 import { rangeFileName } from '../docx/build';
-import { saveBlob } from '../lib/save';
+import { saveBlob, type ExportResult } from '../lib/save';
 import { logger, fileKind } from '../lib/log';
 import { buildWorkbook, type Cell, type Sheet } from './workbook';
 
@@ -139,7 +139,7 @@ export async function exportRangeXlsx(
   from: string,
   to: string,
   options: { strings?: Strings } = {},
-): Promise<string> {
+): Promise<ExportResult> {
   const t = options.strings ?? currentStrings();
   const done = log.time('build xlsx');
   log.debug('building xlsx', { days: entries.length, lang: t.locale });
@@ -150,8 +150,7 @@ export async function exportRangeXlsx(
 
     const name = `${rangeFileName(project, from, to, t)}.xlsx`;
     log.info('xlsx ready', { kind: fileKind(name), bytes: blob.size });
-    await saveBlob(blob, name);
-    return name;
+    return (await saveBlob(blob, name)) ? name : null;
   } catch (error) {
     done('failed');
     log.error('xlsx failed', error);

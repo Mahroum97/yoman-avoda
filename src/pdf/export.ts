@@ -3,7 +3,7 @@ import { saveAs } from 'file-saver';
 import type { DiaryEntry, Project } from '../types';
 import { entryFileName, rangeFileName } from '../docx/build';
 import { buildEntryPdf, buildRangePdf, type BuildOptions } from './build';
-import { deliverBinary, type Deliver } from '../lib/save';
+import { deliverBinary, type Deliver, type ExportResult } from '../lib/save';
 import { currentStrings } from '../i18n/useLanguage';
 import { currentDocThemeId } from '../hooks/useDocTheme';
 import { fileKind, logger } from '../lib/log';
@@ -14,7 +14,7 @@ export async function exportEntryPdf(
   entry: DiaryEntry,
   project: Project,
   options: BuildOptions & { deliver?: Deliver } = {},
-): Promise<string> {
+): Promise<ExportResult> {
   const t = options.strings ?? currentStrings();
   const themeId = options.themeId ?? (await currentDocThemeId());
 
@@ -32,8 +32,7 @@ export async function exportEntryPdf(
     done();
     const name = `${entryFileName(entry, project, t)}.pdf`;
     log.info('entry pdf ready', { kind: fileKind(name), bytes: bytes.length });
-    await deliverBinary(bytes, name, 'application/pdf', options.deliver);
-    return name;
+    return (await deliverBinary(bytes, name, 'application/pdf', options.deliver)) ? name : null;
   } catch (error) {
     done('failed');
     log.error('entry pdf failed', error);
@@ -47,7 +46,7 @@ export async function exportRangePdf(
   from: string,
   to: string,
   options: BuildOptions & { includeSummary?: boolean; deliver?: Deliver } = {},
-): Promise<string> {
+): Promise<ExportResult> {
   const t = options.strings ?? currentStrings();
   const themeId = options.themeId ?? (await currentDocThemeId());
 
@@ -72,8 +71,7 @@ export async function exportRangePdf(
     done();
     const name = `${rangeFileName(project, from, to, t)}.pdf`;
     log.info('range pdf ready', { kind: fileKind(name), bytes: bytes.length });
-    await deliverBinary(bytes, name, 'application/pdf', options.deliver);
-    return name;
+    return (await deliverBinary(bytes, name, 'application/pdf', options.deliver)) ? name : null;
   } catch (error) {
     done('failed');
     log.error('range pdf failed', error);
@@ -82,3 +80,4 @@ export async function exportRangePdf(
 }
 
 export { saveAs };
+export type { ExportResult };

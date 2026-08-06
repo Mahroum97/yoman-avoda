@@ -165,6 +165,21 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
 - Backup is the only copy that leaves the device, so photos become data URLs there.
   **Settings must stay reachable with zero projects** (`App.tsx`) or restoring onto a new
   device is impossible — the onboarding redirect has an explicit exception for it.
+- **`restoreFromJson` clears the tombstones and stamps every restored page with
+  `updatedAt = now`.** Both halves are load-bearing, and without them a restore is undone
+  by the next sync. A tombstone carries the moment of the deletion, which is necessarily
+  *later* than the `updatedAt` a page had when the backup was written, so the merge reads
+  the restored page as the older of the pair and deletes it again — locally from our own
+  leftover tombstone, and from the peer's, which it keeps for ninety days and re-sends.
+  Stamping is the same rule `restoreEntry` applies after a swipe-undo, and for the same
+  reason: a restore is meant to be the last write.
+
+`db.ts` logs its own writes — pages saved, deleted and restored, projects created and
+deleted, backups written and read, and the database failing to open. It is a *value*
+import of `logger`, which is safe because `log.ts` reaches back only through a dynamic
+`import('../db')`; the two never form a cycle at load time. Counts, dates and sizes
+only — never a project name, since export file names are built from it and `fileKind`
+already redacts those.
 
 ## The diary list
 
@@ -248,9 +263,22 @@ load-bearing:
 - **The level lives in localStorage, not IndexedDB** — a broken database is exactly when
   the log matters, so deciding what to record must not depend on it.
 
-`log.ts` reaches the `logs` table through a dynamic `import('../db')`, and `db.ts` imports
-only the *type* back. That is deliberate: it keeps `log.ts` safe to import from anywhere,
-including modules the database itself depends on, with no cycle at runtime.
+`log.ts` reaches the `logs` table through a dynamic `import('../db')`, and never a static
+one. That is deliberate: it keeps `log.ts` safe to import from anywhere, including modules
+the database itself depends on, with no cycle at runtime — which is precisely what lets
+`db.ts` import the logger as a value.
+
+**A line that says something happened must not be written when it did not.** The log
+exists to answer "I pressed export and nothing happened", so `saved via desktop dialog
+{saved:false}` was worse than no line at all: it read as success at a glance and only the
+trailing JSON disagreed. An outcome belongs in the message, not in a field beside it.
+
+**What is not written down did not happen, as far as anyone reading this file can tell.**
+The gaps are as load-bearing as the rules: the database wrote nothing for its first week,
+so five days of real use came to eleven lines and a page vanishing overnight had nothing
+to point at; the Mac answered every sync without recording one; deleting a page from the
+editor left no trace while deleting the same page from the list did. When adding a path
+that can lose work, add the line with it.
 
 `describe()` handles a cross-engine detail worth keeping: V8 stacks already begin with
 `Name: message` while JavaScriptCore's are bare frames, so the message is added only when
@@ -362,6 +390,13 @@ is matched back by id. iOS needs `NSLocalNetworkUsageDescription` and
   during render and revoking in a cleanup breaks under StrictMode's double-invoked effects.
 - Exports go through `src/lib/save.ts`, which uses the Electron bridge when present
   (native save dialog) and falls back to a browser download.
+- **An export says whether the file actually reached the user.** `saveBlob` returns a
+  boolean and every exporter returns `ExportResult` — the file name, or `null` for a
+  cancelled dialog or a device with nowhere to put it. Cancelling is not a failure, so
+  nothing is thrown and the caller stays quiet; what it must not do is announce a file
+  that does not exist, which is what `toast.show(t.fileCreated(name))` unconditionally
+  did. `saveAs` in a web view does nothing at all, so on the native shell that path
+  reports failure rather than pretending to be a download.
 
 ## Deliberate deviations from the printed form
 

@@ -250,13 +250,14 @@ export function EntryEditor({
     setExporting(format);
     try {
       if (dirty) await persist(entry);
-      if (format === 'pdf') {
-        const { exportEntryPdf } = await import('../pdf/export');
-        toast.show(t.fileCreated(await exportEntryPdf(entry, project, { logoDataUrl })));
-      } else {
-        const { exportEntry } = await import('../docx/export');
-        toast.show(t.fileCreated(await exportEntry(entry, project)));
-      }
+      // `null` back from an export means the save dialog was cancelled or the
+      // device had nowhere to put the file. Neither is a failure to report, but
+      // neither is a file to announce.
+      const name =
+        format === 'pdf'
+          ? await (await import('../pdf/export')).exportEntryPdf(entry, project, { logoDataUrl })
+          : await (await import('../docx/export')).exportEntry(entry, project);
+      if (name) toast.show(t.fileCreated(name));
     } catch {
       toast.error(format === 'pdf' ? t.pdfFailed : t.wordFailed);
     } finally {

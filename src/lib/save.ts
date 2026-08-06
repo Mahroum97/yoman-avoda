@@ -75,6 +75,9 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   json: 'application/json',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  zip: 'application/zip',
+  txt: 'text/plain',
 };
 
 function mimeFor(name: string): string {
@@ -150,32 +153,60 @@ async function saveViaWebShare(blob: Blob, name: string): Promise<boolean> {
 
 /* -------------------------------------------------------------------- entry */
 
-export async function saveBlob(blob: Blob, name: string): Promise<void> {
+/**
+ * Puts the file in front of the user, and says whether that actually happened.
+ *
+ * The return value is the whole point. This used to be `Promise<void>`, so a
+ * caller had no way to tell a saved file from a cancelled dialog and every
+ * export ended in "הקובץ נוצר" either way — including the two cancels sitting
+ * in the log, one of them a nine-page export-all the user never received.
+ * Worse on the phone: with no share route left, `saveAs` in a web view does
+ * nothing whatsoever, silently, and the app still claimed success.
+ *
+ * False means the file did not reach the user. It is not an error — cancelling
+ * is a normal thing to do — so callers should stay quiet rather than complain,
+ * but they must not announce a file that does not exist.
+ */
+export async function saveBlob(blob: Blob, name: string): Promise<boolean> {
   // Which branch a file took is the first question when an export "does
   // nothing", because the four routes fail in completely different ways.
   log.debug('saving file', { kind: fileKind(name), bytes: blob.size });
 
   if (window.yoman) {
     const result = await window.yoman.saveFile(name, new Uint8Array(await blob.arrayBuffer()));
-    log.info('saved via desktop dialog', { kind: fileKind(name), saved: result.saved });
-    return;
+    if (!result.saved) {
+      log.info('save dialog cancelled', { kind: fileKind(name) });
+      return false;
+    }
+    log.info('saved via desktop dialog', { kind: fileKind(name), bytes: blob.size });
+    return true;
   }
 
-  if (isNativeApp() && (await saveNative(blob, name))) return;
+  if (isNativeApp() && (await saveNative(blob, name))) return true;
 
   // On iOS the share sheet is the only route to Files, Mail or WhatsApp.
-  if (isIos() && (await saveViaWebShare(blob, name))) return;
+  if (isIos() && (await saveViaWebShare(blob, name))) return true;
+
+  // There is no downloads folder in a web view, so `saveAs` there is not a last
+  // resort — it is nothing at all. Reporting it as a save is how "I pressed
+  // export and nothing happened" became impossible to tell apart from a
+  // working export.
+  if (isNativeApp()) {
+    log.error('no way to deliver the file on this device', { kind: fileKind(name) });
+    return false;
+  }
 
   saveAs(blob, name);
   log.info('saved via browser download', { kind: fileKind(name) });
+  return true;
 }
 
 export async function saveBinary(
   bytes: Uint8Array,
   name: string,
   mime: string,
-): Promise<void> {
-  await saveBlob(new Blob([bytes as BlobPart], { type: mime }), name);
+): Promise<boolean> {
+  return saveBlob(new Blob([bytes as BlobPart], { type: mime }), name);
 }
 
 /* -------------------------------------------------------------------- share */
@@ -217,9 +248,9 @@ export async function shareBlob(blob: Blob, name: string): Promise<boolean> {
     });
     if (result.shared) return true;
     // The Mac app on a platform without a share sheet, or a failure writing the
-    // temporary copy: saving is still better than nothing happening.
-    await saveBlob(blob, name);
-    return true;
+    // temporary copy: saving is still better than nothing happening — but only
+    // if the save itself went through, which is the caller's answer too.
+    return saveBlob(blob, name);
   }
 
   if (isNativeApp() && (await saveNative(blob, name))) return true;
@@ -233,21 +264,33 @@ export async function shareBlob(blob: Blob, name: string): Promise<boolean> {
 export type Deliver = 'save' | 'share';
 
 /**
+ * What every export returns: the file name when the document reached the user,
+ * and `null` when it did not.
+ *
+ * A cancelled save dialog is not a failure — nothing is thrown — so the caller
+ * should fall silent rather than complain, and above all must not announce a
+ * file that was never written.
+ */
+export type ExportResult = string | null;
+
+/**
  * One call for both buttons.
  *
  * Sharing falls back to saving when no sheet can be opened, so the file is
  * never simply lost: the worst case is that it lands where "save" would have
  * put it, which is still in front of the user.
+ *
+ * False means it reached neither — cancelled, or nowhere to put it.
  */
 export async function deliverBinary(
   bytes: Uint8Array,
   name: string,
   mime: string,
   how: Deliver = 'save',
-): Promise<void> {
+): Promise<boolean> {
   const blob = new Blob([bytes as BlobPart], { type: mime });
-  if (how === 'share' && (await shareBlob(blob, name))) return;
-  await saveBlob(blob, name);
+  if (how === 'share' && (await shareBlob(blob, name))) return true;
+  return saveBlob(blob, name);
 }
 
 /**
