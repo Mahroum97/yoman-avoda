@@ -1,7 +1,7 @@
 /** Live views over IndexedDB. Every hook re-renders when the data changes. */
 import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Preset, PresetKind, Project } from '../types';
+import type { Contact, Preset, PresetKind, Project } from '../types';
 import { ACTIVE_PROJECT_KEY, db, getSetting, setSetting } from '../db';
 
 export function useProjects(): Project[] | undefined {
@@ -104,6 +104,20 @@ export function useEntries(projectId?: number) {
     const rows = await db.entries.where('projectId').equals(projectId).toArray();
     return rows.sort((a, b) => b.date.localeCompare(a.date));
   }, [projectId]);
+}
+
+/**
+ * ספקים וקבלנים, in the order they were added.
+ *
+ * Insertion order rather than alphabetical on purpose: the row number beside
+ * each line is a position in this list, and a list that reorders itself while
+ * you type into it is unusable.
+ */
+export function useContacts(): Contact[] | undefined {
+  return useLiveQuery(
+    () => db.contacts.toArray().then((rows) => rows.sort((a, b) => a.createdAt - b.createdAt)),
+    [],
+  );
 }
 
 export function useEntry(id?: number) {

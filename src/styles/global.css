@@ -197,7 +197,8 @@ p {
   bottom: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* Six: diary, reports, projects, suppliers, settings, new. */
+  grid-template-columns: repeat(6, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--line);
   padding-bottom: env(safe-area-inset-bottom);
@@ -253,6 +254,20 @@ p {
     gap: 8px;
     padding: 12px 18px;
     font-size: 0.9rem;
+  }
+}
+
+/*
+ * Six labelled tabs on a 390px phone leave about 64px each. The label is the
+ * part that gives, not the touch target: the icons stay where they are and the
+ * words shrink a little rather than wrapping into two lines of different
+ * heights, which is what makes a tab bar look broken.
+ */
+@media (max-width: 420px) {
+  .nav__item {
+    font-size: 0.64rem;
+    padding-inline: 2px;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -2050,3 +2065,271 @@ input[type='date']::-webkit-calendar-picker-indicator {
  * stay fixed at the bottom on every size, the shared rule — one bar's height
  * above the other — is the correct one everywhere.
  */
+
+/* ------------------------------------------- ספקים וקבלנים (the address book)
+
+   One markup, two shapes. Below 860px every line folds into a card whose
+   fields carry their own labels; above it the same divs lock into a grid and
+   read as the table the printed lists on site are kept in. The column widths
+   live in one custom property so the header row and the body can never drift
+   apart. */
+
+.contacts__head {
+  margin-bottom: 16px;
+}
+
+.contacts__heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.contacts__blurb {
+  margin-top: 4px;
+  max-width: 60ch;
+}
+
+.contacts__tools {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.contacts__search {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Cards on a phone. */
+.ctable {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ctable__head {
+  display: none;
+}
+
+/*
+ * Two fields to a line on a phone, not five stacked.
+ *
+ * Stacked, one supplier filled the screen, and a list of thirty of them — which
+ * is what this becomes after a couple of jobs — could not be scanned at all.
+ * The name keeps its own line because it is what the eye looks for; the four
+ * short fields pair up. `align-items: end` lines the inputs up even where one
+ * label wraps to two lines and its neighbour does not.
+ */
+.ctable__row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: end;
+  gap: 10px 12px;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.ctable__no,
+.ctable__cell--name {
+  grid-column: 1 / -1;
+}
+
+.ctable__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+  /* The number is Latin in a Hebrew page and has nothing around it to be
+     reordered against, but stating the direction keeps it out of the run. */
+  direction: ltr;
+}
+
+.ctable__cell::before {
+  content: attr(data-label);
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/*
+ * Two class names deep on purpose. The shared `input[type='text']` rule is an
+ * element-plus-attribute selector, which outranks a single class however far
+ * down the file this sits — and it did: every column kept its box except the
+ * phone, which is a `type="tel"` the shared rule never matched. One cell
+ * styled unlike its neighbours is the tell-tale of a specificity fight.
+ */
+.ctable__cell .ctable__input {
+  width: 100%;
+  min-height: var(--tap);
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  outline-offset: 2px;
+}
+
+.ctable__cell--name .ctable__input {
+  font-weight: 600;
+}
+
+/* A number reads left to right wherever it sits, and lines up when the column
+   is scanned down rather than read. */
+.ctable__cell .ctable__input--tel {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.ctable__tools {
+  position: absolute;
+  top: 12px;
+  inset-inline-end: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.icon-btn:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.icon-btn--danger:hover {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+@media (min-width: 860px) {
+  .ctable {
+    --ctable-cols: 62px minmax(150px, 1.5fr) minmax(110px, 1.1fr)
+      minmax(120px, 1fr) minmax(120px, 1.2fr) minmax(140px, 1.7fr) 92px;
+
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    /* The one place a table may scroll sideways is inside its own frame; the
+       page itself must never do it. */
+    overflow-x: auto;
+  }
+
+  .ctable__head,
+  .ctable__row {
+    display: grid;
+    grid-template-columns: var(--ctable-cols);
+    align-items: stretch;
+    min-width: 760px;
+  }
+
+  .ctable__head {
+    position: relative;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line-strong);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .ctable__head > * {
+    padding: 10px 12px;
+    border-inline-start: 1px solid var(--line);
+  }
+
+  .ctable__head > *:first-child {
+    border-inline-start: 0;
+  }
+
+  .ctable__row {
+    position: static;
+    padding: 0;
+    gap: 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* The card's full-width spans would tear a hole in the table's own grid. */
+  .ctable__no,
+  .ctable__cell--name {
+    grid-column: auto;
+  }
+
+  .ctable__row:first-of-type {
+    border-top: 0;
+  }
+
+  /* Zebra striping, not a hover-only cue: the eye tracks across six columns
+     here, and on a wide screen that is where a row is lost. */
+  .ctable__row:nth-of-type(even) {
+    background: var(--surface-2);
+  }
+
+  .ctable__row:focus-within {
+    background: var(--accent-soft);
+  }
+
+  .ctable__no {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .ctable__cell {
+    border-inline-start: 1px solid var(--line);
+  }
+
+  .ctable__cell::before {
+    display: none;
+  }
+
+  /* The cell *is* the input on a wide screen — a boxed field inside every cell
+     of a six-column grid turns the table into a wall of borders. */
+  .ctable__cell .ctable__input {
+    min-height: 44px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .ctable__cell .ctable__input:focus-visible {
+    outline-offset: -3px;
+  }
+
+  .ctable__tools {
+    position: static;
+    align-items: center;
+    justify-content: center;
+    border-inline-start: 1px solid var(--line);
+  }
+}

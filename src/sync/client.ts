@@ -269,16 +269,22 @@ async function runSync(
     pushEntries: totalOut,
   });
 
-  const received: ApplyResult = { projects: 0, entries: 0, deleted: 0 };
+  const received: ApplyResult = { projects: 0, entries: 0, contacts: 0, deleted: 0 };
   const add = (part: ApplyResult) => {
     received.projects += part.projects;
     received.entries += part.entries;
+    received.contacts += part.contacts;
     received.deleted += part.deleted;
   };
 
-  // Round 2 — pull. Projects, presets, tombstones and settings are small and
-  // come in one go; entries follow a chunk at a time because of their photos.
-  if (toPull.projects.length || toPull.settings.length || totalIn) {
+  // Round 2 — pull. Projects, contacts, presets, tombstones and settings are
+  // small and come in one go; entries follow a chunk at a time for their photos.
+  if (
+    toPull.projects.length ||
+    toPull.settings.length ||
+    toPull.contacts?.length ||
+    totalIn
+  ) {
     const meta = await post(peer, {
       manifest,
       payload: EMPTY_PAYLOAD,
@@ -310,7 +316,12 @@ async function runSync(
 
   // Round 3 — push, the same way round.
   const sent = { projects: 0, entries: 0 };
-  if (wanted.projects.length || wanted.settings.length || totalOut) {
+  if (
+    wanted.projects.length ||
+    wanted.settings.length ||
+    wanted.contacts?.length ||
+    totalOut
+  ) {
     const meta = await collectMeta(wanted);
     sent.projects = meta.projects.length;
     await post(peer, { manifest, payload: meta });
@@ -336,6 +347,7 @@ async function runSync(
     peer: hello.deviceName,
     receivedProjects: received.projects,
     receivedEntries: received.entries,
+    receivedContacts: received.contacts,
     deleted: received.deleted,
     sentProjects: sent.projects,
     sentEntries: sent.entries,
@@ -354,6 +366,7 @@ export async function answerExchange(exchange: SyncExchange): Promise<SyncRespon
     log.info('answered a push', {
       entries: received.entries,
       projects: received.projects,
+      contacts: received.contacts,
       deleted: received.deleted,
     });
   }

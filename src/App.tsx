@@ -8,6 +8,7 @@ import { EntriesScreen } from './screens/EntriesScreen';
 import { EntryEditor } from './screens/EntryEditor';
 import { PreviewScreen } from './screens/PreviewScreen';
 import { ProjectsScreen } from './screens/ProjectsScreen';
+import { ContactsScreen } from './screens/ContactsScreen';
 import { ReportsScreen } from './screens/ReportsScreen';
 import { ReportPreviewScreen } from './screens/ReportPreviewScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
@@ -22,8 +23,11 @@ import {
   type EditorActions,
 } from './hooks/editorActionsContext';
 
-const TAB_KEYS = ['', 'reports', 'projects', 'settings'] as const;
-const TAB_ICONS = ['📋', '📊', '🏗️', '⚙️'];
+const TAB_KEYS = ['', 'reports', 'projects', 'contacts', 'settings'] as const;
+const TAB_ICONS = ['📋', '📊', '🏗️', '📇', '⚙️'];
+
+/** Sections that work with no project at all, and so escape the onboarding redirect. */
+const PROJECTLESS = new Set(['projects', 'settings', 'contacts']);
 
 export default function App() {
   return (
@@ -56,10 +60,12 @@ function Shell() {
   });
 
   // A first run has no project, and the diary screens need one. Settings stays
-  // reachable regardless — restoring a backup onto a new device starts there.
+  // reachable regardless — restoring a backup onto a new device starts there —
+  // and so does the address book, which belongs to the person rather than to
+  // any one site and is worth filling in before the first job exists.
   useEffect(() => {
     if (loading || !projects) return;
-    if (projects.length === 0 && section !== 'projects' && section !== 'settings') {
+    if (projects.length === 0 && !PROJECTLESS.has(section)) {
       navigate('/projects');
     }
   }, [loading, projects, section]);
@@ -105,7 +111,7 @@ function Shell() {
                 {TAB_ICONS[i]}
               </span>
               <span>
-                {[t.navDiary, t.navReports, t.navProjects, t.navSettings][i]}
+                {[t.navDiary, t.navReports, t.navProjects, t.navContacts, t.navSettings][i]}
               </span>
             </button>
           ))}
@@ -167,6 +173,11 @@ function Screen({
 
   if (section === 'settings') {
     return <SettingsScreen />;
+  }
+
+  // Before the project guard: the address book needs no site.
+  if (section === 'contacts') {
+    return <ContactsScreen />;
   }
 
   if (!hasProjects || !project) {

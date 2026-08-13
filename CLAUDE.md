@@ -72,6 +72,14 @@ copied into `/Applications`), every connected iPhone and iPad, and GitHub Pages.
 - The Mac leg asks the running app to quit before replacing the bundle, and **skips the
   replace** if it is still running after eight seconds rather than forcing it.
 
+**The Mac window shows itself even when the renderer never becomes ready.** It is created
+with `show: false` so it appears painted rather than white, and `ready-to-show` used to be
+the only thing that could ever show it: when the renderer failed to start, the app sat in
+the Dock with its menu bar up and *no window at all* — nothing on screen and nothing
+written down. `createWindow` now carries an eight-second fallback that shows the window
+regardless, plus `did-fail-load` and `render-process-gone` handlers that put the reason on
+screen. An empty window that can be reloaded from the menu beats no window.
+
 `scripts/push-reminder.sh` runs on Claude Code's `Stop` hook (`.claude/settings.json`) and
 only prints a line when source files are newer than `.push-stamp`. It must stay a
 reminder: `Stop` fires after every reply, so pushing from it would rebuild for minutes at a
@@ -86,6 +94,9 @@ pdftoppm -r 150 -png -f 1 -l 1 tmp/sample-entry-he.pdf tmp/preview   # then open
 ```
 
 Check the page is one sheet, the Hebrew reads correctly, and **digits are not reversed**.
+It also writes `tmp/sample-range-{he,en}.xlsx`. `scripts/bundle.mjs` is what lets browser
+modules run under Node for this: esbuild bundles the entry point and stubs Vite's `?url`
+asset imports, since the Node path passes the font bytes in explicitly.
 
 ## The form is the spec
 
@@ -116,6 +127,14 @@ synced from a device that has not been updated simply do not have it.
 
 The preview's CSS heights are the PDF's `METRICS` converted at 96dpi (1pt = 1.333px) and
 are commented as such in `src/styles/global.css`. Change a height in one, change it in all.
+
+**`src/docTheme.ts` is the fourth thing they share.** The five named palettes (navy ·
+graphite · sky · olive · amber) are hex because that is what Word wants, and the PDF
+converts them; all three renderers read the same definition so a report looks the same
+wherever it was produced. Every palette has to stay legible **printed in black and
+white** — the form is printed and signed on site — which rules out mid-tone bands with
+white text on them. The choice lives in the `settings` table, not localStorage, and is in
+`SYNCED_SETTINGS`: the look of a company's reports belongs to the diary, not to a device.
 
 ## PDF rules (the parts that are easy to get wrong)
 
@@ -162,6 +181,16 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
 - Photos are `Blob`s inside the entry record, downscaled to 1600px JPEG by
   `src/lib/images.ts` *before* saving. The company logo is a PNG data URL in `settings`.
 - Saving an entry runs `learnPresets`, which feeds the comboboxes.
+- **The status is derived, and only ever rises.** `statusFor` reads a page carrying a
+  מנ"ע signature as `signed`, whatever the stored value says; without a signature the
+  stored value is left alone, so marking a page by hand still works for the days that
+  were signed on paper. Schema v5 changed no tables — it exists only to backfill that
+  rule onto pages signed before it existed, which would otherwise sit as drafts forever.
+- **Signatures and the logo live in `settings`, not on the entry.** They belong to the
+  person and the company rather than to a day, which is the whole point — signing a page
+  by hand every morning on a phone is the job the app removes. An entry still stores its
+  own copy of whatever was applied, so a signed page stays signed after the saved
+  signature is changed or deleted.
 - Backup is the only copy that leaves the device, so photos become data URLs there.
   **Settings must stay reachable with zero projects** (`App.tsx`) or restoring onto a new
   device is impossible — the onboarding redirect has an explicit exception for it.
@@ -180,6 +209,20 @@ import of `logger`, which is safe because `log.ts` reaches back only through a d
 `import('../db')`; the two never form a cycle at load time. Counts, dates and sizes
 only — never a project name, since export file names are built from it and `fileKind`
 already redacts those.
+
+## The editor
+
+`EntryEditor` holds the day's page in `useUndoable` (`src/hooks/useUndoable.ts`), which is
+an undo/redo stack over local state. A form filled in over dozens of small taps, outdoors,
+had no way back from one mistaken one — a cleared row, a signature drawn over, a wrong
+date. Two distinctions in it are load-bearing:
+
+- **`commit` records a step, `amend` does not.** Adopting the id from a first save, or the
+  status the database settled on, is bookkeeping the user did not do; putting it on the
+  stack would make undo walk backwards through changes nobody made.
+- **Not every change is its own step.** Consecutive `commit`s carrying the same tag inside
+  `COALESCE_MS` fold into the step already on the stack, so typing a sentence undoes as a
+  sentence rather than a letter at a time.
 
 ## The diary list
 
@@ -231,6 +274,36 @@ way to do it in the grid or with a keyboard.
   drops the tombstone along with putting the record back — leaving it would let the *other*
   device delete the page again on the next sync, outliving the undo.
 
+## ספקים וקבלנים — the address book
+
+`ContactsScreen` is the one screen that is not the printed form. Six columns —
+number · שם קבלן או ספק · תחום התעסקות · מספר טלפון · באיזה פרויקט עבד איתי ·
+הערות כלליות — typed into directly, because the value of the list is that adding
+a number takes a moment while the man is still standing there.
+
+- **One markup, two shapes.** Below 860px each line folds into a card whose
+  fields carry their own labels through `content: attr(data-label)`; above it the
+  same divs lock into `--ctable-cols`. A six-column table at 390px is not a table.
+  On the phone the four short fields pair two to a line — stacked, one supplier
+  filled the screen and thirty of them could not be scanned at all.
+- **Every keystroke saves itself** after 500ms, and immediately on blur, on
+  leaving the screen and on `visibilitychange` — the last because iOS can end the
+  page when the app is backgrounded without another event. There is no save button.
+- **A pending edit outranks the stored row** while it is in flight, and is dropped
+  only after the write and only if no newer keystroke replaced it. Without that
+  test the live query hands back the row as saved and eats the last letter typed.
+- **It is reachable with no project** (`PROJECTLESS` in `App.tsx`), like Settings:
+  the book belongs to the person, not to a site.
+- Deleting offers an undo, and `restoreContact` drops the tombstone with it — the
+  same rule, for the same reason, as `restoreEntry`.
+- **Contacts are in the backup and in the sync, and neither version moved.**
+  `BackupFile.contacts` and `SyncManifest.contacts` are optional fields: bumping
+  `BACKUP_VERSION` would make older builds *refuse* the file, and bumping
+  `SYNC_PROTOCOL_VERSION` would stop two devices syncing the diary itself until
+  both were updated. A phone number list is not worth either.
+- Names and numbers are **never logged** — counts only. This is somebody's
+  contacts, and the log file gets sent to other people.
+
 ## Spreadsheet export
 
 `src/xlsx/` writes a real .xlsx by hand — an xlsx is a zip of XML parts, and jszip is
@@ -243,6 +316,16 @@ Quantities are written as **numbers**, not as the free text the form stores, or 
 of workers will not sum — which is the only reason to export a spreadsheet rather than a
 PDF. `npm run sample` writes `tmp/sample-range-{he,en}.xlsx`; check both, since the RTL
 flag changes the sheet XML.
+
+## Handing the whole job over
+
+`src/lib/exportAll.ts` answers the request the range report and the backup both miss:
+everything, as files a person can open, without picking dates or exporting a page at a
+time. One zip — a folder per project, a PDF per day inside it, and the workbook beside
+them so the totals are there without opening thirty documents. It is the one export that
+runs long enough to need a progress callback (`ExportAllProgress`), because it builds a
+PDF per diary page. The backup JSON is a different thing and stays a different thing: it
+moves the *data* to another device, and only `restoreFromJson` reads it.
 
 ## The activity log
 
@@ -303,6 +386,10 @@ when an app is backgrounded.
   in `index.html` is what gives those insets real values.
 - The native shell skips the service worker (`main.tsx`): Capacitor already serves the
   built files locally, and a second cache in front of them only causes stale assets.
+- `requestPersistentStorage()` runs at start-up (`src/lib/native.ts`) and matters most for
+  the home-screen web app: iOS can clear a web app's storage after a stretch of not being
+  opened, and the diary is the only copy. Granted persistence takes it out of that path.
+  Settings shows the answer, so "will it lose my pages" has something to point at.
 
 ## Local-network sync
 
@@ -370,6 +457,9 @@ Rules that are easy to get wrong, and are load-bearing:
   tombstone does return, which is last-write-wins applied to deletes.
 - Conflicts are resolved by `updatedAt`, last write wins — correct for one
   person with two devices, which is what this is for.
+- **`SYNCED_SETTINGS` is a closed list**: the company logo, the document theme and the two
+  signatures. Everything else in `settings` stays on the device it was set on. The test is
+  whether the value describes the diary or the device holding it.
 
 The Mac hosts: `electron/sync-server.js` listens on port 45231 behind a
 six-digit code. It cannot read the diary itself (IndexedDB belongs to the

@@ -71,12 +71,17 @@ export function useAutoSync(onSynced?: (received: number) => void): void {
         const moved =
           outcome.received.projects +
           outcome.received.entries +
+          outcome.received.contacts +
           outcome.received.deleted +
           outcome.sent.projects +
           outcome.sent.entries;
         if (moved > 0) {
           log.info('auto sync moved records', { why, moved });
-          handler.current?.(outcome.received.projects + outcome.received.entries);
+          handler.current?.(
+            outcome.received.projects +
+              outcome.received.entries +
+              outcome.received.contacts,
+          );
         } else {
           log.debug('auto sync found nothing', { why });
         }

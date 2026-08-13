@@ -27,6 +27,7 @@ export interface Strings {
   navDiary: string;
   navReports: string;
   navProjects: string;
+  navContacts: string;
   navSettings: string;
   navNew: string;
 
@@ -198,6 +199,30 @@ export interface Strings {
   startTitle: string;
   startBody: string;
   startAction: string;
+
+  /* ספקים וקבלנים — the site's address book */
+  contactsTitle: string;
+  contactsBlurb: string;
+  newContact: string;
+  noContactsTitle: string;
+  noContactsBody: string;
+  searchContacts: string;
+  contactsCount: (n: number) => string;
+  contactDeleted: string;
+  contactNo: string;
+  labelContactName: string;
+  labelContactTrade: string;
+  labelContactPhone: string;
+  labelContactProjects: string;
+  labelContactNotes: string;
+  phContactName: string;
+  phContactTrade: string;
+  phContactPhone: string;
+  phContactProjects: string;
+  phContactNotes: string;
+  callContact: (name: string) => string;
+  deleteContact: string;
+  unnamedContact: string;
 
   /* reports */
   reportsTitle: string;
@@ -425,6 +450,7 @@ const he: Strings = {
   navDiary: 'יומן',
   navReports: 'דוחות',
   navProjects: 'פרויקטים',
+  navContacts: 'ספקים',
   navSettings: 'הגדרות',
   navNew: 'חדש',
 
@@ -592,6 +618,29 @@ const he: Strings = {
   startTitle: 'בואו נתחיל',
   startBody: 'כדי לנהל יומן עבודה צריך קודם להגדיר פרויקט אחד.',
   startAction: 'הגדרת פרויקט',
+
+  contactsTitle: 'ספקים וקבלנים',
+  contactsBlurb: 'רשימת אנשי הקשר של האתר — נשמרת במכשיר ומסתנכרנת עם שאר המכשירים.',
+  newContact: 'שורה חדשה',
+  noContactsTitle: 'הרשימה עדיין ריקה',
+  noContactsBody: 'הוסיפו כאן ספקים וקבלנים שעבדתם איתם, כדי שהטלפון שלהם יהיה בהישג יד בפרויקט הבא.',
+  searchContacts: 'חיפוש בשם, תחום, טלפון…',
+  contactsCount: (n) => (n === 1 ? 'רשומה אחת' : `${n} רשומות`),
+  contactDeleted: 'השורה נמחקה',
+  contactNo: 'מס׳',
+  labelContactName: 'שם קבלן או ספק',
+  labelContactTrade: 'תחום התעסקות',
+  labelContactPhone: 'מספר טלפון',
+  labelContactProjects: 'באיזה פרויקט עבד איתי',
+  labelContactNotes: 'הערות כלליות',
+  phContactName: 'שם מלא או שם החברה',
+  phContactTrade: 'טיח, חשמל, משאבת בטון…',
+  phContactPhone: '05X-0000000',
+  phContactProjects: 'שם הפרויקט',
+  phContactNotes: 'מחירים, זמינות, מה שכדאי לזכור',
+  callContact: (name) => `התקשר אל ${name}`,
+  deleteContact: 'מחיקת השורה',
+  unnamedContact: 'ללא שם',
 
   reportsTitle: 'דוח מרוכז',
   period: 'תקופה',
@@ -837,6 +886,7 @@ const ar: Strings = {
   navDiary: 'السجل',
   navReports: 'التقارير',
   navProjects: 'المشاريع',
+  navContacts: 'الموردون',
   navSettings: 'الإعدادات',
   navNew: 'جديد',
 
@@ -1004,6 +1054,29 @@ const ar: Strings = {
   startTitle: 'لنبدأ',
   startBody: 'لإدارة سجل العمل يجب أولًا تعريف مشروع واحد.',
   startAction: 'تعريف مشروع',
+
+  contactsTitle: 'الموردون والمقاولون',
+  contactsBlurb: 'دفتر عناوين الموقع — يُحفظ في الجهاز ويتزامن مع بقية الأجهزة.',
+  newContact: 'صف جديد',
+  noContactsTitle: 'القائمة فارغة حتى الآن',
+  noContactsBody: 'أضِف هنا الموردين والمقاولين الذين عملت معهم، ليكون رقم هاتفهم جاهزًا في المشروع القادم.',
+  searchContacts: 'بحث بالاسم أو المجال أو الهاتف…',
+  contactsCount: (n) => (n === 1 ? 'سجل واحد' : `${n} سجلات`),
+  contactDeleted: 'تم حذف الصف',
+  contactNo: 'رقم',
+  labelContactName: 'اسم المقاول أو المورد',
+  labelContactTrade: 'مجال العمل',
+  labelContactPhone: 'رقم الهاتف',
+  labelContactProjects: 'في أي مشروع عمل معي',
+  labelContactNotes: 'ملاحظات عامة',
+  phContactName: 'الاسم الكامل أو اسم الشركة',
+  phContactTrade: 'قصارة، كهرباء، مضخة باطون…',
+  phContactPhone: '05X-0000000',
+  phContactProjects: 'اسم المشروع',
+  phContactNotes: 'الأسعار، التوفّر، ما يستحق التذكّر',
+  callContact: (name) => `الاتصال بـ ${name}`,
+  deleteContact: 'حذف الصف',
+  unnamedContact: 'بدون اسم',
 
   reportsTitle: 'تقرير مجمّع',
   period: 'الفترة',
@@ -1249,6 +1322,7 @@ const en: Strings = {
   navDiary: 'Diary',
   navReports: 'Reports',
   navProjects: 'Projects',
+  navContacts: 'Suppliers',
   navSettings: 'Settings',
   navNew: 'New',
 
@@ -1417,6 +1491,30 @@ const en: Strings = {
   startTitle: "Let's start",
   startBody: 'To keep a work diary you first need to set up a project.',
   startAction: 'Set up a project',
+
+  contactsTitle: 'Suppliers & contractors',
+  contactsBlurb: 'The site address book — kept on this device and synced with the others.',
+  newContact: 'New row',
+  noContactsTitle: 'The list is still empty',
+  noContactsBody:
+    'Add the suppliers and contractors you have worked with, so their number is to hand on the next job.',
+  searchContacts: 'Search by name, trade, phone…',
+  contactsCount: (n) => (n === 1 ? '1 record' : `${n} records`),
+  contactDeleted: 'Row deleted',
+  contactNo: 'No.',
+  labelContactName: 'Contractor or supplier',
+  labelContactTrade: 'Field of work',
+  labelContactPhone: 'Phone number',
+  labelContactProjects: 'Worked with me on',
+  labelContactNotes: 'General notes',
+  phContactName: 'Full name or company',
+  phContactTrade: 'Plastering, electrics, concrete pump…',
+  phContactPhone: '05X-0000000',
+  phContactProjects: 'Project name',
+  phContactNotes: 'Prices, availability, anything worth remembering',
+  callContact: (name) => `Call ${name}`,
+  deleteContact: 'Delete row',
+  unnamedContact: 'Unnamed',
 
   reportsTitle: 'Combined report',
   period: 'Period',

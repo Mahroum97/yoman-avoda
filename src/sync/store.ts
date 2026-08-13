@@ -2,7 +2,7 @@
  * Turns the local diary into something that can travel, and merges what comes
  * back. Both devices run exactly this code — there is no "server copy".
  */
-import type { DiaryEntry, Project } from '../types';
+import type { Contact, DiaryEntry, Project, TombstoneTable } from '../types';
 import { db, getSetting } from '../db';
 import { blobToDataUrl, dataUrlToBlob } from '../lib/images';
 import { uid as newUid } from '../lib/id';
@@ -12,6 +12,7 @@ import {
   type SyncManifest,
   type SyncPayload,
   type SyncRequest,
+  type WireContact,
   type WireEntry,
   type WireProject,
 } from './protocol';
@@ -28,7 +29,7 @@ const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
  * costing the whole diary, and a manifest is built twice on every sync.
  */
 async function stampsFrom(
-  table: typeof db.entries | typeof db.projects,
+  table: typeof db.entries | typeof db.projects | typeof db.contacts,
   index: string,
 ): Promise<{ uid: string; updatedAt: number }[]> {
   const keys = (await table.orderBy(index).keys()) as unknown as [string, number][];
@@ -36,9 +37,10 @@ async function stampsFrom(
 }
 
 export async function buildManifest(deviceName: string): Promise<SyncManifest> {
-  const [projects, entries, presets, tombstones, settings] = await Promise.all([
+  const [projects, entries, contacts, presets, tombstones, settings] = await Promise.all([
     stampsFrom(db.projects, '[uid+createdAt]'),
     stampsFrom(db.entries, '[uid+updatedAt]'),
+    stampsFrom(db.contacts, '[uid+updatedAt]'),
     db.presets.toArray(),
     db.tombstones.toArray(),
     db.settings.toArray(),
@@ -49,6 +51,7 @@ export async function buildManifest(deviceName: string): Promise<SyncManifest> {
     deviceName,
     projects,
     entries,
+    contacts,
     presets: presets.map((p) => ({
       key: `${p.kind} ${p.value}`,
       uses: p.uses,
@@ -103,6 +106,7 @@ export async function collectEntryChunk(
 export async function collectPayload(request: SyncRequest): Promise<SyncPayload> {
   const projects = await db.projects.where('uid').anyOf(request.projects).toArray();
   const entries = await db.entries.where('uid').anyOf(request.entries).toArray();
+  const contacts = await db.contacts.where('uid').anyOf(request.contacts ?? []).toArray();
   const presets = await db.presets.toArray();
   const tombstones = await db.tombstones.toArray();
 
@@ -118,6 +122,10 @@ export async function collectPayload(request: SyncRequest): Promise<SyncPayload>
   return {
     projects: projects.map(toWireProject),
     entries: await Promise.all(entries.map(toWireEntry)),
+    // No chunking: a line is a few hundred bytes, and the whole book is smaller
+    // than one photo. It rides along with the metadata rather than in the
+    // weighed entry chunks.
+    contacts: contacts.map(toWireContact),
     // Presets are tiny and merge by taking the larger count, so send them all.
     presets: presets.map((p) => ({
       kind: p.kind,
@@ -141,6 +149,19 @@ function toWireProject(project: Project): WireProject {
     // Projects have no updatedAt of their own; createdAt is stable and edits
     // are rare, so it doubles as the version stamp.
     updatedAt: project.createdAt,
+  };
+}
+
+function toWireContact(contact: Contact): WireContact {
+  return {
+    uid: contact.uid,
+    name: contact.name,
+    trade: contact.trade,
+    phone: contact.phone,
+    projects: contact.projects,
+    notes: contact.notes,
+    createdAt: contact.createdAt,
+    updatedAt: contact.updatedAt,
   };
 }
 
@@ -184,6 +205,7 @@ export async function collectMeta(request: SyncRequest): Promise<SyncPayload> {
 export interface ApplyResult {
   projects: number;
   entries: number;
+  contacts: number;
   deleted: number;
 }
 
@@ -223,7 +245,7 @@ export async function applyPayload(payload: SyncPayload): Promise<ApplyResult> {
 
   return db.transaction(
     'rw',
-    [db.projects, db.entries, db.presets, db.settings, db.tombstones],
+    [db.projects, db.entries, db.contacts, db.presets, db.settings, db.tombstones],
     () => mergeInTransaction(payload, decoded),
   );
 }
@@ -232,7 +254,7 @@ async function mergeInTransaction(
   payload: SyncPayload,
   decoded: Map<string, DiaryEntry['photos']>,
 ): Promise<ApplyResult> {
-  const result: ApplyResult = { projects: 0, entries: 0, deleted: 0 };
+  const result: ApplyResult = { projects: 0, entries: 0, contacts: 0, deleted: 0 };
 
   // --- deletions
   for (const stone of payload.tombstones) {
@@ -246,7 +268,15 @@ async function mergeInTransaction(
         await db.entries.delete(entry.id);
         result.deleted += 1;
       }
-    } else {
+    } else if (stone.table === 'contacts') {
+      const contact = await db.contacts.where('uid').equals(stone.uid).first();
+      if (contact?.id !== undefined && contact.updatedAt <= stone.deletedAt) {
+        await db.contacts.delete(contact.id);
+        result.deleted += 1;
+      }
+    } else if (stone.table === 'projects') {
+      // Named rather than left as the `else`, so a table added later cannot
+      // fall into the branch that deletes a project and every page under it.
       const project = await db.projects.where('uid').equals(stone.uid).first();
       if (project?.id !== undefined) {
         await db.entries.where('projectId').equals(project.id).delete();
@@ -269,7 +299,7 @@ async function mergeInTransaction(
     const key = `${stone.table}:${stone.uid}`;
     deletedAt.set(key, Math.max(deletedAt.get(key) ?? 0, stone.deletedAt));
   }
-  const isDeleted = (table: 'projects' | 'entries', uid: string, updatedAt: number) =>
+  const isDeleted = (table: TombstoneTable, uid: string, updatedAt: number) =>
     (deletedAt.get(`${table}:${uid}`) ?? -1) >= updatedAt;
 
   // --- projects
@@ -334,6 +364,25 @@ async function mergeInTransaction(
     };
     await db.entries.put(entry);
     result.entries += 1;
+  }
+
+  // --- ספקים וקבלנים: last write wins, like everything else
+  for (const wire of payload.contacts ?? []) {
+    if (isDeleted('contacts', wire.uid, wire.updatedAt)) continue;
+    const existing = await db.contacts.where('uid').equals(wire.uid).first();
+    if (existing && existing.updatedAt >= wire.updatedAt) continue;
+    await db.contacts.put({
+      id: existing?.id,
+      uid: wire.uid,
+      name: wire.name,
+      trade: wire.trade,
+      phone: wire.phone,
+      projects: wire.projects,
+      notes: wire.notes,
+      createdAt: wire.createdAt,
+      updatedAt: wire.updatedAt,
+    });
+    result.contacts += 1;
   }
 
   // --- presets: keep whichever side used a value more

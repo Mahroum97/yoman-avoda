@@ -133,6 +133,34 @@ export interface DiaryEntry {
 }
 
 /**
+ * ספקים וקבלנים — one line of the site's own address book.
+ *
+ * Not part of the printed form, and deliberately not tied to a project: the
+ * point of the list is that the same plasterer or crane supplier turns up on
+ * the next job, and the number is already there. `projects` is therefore free
+ * text — "which sites did he work with me on" — rather than a link to a
+ * `Project` record, because the useful answer often names a job that predates
+ * the app or was never kept in it.
+ */
+export interface Contact {
+  id?: number;
+  /** Stable identity across devices — see Project.uid. */
+  uid: string;
+  /** שם קבלן או ספק */
+  name: string;
+  /** תחום התעסקות */
+  trade: string;
+  /** מספר טלפון */
+  phone: string;
+  /** באיזה פרויקט עבד איתי */
+  projects: string;
+  /** הערות כלליות */
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
  * Remembered values that feed the dropdowns. Entries learn from themselves:
  * saving a diary page upserts every value it used, ranked by `uses`.
  */
@@ -164,9 +192,12 @@ export interface EntryWithProject {
  */
 export interface Tombstone {
   uid: string;
-  table: 'projects' | 'entries';
+  table: TombstoneTable;
   deletedAt: number;
 }
+
+/** Every table whose deletions have to travel. */
+export type TombstoneTable = 'projects' | 'entries' | 'contacts';
 
 export const emptyCasting = (): CastingDetails => ({
   description: '',

@@ -5,6 +5,7 @@
  */
 import Dexie, { type Table } from 'dexie';
 import type {
+  Contact,
   DiaryEntry,
   Preset,
   PresetKind,
@@ -33,6 +34,7 @@ export interface Setting {
 class YomanDb extends Dexie {
   projects!: Table<Project, number>;
   entries!: Table<DiaryEntry, number>;
+  contacts!: Table<Contact, number>;
   presets!: Table<Preset, number>;
   settings!: Table<Setting, string>;
 
@@ -132,6 +134,22 @@ class YomanDb extends Dexie {
             if (entry.managerSignature?.trim()) entry.status = 'signed';
           }),
       );
+
+    // v6 adds ספקים וקבלנים — the site's address book. It carries the same
+    // `[uid+updatedAt]` index as the other synced tables, for the same reason:
+    // a manifest is built from index keys and must never read the records.
+    // No upgrade step; a new table starts empty and there is nothing to
+    // backfill it from.
+    this.version(6).stores({
+      projects: '++id, &uid, name, archived, createdAt, [uid+createdAt]',
+      entries:
+        '++id, &uid, projectUid, projectId, date, [projectId+date], status, updatedAt, [uid+updatedAt]',
+      contacts: '++id, &uid, name, trade, updatedAt, [uid+updatedAt]',
+      presets: '++id, kind, [kind+value], uses',
+      settings: 'key',
+      tombstones: '&uid, table, deletedAt',
+      logs: '++id, at, level',
+    });
   }
 }
 
@@ -380,6 +398,55 @@ export async function duplicateForDate(
   };
 }
 
+/* ------------------------------------------------------ ספקים וקבלנים */
+
+export function blankContact(): Contact {
+  const now = Date.now();
+  return {
+    uid: newUid(),
+    name: '',
+    trade: '',
+    phone: '',
+    projects: '',
+    notes: '',
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/** True once a line holds anything at all; an untouched one is not worth keeping. */
+export const contactIsBlank = (contact: Contact): boolean =>
+  !`${contact.name}${contact.trade}${contact.phone}${contact.projects}${contact.notes}`.trim();
+
+export async function saveContact(contact: Contact): Promise<number> {
+  return db.contacts.put({ ...contact, updatedAt: Date.now() });
+}
+
+/** Deletes one line, recording it so the deletion syncs instead of coming back. */
+export async function deleteContact(id: number): Promise<void> {
+  await db.transaction('rw', db.contacts, db.tombstones, async () => {
+    const contact = await db.contacts.get(id);
+    if (contact) {
+      await db.tombstones.put({ uid: contact.uid, table: 'contacts', deletedAt: Date.now() });
+    }
+    await db.contacts.delete(id);
+  });
+  // A count, never a name or a number: this list is somebody's contacts, and
+  // the log file gets sent to other people.
+  log.info('contact deleted', { contacts: await db.contacts.count() });
+}
+
+/** Puts a deleted line back, for the undo offered instead of a confirmation. */
+export async function restoreContact(contact: Contact): Promise<void> {
+  await db.transaction('rw', db.contacts, db.tombstones, async () => {
+    // The tombstone goes with it, exactly as in `restoreEntry`: left behind, it
+    // would let the other device delete the line again on the next sync, having
+    // outlived the undo.
+    await db.tombstones.delete(contact.uid);
+    await db.contacts.put({ ...contact, updatedAt: Date.now() });
+  });
+}
+
 /* ------------------------------------------------------------------- presets */
 
 async function bumpPreset(kind: PresetKind, raw: string): Promise<void> {
@@ -436,6 +503,16 @@ interface BackupFile {
   exportedAt: string;
   projects: Project[];
   presets: Preset[];
+  /**
+   * Optional, and `BACKUP_VERSION` deliberately does not move for it.
+   *
+   * Bumping the version would make every older build *refuse* the file — the
+   * check above throws on a backup newer than itself — which is the opposite of
+   * what a backup is for. An added array that old builds simply ignore keeps
+   * the file readable both ways, the same bargain `receivedToday` and `pinned`
+   * struck on the wire.
+   */
+  contacts?: Contact[];
   /** Photos travel as data URLs, since JSON cannot hold a Blob. */
   entries: (Omit<DiaryEntry, 'photos'> & {
     photos: (Omit<import('./types').Photo, 'blob'> & { dataUrl: string })[];
@@ -443,10 +520,11 @@ interface BackupFile {
 }
 
 export async function backupToJson(): Promise<string> {
-  const [projects, entries, presets] = await Promise.all([
+  const [projects, entries, presets, contacts] = await Promise.all([
     db.projects.toArray(),
     db.entries.toArray(),
     db.presets.toArray(),
+    db.contacts.toArray(),
   ]);
 
   const serialisedEntries = await Promise.all(
@@ -467,12 +545,14 @@ export async function backupToJson(): Promise<string> {
     exportedAt: new Date().toISOString(),
     projects,
     presets,
+    contacts,
     entries: serialisedEntries,
   };
   const json = JSON.stringify(file);
   log.info('backup written', {
     projects: projects.length,
     entries: entries.length,
+    contacts: contacts.length,
     photos: serialisedEntries.reduce((n, e) => n + e.photos.length, 0),
     bytes: json.length,
   });
@@ -519,17 +599,16 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
     })),
   );
 
+  // The array form, not the variadic one: Dexie only types the latter up to
+  // five tables, and the restore now touches six.
   await db.transaction(
     'rw',
-    db.projects,
-    db.entries,
-    db.presets,
-    db.settings,
-    db.tombstones,
+    [db.projects, db.entries, db.contacts, db.presets, db.settings, db.tombstones],
     async () => {
       await Promise.all([
         db.projects.clear(),
         db.entries.clear(),
+        db.contacts.clear(),
         db.presets.clear(),
         /*
          * The tombstones go too, and leaving them behind was silent data loss.
@@ -576,6 +655,16 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
         })),
       );
       await db.presets.bulkAdd(parsed.presets);
+      // Stamped afresh like the pages, and for the same reason: the peer still
+      // holds tombstones for lines deleted since the backup was written, and a
+      // restore has to be the last write or the merge undoes it.
+      await db.contacts.bulkAdd(
+        (parsed.contacts ?? []).map((contact) => ({
+          ...contact,
+          uid: contact.uid ?? newUid(),
+          updatedAt: restoredAt,
+        })),
+      );
       const first = parsed.projects.find((p) => !p.archived) ?? parsed.projects[0];
       await setSetting(ACTIVE_PROJECT_KEY, first?.id ?? null);
     },
@@ -584,6 +673,7 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
   log.info('backup restored', {
     projects: parsed.projects.length,
     entries: entries.length,
+    contacts: parsed.contacts?.length ?? 0,
     presets: parsed.presets.length,
   });
   return { projects: parsed.projects.length, entries: entries.length };

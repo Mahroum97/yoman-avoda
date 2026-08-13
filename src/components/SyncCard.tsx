@@ -173,7 +173,7 @@ function ClientPanel() {
       setFailure(null);
       toast.show(
         t.syncDone(
-          outcome.received.projects + outcome.received.entries,
+          outcome.received.projects + outcome.received.entries + outcome.received.contacts,
           outcome.sent.projects + outcome.sent.entries,
         ),
       );

@@ -41,7 +41,46 @@ sandbox: false,
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  /*
+   * The window is created hidden so it appears painted rather than white, and
+   * for a long time `ready-to-show` was the *only* thing that could ever show
+   * it. When the renderer failed to start, that event never came: the app sat
+   * in the Dock with its menu bar up and no window at all — nothing on screen
+   * to read and nothing written down. "It doesn't open and I don't know why"
+   * was the exact report, and there was no way to answer it.
+   *
+   * So the window comes up regardless after a few seconds. An empty window that
+   * can be reloaded from the menu, or that carries the message below, is worth
+   * incomparably more than no window.
+   */
+  const showAnyway = setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      console.error('the app did not become ready in time; showing the window anyway');
+      mainWindow.show();
+    }
+  }, 8000);
+
+  mainWindow.once('ready-to-show', () => {
+    clearTimeout(showAnyway);
+    mainWindow.show();
+  });
+
+  // A load that fails says so, on screen. `errorCode` -3 is an aborted load,
+  // which is what a redirect or a second navigation looks like, not a fault.
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, description, url, isMainFrame) => {
+    if (!isMainFrame || errorCode === -3) return;
+    console.error(`load failed: ${description} (${errorCode}) ${url}`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      dialog.showErrorBox('יומן עבודה', `הטעינה נכשלה: ${description} (${errorCode})`);
+    }
+  });
+
+  // The renderer dying takes the diary's screen with it and used to be silent.
+  mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error(`renderer gone: ${details.reason} (exit ${details.exitCode})`);
+    dialog.showErrorBox('יומן עבודה', `החלון נסגר במפתיע: ${details.reason}`);
+  });
 
   if (isDev) {
     mainWindow.loadURL(process.env.YOMAN_DEV_URL);
