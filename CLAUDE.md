@@ -41,49 +41,15 @@ dependencies and then runs the push below, reporting progress in Hebrew.
 
 ## Getting a build onto the devices
 
-`scripts/push-all.sh` is the one way a build reaches the user. It builds the web assets
-**once** and hands the same output to three independent legs — the Mac app (rebuilt and
-copied into `/Applications`), every connected iPhone and iPad, and GitHub Pages.
+`scripts/push-all.sh` is the one way a build reaches the user: it builds the web
+assets once and hands the same output to three independent legs — the Mac app, every
+connected iPhone and iPad, and GitHub Pages. **The rules that keep those legs from
+taking each other down live in `scripts/CLAUDE.md`**, next to the scripts themselves.
 
-- **No `set -e` in the push scripts, deliberately.** The legs must not depend on each
-  other: an iPad that has not been trusted yet cannot be allowed to stop the Mac app from
-  updating, and a missing GitHub remote cannot stop either. Each leg records its own
-  outcome and the summary at the end reports what reached where.
-- **Sub-scripts honour `YOMAN_SKIP_BUILD=1`**, which is how one push avoids running four
-  identical Vite builds (`ios-install.sh`, `deploy-pages.sh`, and `app:build` each build
-  on their own when run directly).
-- **The web leg does not build anything.** `deploy-pages.sh` commits and pushes;
-  `.github/workflows/deploy.yml` builds the site on GitHub and deploys it to Pages from
-  the artifact, so the published site always comes from a committed state rather than
-  from whatever happened to be in `dist/`. Pages is configured with `build_type=workflow`,
-  so there is no `gh-pages` branch any more.
-- **`scripts/ios-devices.py` is the only place that enumerates devices**, and it lists
-  *all* of them. Both `ios-install.sh` and `ios-check.sh` read it. Stopping at the first
-  device — which both used to do — silently skips a working phone whenever an unready
-  iPad happens to enumerate ahead of it, and enumeration order is not stable.
-- It checks **reachability first**: `devicectl` keeps listing a device long after the
-  cable is out, still paired and with its developer mode remembered as enabled. Trusting
-  that reported an unplugged iPad as ready and then failed deep inside `xcodebuild` with
-  "unable to find a destination", which says nothing useful. No `transportType` means
-  not connected, whatever else the record claims.
-- It classifies pairing **before** developer mode: an untrusted device cannot report its
-  developer-mode status, and the setting does not appear on it until it has been connected
-  to a Mac it trusts. "Trust this computer" is genuinely the first step on a new device.
-- The Mac leg asks the running app to quit before replacing the bundle, and **skips the
-  replace** if it is still running after eight seconds rather than forcing it.
-
-**The Mac window shows itself even when the renderer never becomes ready.** It is created
-with `show: false` so it appears painted rather than white, and `ready-to-show` used to be
-the only thing that could ever show it: when the renderer failed to start, the app sat in
-the Dock with its menu bar up and *no window at all* — nothing on screen and nothing
-written down. `createWindow` now carries an eight-second fallback that shows the window
-regardless, plus `did-fail-load` and `render-process-gone` handlers that put the reason on
-screen. An empty window that can be reloaded from the menu beats no window.
-
-`scripts/push-reminder.sh` runs on Claude Code's `Stop` hook (`.claude/settings.json`) and
-only prints a line when source files are newer than `.push-stamp`. It must stay a
-reminder: `Stop` fires after every reply, so pushing from it would rebuild for minutes at a
-time, put half-finished work on the phone mid-task, and publish unreviewed code to the web.
+`scripts/push-reminder.sh` runs on Claude Code’s `Stop` hook (`.claude/settings.json`)
+and only prints a line when source files are newer than `.push-stamp`. It must stay a
+reminder: `Stop` fires after every reply, so pushing from it would rebuild for minutes
+at a time, put half-finished work on the phone mid-task, and publish unreviewed code.
 
 There is no test runner. **`npm run sample` is the regression check for the documents.**
 After changing anything in `src/pdf/` or `src/docx/`, run it and *look* at the result:
@@ -95,7 +61,7 @@ pdftoppm -r 150 -png -f 1 -l 1 tmp/sample-entry-he.pdf tmp/preview   # then open
 
 Check the page is one sheet, the Hebrew reads correctly, and **digits are not reversed**.
 It also writes `tmp/sample-range-{he,en}.xlsx`. `scripts/bundle.mjs` is what lets browser
-modules run under Node for this: esbuild bundles the entry point and stubs Vite's `?url`
+modules run under Node for this: esbuild bundles the entry point and stubs Vite’s `?url`
 asset imports, since the Node path passes the font bytes in explicitly.
 
 ## The form is the spec
@@ -306,16 +272,8 @@ a number takes a moment while the man is still standing there.
 
 ## Spreadsheet export
 
-`src/xlsx/` writes a real .xlsx by hand — an xlsx is a zip of XML parts, and jszip is
-already in the tree because `docx` builds on it. A spreadsheet library was not worth its
-weight for this, and writing the parts directly buys the thing a generic library will not
-give: **`<sheetView rightToLeft="1"/>`**, without which a Hebrew workbook opens mirrored
-with column A on the wrong side.
-
-Quantities are written as **numbers**, not as the free text the form stores, or a column
-of workers will not sum — which is the only reason to export a spreadsheet rather than a
-PDF. `npm run sample` writes `tmp/sample-range-{he,en}.xlsx`; check both, since the RTL
-flag changes the sheet XML.
+`src/xlsx/` writes a real .xlsx by hand, for reasons that matter (RTL sheet flag,
+quantities as numbers rather than free text) — see `src/xlsx/CLAUDE.md`.
 
 ## Handing the whole job over
 
@@ -393,79 +351,12 @@ when an app is backgrounded.
 
 ## Local-network sync
 
-Two devices each hold a full copy of the diary; syncing is a **merge**, not a
-client talking to a server. `src/sync/` holds the whole thing:
-
-- `protocol.ts` — the wire types and `whatToRequest`. The exchange is two steps
-  on purpose: manifests first (uid + updatedAt, a few kB), then only the records
-  the other side actually lacks. Photos are why — sending whole entries to
-  discover they are identical would make syncing over Wi-Fi unusable.
-- `store.ts` — turns the local diary into wire records and merges them back.
-- `client.ts` — `syncNow` (the phone) and `answerExchange` (the Mac). Both sides
-  run the same merge code.
-
-**The exchange is chunked (protocol v2).** v1 sent the whole diary in one request
-and could not finish once real photos were in it — the body had to be held in memory
-three times over (built on the phone, sent, forwarded over IPC by the Mac). A sync is
-now: manifests → pull in chunks → push in chunks, each round bounded to ~4 MB. Both
-devices must run the same version; a mismatch is reported rather than half-applied.
-
-Four things that made it slow, all fixed and all easy to reintroduce:
-
-- **`buildManifest` must never read records.** It needs `uid` and `updatedAt`, but
-  `entries.toArray()` deserialises every photo Blob with them — and a manifest is built
-  twice per sync. It reads the `[uid+updatedAt]` compound index with `.keys()` instead,
-  which is the only reason that index exists.
-- **The responder bounds its reply by weight**, so it may return fewer entries than were
-  asked for. The caller advances by *what arrived*, not by what it requested; a reply is
-  a prefix, not a refusal. Nothing at all means those pages are gone, so the slice is
-  skipped rather than retried forever.
-- **`applyPayload` decodes photos before opening its transaction.** A Dexie transaction
-  commits the moment it awaits a non-Dexie promise, so decoding inside it would end the
-  transaction underneath the writes; it also used to run every read and write as its own
-  transaction, hundreds per sync.
-- **`dataUrlToBlob` uses `atob`, not `fetch`.** `fetch(dataUrl)` pushes every photo
-  through the network stack, in a loop, on a phone.
-
-`post()` carries an `AbortController` — `fetch` has no timeout of its own, and without
-one a sleeping Mac left the phone spinning for as long as the platform felt like waiting.
-That was "it takes ages and then fails".
-
-**Sync runs by itself** (`src/hooks/useAutoSync.ts`, mounted once in `App`). It fires on
-open, on returning to the foreground, on regaining the network, and every five minutes —
-and it is shaped as much by what it refuses to do:
-
-- **It only runs while the app is visible.** A web app cannot sync while closed, and a
-  timer that fires in a hidden tab would drain a phone for nothing.
-- **A sync that moves nothing says nothing.** Only a sync that actually transferred
-  records raises a toast; failures go to the log alone, because a phone on a site drops
-  off the Wi-Fi constantly and a toast each time would be noise.
-- **`syncNow` holds a module-level lock** (`isSyncing()`), so the button and the timer can
-  never run at once — two overlapping syncs would have both sides merging each other's
-  half-delivered chunks.
-- The Mac never auto-syncs: it is the host and has no peer stored, so the hook is inert
-  there without needing to know what kind of device it is on.
-
-Rules that are easy to get wrong, and are load-bearing:
-
-- **Numeric ids are local.** Dexie's auto-increment collides across devices, so
-  every project and entry carries a `uid`, and entries carry `projectUid` so an
-  incoming entry can be relinked to whatever local id the project has here.
-- **Deletions need tombstones.** Without them a record deleted on one device is
-  simply re-sent by the other and comes back. `applyPayload` consults *both*
-  sides' tombstones; a record whose incoming `updatedAt` is newer than the
-  tombstone does return, which is last-write-wins applied to deletes.
-- Conflicts are resolved by `updatedAt`, last write wins — correct for one
-  person with two devices, which is what this is for.
-- **`SYNCED_SETTINGS` is a closed list**: the company logo, the document theme and the two
-  signatures. Everything else in `settings` stays on the device it was set on. The test is
-  whether the value describes the diary or the device holding it.
-
-The Mac hosts: `electron/sync-server.js` listens on port 45231 behind a
-six-digit code. It cannot read the diary itself (IndexedDB belongs to the
-renderer), so every request is forwarded to the window over IPC and the answer
-is matched back by id. iOS needs `NSLocalNetworkUsageDescription` and
-`NSAllowsLocalNetworking` in Info.plist, or the phone cannot reach it at all.
+Two devices each hold a full copy of the diary; syncing is a **merge**, not a client
+talking to a server. The whole thing lives in `src/sync/` (with the Mac’s half in
+`electron/sync-server.js`), and so does its guidance: **`src/sync/CLAUDE.md`** covers the
+protocol, the chunking, the four performance traps, and the rules — tombstones, local
+numeric ids, last-write-wins — that are easy to undo by accident. Read it before
+touching either file.
 
 ## Conventions
 
