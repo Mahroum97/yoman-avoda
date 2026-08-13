@@ -93,7 +93,10 @@ export function ContactsScreen() {
 
   const edit = (row: Contact, key: Column, value: string) => {
     const next = new Map(pendingRef.current);
-    next.set(row.uid, { ...row, [key]: value });
+    // Built on the pending copy rather than on `row`, which is as old as the
+    // last render: two fields of one line edited between renders would
+    // otherwise have the second change carry the first one's stale text back.
+    next.set(row.uid, { ...(pendingRef.current.get(row.uid) ?? row), [key]: value });
     putPending(next);
 
     const existing = timers.current.get(row.uid);
@@ -106,17 +109,52 @@ export function ContactsScreen() {
 
   const add = async () => {
     const row = blankContact();
-    await saveContact(row);
     // The row exists before the first letter is typed, so an interrupted entry
-    // survives the app being closed. Focus follows it once it has rendered.
-    requestAnimationFrame(() => {
+    // survives the app being closed.
+    await saveContact(row);
+
+    /*
+     * Focus follows it, once it is actually there. A single frame is too early:
+     * the write has to travel back through the live query before React has
+     * anything to render, so this waits for the input to exist rather than
+     * assuming it does — and gives up rather than looping if it never appears.
+     */
+    const deadline = Date.now() + 1500;
+    const focus = () => {
       const input = document.querySelector<HTMLInputElement>(`[data-first='${row.uid}']`);
-      input?.focus();
-    });
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ block: 'nearest' });
+      } else if (Date.now() < deadline) {
+        requestAnimationFrame(focus);
+      }
+    };
+    requestAnimationFrame(focus);
   };
 
   const remove = async (row: Contact) => {
     if (row.id === undefined) return;
+
+    /*
+     * The pending edit dies with the row.
+     *
+     * Left armed, a save scheduled half a second ago fires *after* the delete
+     * and writes the record straight back — with a stamp newer than the
+     * tombstone, so it survives the next sync too. Typing into a line and
+     * deleting it in the same breath is not an unusual thing to do; it is what
+     * happens when a line is added by mistake.
+     */
+    const timer = timers.current.get(row.uid);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timers.current.delete(row.uid);
+    }
+    if (pendingRef.current.has(row.uid)) {
+      const next = new Map(pendingRef.current);
+      next.delete(row.uid);
+      putPending(next);
+    }
+
     await deleteContact(row.id);
     // An undo rather than a confirmation, as in the diary list: the question
     // costs everyone time, and the answer to a mistake is putting it back.
@@ -130,6 +168,12 @@ export function ContactsScreen() {
   const rows = useMemo(
     () => (stored ?? []).map((row) => pending.get(row.uid) ?? row),
     [stored, pending],
+  );
+
+  /** Position in the whole list, so a line keeps its number under a search. */
+  const numbers = useMemo(
+    () => new Map(rows.map((row, index) => [row.uid, index + 1])),
+    [rows],
   );
 
   const shown = useMemo(() => {
@@ -203,9 +247,7 @@ export function ContactsScreen() {
             <Row
               key={row.uid}
               row={row}
-              /* Numbered by position in the whole list, not in the filtered
-                 view, so a line keeps the number it had before the search. */
-              index={rows.indexOf(row) + 1}
+              index={numbers.get(row.uid) ?? 0}
               columns={columns}
               onEdit={edit}
               onBlur={() => void flush(row.uid)}
