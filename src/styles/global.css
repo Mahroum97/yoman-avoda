@@ -76,6 +76,47 @@
   color-scheme: dark;
 }
 
+/*
+ * True black, for a phone in the dark.
+ *
+ * Not "dark mode, but more so": the page is #000 so an OLED screen switches
+ * those pixels off entirely, which is both easier on the eyes at night on site
+ * and cheaper on the battery. Everything else is built up from that — surfaces
+ * are near-black greys rather than tinted navy, because a blue cast against a
+ * pure black page reads as a smudge rather than as a card.
+ *
+ * The rules stay light enough to be *seen* (a 1px #1e1e1e line on black is
+ * invisible) and the accent stays the amber of the other themes, so the app
+ * still looks like itself.
+ */
+:root[data-theme='black'] {
+  --bg: #000000;
+  --surface: #0c0c0e;
+  --surface-2: #151518;
+  --ink: #f2f4f7;
+  --muted: #9ba1ab;
+  --line: #2a2b30;
+  --line-strong: #3d3f46;
+  /* The brand surface goes almost black too; the amber carries the identity. */
+  --brand: #121216;
+  --brand-ink: #f2f4f7;
+  --topbar: #000000;
+  --topbar-ink: #f2f4f7;
+  --topbar-line: #26272c;
+  --topbar-btn: rgb(255 255 255 / 8%);
+  --topbar-btn-line: rgb(255 255 255 / 20%);
+  --accent: #f0a13a;
+  --accent-soft: #2a1f0d;
+  --ok: #4ec08b;
+  --ok-soft: #0d2418;
+  --danger: #f2837a;
+  --danger-soft: #2b1211;
+  /* A shadow does nothing on black; the borders do the separating instead. */
+  --shadow: none;
+
+  color-scheme: dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -2357,4 +2398,24 @@ input[type='date']::-webkit-calendar-picker-indicator {
 /* A label styled as a button still has to behave like one when tapped. */
 label.btn {
   cursor: pointer;
+}
+
+/*
+ * The display button carries the mode it is in.
+ *
+ * On the black theme the usual pale wash reads as a foreign light square on a
+ * pure-black bar, so it is drawn as an outline instead; on the light theme the
+ * amber ring says "this is a control", not a stray icon.
+ */
+.topbar__icon--theme[data-mode='black'] {
+  background: transparent;
+  border-color: var(--line-strong);
+}
+
+.topbar__icon--theme[data-mode='auto'] {
+  border-style: dashed;
+}
+
+.topbar__icon--theme:active {
+  transform: scale(0.94);
 }

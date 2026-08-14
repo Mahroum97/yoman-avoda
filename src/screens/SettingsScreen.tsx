@@ -61,6 +61,7 @@ export function SettingsScreen() {
   const themeOptions: { value: ThemePreference; label: string; hint: string }[] = [
     { value: 'light', label: t.themeLight, hint: t.themeLightHint },
     { value: 'dark', label: t.themeDark, hint: t.themeDarkHint },
+    { value: 'black', label: t.themeBlack, hint: t.themeBlackHint },
     { value: 'auto', label: t.themeAuto, hint: t.themeAutoHint },
   ];
   const companyLogo = useCompanyLogo();

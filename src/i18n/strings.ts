@@ -276,9 +276,11 @@ export interface Strings {
   displayHint: string;
   themeLight: string;
   themeDark: string;
+  themeBlack: string;
   themeAuto: string;
   themeLightHint: string;
   themeDarkHint: string;
+  themeBlackHint: string;
   themeAutoHint: string;
   language: string;
   languageHint: string;
@@ -709,9 +711,11 @@ const he: Strings = {
   displayHint: 'בוקר או לילה — הבחירה נשמרת במכשיר הזה.',
   themeLight: '☀️ בוקר',
   themeDark: '🌙 לילה',
+  themeBlack: '⬛ שחור',
   themeAuto: '🌗 אוטומטי',
   themeLightHint: 'רקע בהיר',
   themeDarkHint: 'רקע כהה',
+  themeBlackHint: 'שחור מלא — נוח לעיניים בלילה וחוסך סוללה במסכי OLED',
   themeAutoHint: 'לפי המכשיר',
   language: 'שפה',
   languageHint: 'משנה את כל האפליקציה ואת הדוחות שמופקים — כותרות, תוויות וכיוון הכתיבה.',
@@ -1162,9 +1166,11 @@ const ar: Strings = {
   displayHint: 'نهاري أو ليلي — يُحفظ الاختيار على هذا الجهاز.',
   themeLight: '☀️ نهاري',
   themeDark: '🌙 ليلي',
+  themeBlack: '⬛ أسود',
   themeAuto: '🌗 تلقائي',
   themeLightHint: 'خلفية فاتحة',
   themeDarkHint: 'خلفية داكنة',
+  themeBlackHint: 'أسود كامل — أروح للعين ليلاً ويوفّر البطارية في شاشات OLED',
   themeAutoHint: 'حسب الجهاز',
   language: 'اللغة',
   languageHint: 'تغيّر التطبيق بالكامل والتقارير المنشأة — العناوين والتسميات واتجاه الكتابة.',
@@ -1617,9 +1623,11 @@ const en: Strings = {
   displayHint: 'Day or night — the choice is saved on this device.',
   themeLight: '☀️ Day',
   themeDark: '🌙 Night',
+  themeBlack: '⬛ Black',
   themeAuto: '🌗 Auto',
   themeLightHint: 'Light background',
   themeDarkHint: 'Dark background',
+  themeBlackHint: 'True black — easier at night, and cheaper on an OLED screen',
   themeAutoHint: 'Follow the device',
   language: 'Language',
   languageHint:

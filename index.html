@@ -27,13 +27,16 @@
         var root = document.documentElement;
         try {
           var theme = localStorage.getItem('yoman-theme');
-          var dark =
-            theme === 'dark' ||
-            (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
-          root.dataset.theme = dark ? 'dark' : 'light';
+          // Auto — anything not stored as an explicit choice — follows the
+          // system, which only ever means light or dark.
+          if (theme !== 'light' && theme !== 'dark' && theme !== 'black') {
+            theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          root.dataset.theme = theme;
           // Must match STRIP_COLOUR in src/hooks/useTheme.ts.
+          var strips = { light: '#ffffff', dark: '#16293f', black: '#000000' };
           var strip = document.querySelector('meta[name="theme-color"]');
-          if (strip) strip.setAttribute('content', dark ? '#16293f' : '#ffffff');
+          if (strip) strip.setAttribute('content', strips[theme]);
 
           var lang = localStorage.getItem('yoman-lang');
           if (lang !== 'he' && lang !== 'ar' && lang !== 'en') lang = 'he';

@@ -17,6 +17,7 @@ import { EmptyState } from './components/ui';
 import { Logo } from './components/Logo';
 import { useTheme, type ThemePreference } from './hooks/useTheme';
 import { useLanguage } from './i18n/useLanguage';
+import type { Strings } from './i18n/strings';
 import { useAutoSync } from './hooks/useAutoSync';
 import { UndoButtons } from './components/UndoButtons';
 import {
@@ -137,17 +138,37 @@ function Shell() {
 const THEME_ICONS: Record<ThemePreference, string> = {
   light: '☀️',
   dark: '🌙',
+  black: '⬛',
   auto: '🌗',
 };
 
+const THEME_LABELS: Record<ThemePreference, keyof Strings> = {
+  light: 'themeLight',
+  dark: 'themeDark',
+  black: 'themeBlack',
+  auto: 'themeAuto',
+};
+
+/**
+ * One tap moves to the next display mode, and the button shows which one is on.
+ *
+ * `data-theme` on the button itself is what lets it be styled per mode: on the
+ * black theme it has to lose the pale tint it wears on the others, or it sits
+ * on a pure-black bar looking like a leftover from a different app.
+ */
 function ThemeButton() {
   const { preference, cycle } = useTheme();
   const { t } = useLanguage();
-  const label = [t.display, [t.themeLight, t.themeDark, t.themeAuto][
-    ['light', 'dark', 'auto'].indexOf(preference)
-  ]].join(': ');
+  const label = `${t.display}: ${t[THEME_LABELS[preference]] as string}`;
   return (
-    <button type="button" className="topbar__icon" onClick={cycle} title={label} aria-label={label}>
+    <button
+      type="button"
+      className="topbar__icon topbar__icon--theme"
+      data-mode={preference}
+      onClick={cycle}
+      title={label}
+      aria-label={label}
+    >
       <span aria-hidden="true">{THEME_ICONS[preference]}</span>
     </button>
   );

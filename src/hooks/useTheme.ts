@@ -11,8 +11,8 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 
-export type ThemePreference = 'light' | 'dark' | 'auto';
-export type Theme = 'light' | 'dark';
+export type ThemePreference = 'light' | 'dark' | 'black' | 'auto';
+export type Theme = 'light' | 'dark' | 'black';
 
 export const THEME_KEY = 'yoman-theme';
 
@@ -20,9 +20,14 @@ const DARK_QUERY = '(prefers-color-scheme: dark)';
 
 export function readPreference(): ThemePreference {
   const stored = localStorage.getItem(THEME_KEY);
-  return stored === 'light' || stored === 'dark' ? stored : 'auto';
+  return stored === 'light' || stored === 'dark' || stored === 'black' ? stored : 'auto';
 }
 
+/**
+ * Auto follows the system, and the system only knows light and dark — so it
+ * never resolves to black. Black is a deliberate choice for an OLED screen in
+ * the dark, not something to be switched into by the time of day.
+ */
 function resolve(preference: ThemePreference): Theme {
   if (preference !== 'auto') return preference;
   return window.matchMedia(DARK_QUERY).matches ? 'dark' : 'light';
@@ -39,6 +44,7 @@ function resolve(preference: ThemePreference): Theme {
 export const STRIP_COLOUR: Record<Theme, string> = {
   light: '#ffffff',
   dark: '#16293f',
+  black: '#000000',
 };
 
 function apply(theme: Theme): void {
@@ -75,9 +81,10 @@ export function useTheme() {
     setPreferenceState(next);
   }, []);
 
-  /** Cycles בהיר → כהה → אוטומטי, for the one-tap button in the top bar. */
+  /** Cycles בוקר → לילה → שחור → אוטומטי, for the one-tap button in the top bar. */
   const cycle = useCallback(() => {
-    setPreference(preference === 'light' ? 'dark' : preference === 'dark' ? 'auto' : 'light');
+    const order: ThemePreference[] = ['light', 'dark', 'black', 'auto'];
+    setPreference(order[(order.indexOf(preference) + 1) % order.length]);
   }, [preference, setPreference]);
 
   return { preference, theme, setPreference, cycle };
