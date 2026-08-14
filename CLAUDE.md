@@ -433,6 +433,27 @@ touching either file.
 Three things in `global.css` are shared by every screen, and each was added
 because its absence was what made the app look homemade.
 
+- **The interface wears the document's colours, and this is deliberate.**
+  `--accent` is `#0f2d4a` — the exact value `docTheme.ts` prints the header band
+  in — and the amber beside it is that theme's `accent` to the digit. It was
+  `#007aff`, stock iOS blue, a colour appearing nowhere in the thing the app
+  makes; the export button is now the colour of the page that comes out of it.
+  **Three tokens, and the distinction matters**: `--accent` is text, icons,
+  borders and focus rings and must contrast with `--bg`; `--accent-fill` is a
+  filled surface; `--accent-ink` is what sits on that fill. A navy dark enough
+  to read as text on paper is not a fill you can put white on at night, which is
+  why the dark and black themes lift `--accent` and keep `--accent-fill` deep.
+  White on the old blue was 4.02:1 — a fail at AA on the app's most important
+  button; the three themes now measure 14.05, 5.54 and 6.27:1. **Only one action
+  on a screen is filled.** `.btn--brand` is outlined rather than a second filled
+  navy: the PDF is the deliverable and the Word file is the editable copy, and
+  two filled buttons side by side each claim to be the main thing to do.
+- **A counted noun goes through a function that handles one of it.** "1 ימים"
+  is what every counter said before, in all three languages. Hebrew needs the
+  singular and has a real dual for days (`יומיים`); **Arabic counts in four
+  forms** — one, dual, a paucal for three to ten, and the accusative singular
+  from eleven up — so `${n} أيام` is right only between three and ten.
+
 - **The type scale is nine steps, `--fs-2xs` … `--fs-3xl`, and there are no raw
   sizes.** Before it there were seventeen, in three units, most within half a
   pixel of a neighbour — 0.85, 0.84, 0.82, 0.8 — so nothing lined up and no size
