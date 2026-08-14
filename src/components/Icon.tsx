@@ -58,7 +58,8 @@ export type IconName =
   | 'calendar'
   | 'chevron'
   | 'arrowUp'
-  | 'arrowDown';
+  | 'arrowDown'
+  | 'pen';
 
 const PATHS: Record<IconName, JSX.Element> = {
   // A bound notebook: cover, spine, and two written lines.
@@ -270,12 +271,19 @@ const PATHS: Record<IconName, JSX.Element> = {
       <path d="M6 11.5H5A1.5 1.5 0 0 0 3.5 13v6A1.5 1.5 0 0 0 5 20.5h14a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5h-1" />
     </>
   ),
-  // Two arrows from a centre line — the gesture, not a direction.
+  /*
+   * A double-headed arrow: the gesture, not a direction.
+   *
+   * The first attempt had a vertical stroke between the two heads, and at the
+   * 14px this is actually used at the three strokes collapsed into a smudge
+   * that read as a broken character. One horizontal line is legible at any size
+   * a line is legible at.
+   */
   swipe: (
     <>
-      <path d="M12 5.5v13" />
-      <path d="M8 9.5l-4 2.5 4 2.5" />
-      <path d="M16 9.5l4 2.5-4 2.5" />
+      <path d="M4 12h16" />
+      <path d="M7.5 8.5L4 12l3.5 3.5" />
+      <path d="M16.5 8.5L20 12l-3.5 3.5" />
     </>
   ),
   copy: (
@@ -305,6 +313,14 @@ const PATHS: Record<IconName, JSX.Element> = {
     <>
       <path d="M12 4.5v15" />
       <path d="M6 13.5l6 6 6-6" />
+    </>
+  ),
+  // A nib on a line: signing, not writing. The line is what separates it from
+  // an "edit" pencil, which this app does not have and does not need.
+  pen: (
+    <>
+      <path d="M16.4 3.9a2.1 2.1 0 0 1 3 3l-9.3 9.3-3.9.9.9-3.9z" />
+      <path d="M4 20.4h16" />
     </>
   ),
 };

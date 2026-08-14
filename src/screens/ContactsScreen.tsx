@@ -288,14 +288,16 @@ export function ContactsScreen() {
         </div>
         <p className="muted small contacts__blurb">{t.contactsBlurb}</p>
         <div className="contacts__tools">
-          <input
-            type="search"
-            className="contacts__search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t.searchContacts}
-            aria-label={t.searchContacts}
-          />
+          <div className="searchbox contacts__search">
+            <Icon name="search" size={18} className="searchbox__icon" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t.searchContacts}
+              aria-label={t.searchContacts}
+            />
+          </div>
           <button type="button" className="btn btn--primary" onClick={() => void add()}>
             <Icon name="plus" size={17} />
             {t.newContact}

@@ -2522,9 +2522,14 @@ input[type='date']::-webkit-calendar-picker-indicator {
   margin-top: 14px;
 }
 
+/* Here the search sits in a row beside the "new row" button, so it takes the
+   space that is left rather than its own measure, and the row owns the gap
+   under it. */
 .contacts__search {
   flex: 1;
   min-width: 0;
+  max-width: none;
+  margin-bottom: 0;
 }
 
 /* Cards on a phone. */
@@ -2970,4 +2975,41 @@ label.btn {
 
 [dir='rtl'] .icon--chevron.icon--back {
   transform: none;
+}
+
+/*
+ * A search field that looks like one.
+ *
+ * It was a plain rounded box with placeholder text in it, which is a text field
+ * — the reader has to read the placeholder to find out it searches. The
+ * magnifier says it at a glance and in every language, which on a screen that
+ * flips between three of them is worth more than usual.
+ */
+.searchbox {
+  position: relative;
+  display: block;
+  width: 100%;
+  max-width: 46ch;
+  margin-bottom: var(--s4);
+}
+
+.searchbox__icon {
+  position: absolute;
+  inset-inline-start: var(--s3);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.searchbox input[type='search'] {
+  max-width: none;
+  /* Room for the icon at the start edge — logical, so it follows the flip. */
+  padding-inline-start: 42px;
+}
+
+/* The clear button Safari and Chrome put inside a search field lands on top of
+   nothing here, but it inherits the accent colour rather than the field's. */
+.searchbox input[type='search']::-webkit-search-cancel-button {
+  cursor: pointer;
 }

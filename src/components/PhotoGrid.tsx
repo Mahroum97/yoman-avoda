@@ -63,7 +63,14 @@ export function PhotoGrid({
     <div className="stack">
       <div className="row row--wrap">
         <label className="btn btn--primary">
-          {busy ? t.loading : `📷 ${t.addPhotos}`}
+          {busy ? (
+            t.loading
+          ) : (
+            <>
+              <Icon name="image" size={17} />
+              {t.addPhotos}
+            </>
+          )}
           <input
             type="file"
             accept="image/*"
@@ -77,7 +84,8 @@ export function PhotoGrid({
         </label>
         {/* A second entry point that opens the camera straight away on a phone. */}
         <label className="btn">
-          📸 {t.takePhoto}
+          <Icon name="camera" size={17} />
+          {t.takePhoto}
           <input
             type="file"
             accept="image/*"

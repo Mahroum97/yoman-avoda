@@ -28,6 +28,7 @@ import { isoDate } from '../lib/dates';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { Card, Field } from './ui';
+import { Icon } from './Icon';
 
 /** How many lines the on-screen list shows; the exported file has everything. */
 const PREVIEW_ROWS = 60;
@@ -119,7 +120,8 @@ export function LogCard() {
           disabled={busy || entries.length === 0}
           onClick={() => void share()}
         >
-          ⬆ {t.logShare}
+          <Icon name="share" size={16} />
+          {t.logShare}
         </button>
         <button
           type="button"

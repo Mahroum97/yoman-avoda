@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import type { DiaryEntry } from '../types';
-import { weekday } from '../lib/dates';
+import { weekdayShort } from '../lib/dates';
 import { useLanguage } from '../i18n/useLanguage';
 import { StatusChip } from './ui';
 import { Icon } from './Icon';
@@ -71,19 +71,20 @@ export function EntryTile({
         )}
         {entry.photos.length > 1 && (
           <span className="tile__count" aria-hidden="true">
-            📷 {entry.photos.length}
+            <Icon name="image" size={13} />
+            {entry.photos.length}
           </span>
         )}
         {entry.pinned && (
           <span className="tile__pin" title={t.pinnedHeading}>
-            📌
+            <Icon name="pin" size={14} strokeWidth={2} />
           </span>
         )}
       </span>
 
       <span className="tile__label">
         <span className="tile__title">
-          {entry.date.slice(8)}/{entry.date.slice(5, 7)} · {weekday(entry.date, t)}
+          {entry.date.slice(8)}/{entry.date.slice(5, 7)} · {weekdayShort(entry.date, t)}
         </span>
         <span className="tile__sub">
           {entry.workDescription.split('\n')[0] || t.noDescription}

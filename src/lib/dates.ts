@@ -34,6 +34,18 @@ export function weekday(iso: string, strings: Strings = currentStrings()): strin
   return strings.weekdays[parseIso(iso).getDay()];
 }
 
+/**
+ * The abbreviated day, for the date block in the diary list.
+ *
+ * The full name is fine in Hebrew, where the longest is five letters, and
+ * overflows its column in English, where "Wednesday" is nine. A list whose
+ * layout depends on which language it is in is a list that was only ever
+ * looked at in one of them.
+ */
+export function weekdayShort(iso: string, strings: Strings = currentStrings()): string {
+  return strings.weekdaysShort[parseIso(iso).getDay()];
+}
+
 /** `יולי 2026` · `يوليو 2026` · `July 2026` */
 export function monthLabel(iso: string, strings: Strings = currentStrings()): string {
   const date = parseIso(iso);

@@ -480,6 +480,14 @@ export interface Strings {
   fileUntil: string;
   fileBackupPrefix: string;
   weekdays: string[];
+  /**
+   * The same seven days, short enough to sit under a date in a list.
+   *
+   * A separate array rather than an abbreviation rule, because there isn't one
+   * that works in three scripts: English clips to three letters, Hebrew uses
+   * the letter-numerals with a geresh, and Arabic drops the article instead.
+   */
+  weekdaysShort: string[];
   months: string[];
   longDate: (weekday: string, date: string) => string;
 }
@@ -966,6 +974,7 @@ const he: Strings = {
   fileUntil: 'עד',
   fileBackupPrefix: 'גיבוי-יומן-עבודה',
   weekdays: ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'],
+  weekdaysShort: ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'],
   months: [
     'ינואר',
     'פברואר',
@@ -1465,6 +1474,7 @@ const ar: Strings = {
   fileUntil: 'حتى',
   fileBackupPrefix: 'نسخة-سجل-العمل',
   weekdays: ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'],
+  weekdaysShort: ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'],
   months: [
     'يناير',
     'فبراير',
@@ -1968,6 +1978,7 @@ const en: Strings = {
   fileUntil: 'to',
   fileBackupPrefix: 'work-diary-backup',
   weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  weekdaysShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
   months: [
     'January',
     'February',

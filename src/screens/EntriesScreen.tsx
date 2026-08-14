@@ -9,7 +9,7 @@ import {
   saveEntry,
   setEntryPinned,
 } from '../db';
-import { formatDdMmYyyy, isoDate, monthKey, monthLabel, weekday } from '../lib/dates';
+import { formatDdMmYyyy, isoDate, monthKey, monthLabel, weekdayShort } from '../lib/dates';
 import { useEntries, useTrashedEntries } from '../hooks/useData';
 import { useEscape } from '../hooks/useEscape';
 import { useCompanyLogo } from '../hooks/useBranding';
@@ -412,13 +412,16 @@ export function EntriesScreen({ project }: { project: Project }) {
       )}
 
       {entries.length > 3 && (
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t.searchPlaceholder}
-          style={{ marginBottom: 16 }}
-        />
+        <div className="searchbox">
+          <Icon name="search" size={18} className="searchbox__icon" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t.searchPlaceholder}
+            aria-label={t.searchPlaceholder}
+          />
+        </div>
       )}
 
       {entries.length === 0 && (
@@ -501,7 +504,7 @@ export function EntriesScreen({ project }: { project: Project }) {
                       )}
                       <span className="entry__date">
                         <span className="entry__day">{entry.date.slice(8)}</span>
-                        <span className="entry__month">{weekday(entry.date, t)}</span>
+                        <span className="entry__month">{weekdayShort(entry.date, t)}</span>
                       </span>
                       <span className="entry__body">
                         <span className="entry__title">

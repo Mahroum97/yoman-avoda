@@ -19,6 +19,7 @@ import { useLanguage } from '../i18n/useLanguage';
 import { logger } from '../lib/log';
 import { Card } from './ui';
 import { SignaturePad } from './SignaturePad';
+import { Icon } from './Icon';
 
 const log = logger('signatures');
 
@@ -79,11 +80,13 @@ function Slot({ role, label }: { role: SignatureRole; label: string }) {
 
       <div className="btn-row">
         <button type="button" className="btn btn--sm" disabled={busy} onClick={() => setDrawing(true)}>
-          ✍ {saved ? t.signatureRedraw : t.signatureDraw}
+          <Icon name="pen" size={16} />
+          {saved ? t.signatureRedraw : t.signatureDraw}
         </button>
 
         <label className={`btn btn--sm${busy ? ' btn--disabled' : ''}`}>
-          🖼 {t.signatureUpload}
+          <Icon name="image" size={16} />
+          {t.signatureUpload}
           <input
             type="file"
             accept="image/*"
