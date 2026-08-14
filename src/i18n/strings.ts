@@ -115,6 +115,7 @@ export interface Strings {
   shareNoRoute: string;
   reportPreviewTitle: string;
   reportPreviewOf: (shown: number, total: number) => string;
+  exportImage: string;
   exportWord: string;
   generating: string;
   exporting: string;
@@ -584,6 +585,7 @@ const he: Strings = {
   shareNoRoute: 'המכשיר הזה לא תומך בשיתוף — הקובץ נשמר במקום',
   reportPreviewTitle: 'תצוגה מקדימה של הדוח',
   reportPreviewOf: (shown, total) => `מוצגים ${shown} מתוך ${total} ימים`,
+  exportImage: '🖼 ייצא כתמונה',
   exportWord: 'ייצא ל-Word',
   generating: 'מפיק…',
   exporting: 'מייצא…',
@@ -1082,6 +1084,7 @@ const ar: Strings = {
   shareNoRoute: 'هذا الجهاز لا يدعم المشاركة — تم حفظ الملف بدلاً من ذلك',
   reportPreviewTitle: 'معاينة التقرير',
   reportPreviewOf: (shown, total) => `يتم عرض ${shown} من ${total} أيام`,
+  exportImage: '🖼 تصدير كصورة',
   exportWord: 'تصدير إلى Word',
   generating: 'جارٍ الإنشاء…',
   exporting: 'جارٍ التصدير…',
@@ -1581,6 +1584,7 @@ const en: Strings = {
   shareNoRoute: "This device can't share — the file was saved instead",
   reportPreviewTitle: 'Report preview',
   reportPreviewOf: (shown, total) => `Showing ${shown} of ${total} days`,
+  exportImage: '🖼 Export as image',
   exportWord: 'Export to Word',
   generating: 'Creating…',
   exporting: 'Exporting…',

@@ -290,15 +290,22 @@ export type ExportResult = string | null;
  *
  * False means it reached neither — cancelled, or nowhere to put it.
  */
+export async function deliverBlob(
+  blob: Blob,
+  name: string,
+  how: Deliver = 'save',
+): Promise<boolean> {
+  if (how === 'share' && (await shareBlob(blob, name))) return true;
+  return saveBlob(blob, name);
+}
+
 export async function deliverBinary(
   bytes: Uint8Array,
   name: string,
   mime: string,
   how: Deliver = 'save',
 ): Promise<boolean> {
-  const blob = new Blob([bytes as BlobPart], { type: mime });
-  if (how === 'share' && (await shareBlob(blob, name))) return true;
-  return saveBlob(blob, name);
+  return deliverBlob(new Blob([bytes as BlobPart], { type: mime }), name, how);
 }
 
 /**

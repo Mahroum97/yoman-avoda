@@ -57,7 +57,7 @@ export function EntryEditor({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dateConflict, setDateConflict] = useState(false);
-  const [exporting, setExporting] = useState<'pdf' | 'word' | 'share' | null>(null);
+  const [exporting, setExporting] = useState<'pdf' | 'word' | 'share' | 'image' | null>(null);
   // Offered only where a share sheet exists; on a plain desktop browser it
   // would do nothing the export buttons do not already do.
   const canShare = useMemo(() => canShareFiles(), []);
@@ -246,20 +246,23 @@ export function EntryEditor({
   };
 
   /** The export libraries are large, so they load on the click, not at startup. */
-  const doExport = async (format: 'pdf' | 'word') => {
+  const doExport = async (format: 'pdf' | 'word' | 'image') => {
     setExporting(format);
     try {
       if (dirty) await persist(entry);
       // `null` back from an export means the save dialog was cancelled or the
       // device had nowhere to put the file. Neither is a failure to report, but
       // neither is a file to announce.
+      const pdf = await import('../pdf/export');
       const name =
         format === 'pdf'
-          ? await (await import('../pdf/export')).exportEntryPdf(entry, project, { logoDataUrl })
-          : await (await import('../docx/export')).exportEntry(entry, project);
+          ? await pdf.exportEntryPdf(entry, project, { logoDataUrl })
+          : format === 'image'
+            ? await pdf.exportEntryImage(entry, project, { logoDataUrl })
+            : await (await import('../docx/export')).exportEntry(entry, project);
       if (name) toast.show(t.fileCreated(name));
     } catch {
-      toast.error(format === 'pdf' ? t.pdfFailed : t.wordFailed);
+      toast.error(format === 'word' ? t.wordFailed : t.pdfFailed);
     } finally {
       setExporting(null);
     }
@@ -514,6 +517,17 @@ export function EntryEditor({
             {exporting === 'share' ? t.sharing : `↗ ${t.shareButton}`}
           </button>
         )}
+        {/* A picture goes into WhatsApp as something already visible, where a
+            PDF arrives as a file to download first — which on a site is the
+            whole difference between a page being read and being ignored. */}
+        <button
+          type="button"
+          className="btn"
+          disabled={exporting !== null}
+          onClick={() => void doExport('image')}
+        >
+          {exporting === 'image' ? t.generating : t.exportImage}
+        </button>
         <button
           type="button"
           className="btn"

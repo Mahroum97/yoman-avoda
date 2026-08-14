@@ -36,8 +36,18 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Precache everything: on site there is often no signal at all.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        /*
+         * Precache everything: on site there is often no signal at all.
+         *
+         * `mjs` is in the list because of pdf.js — its worker ships as an ES
+         * module, and without it the whole rendering half of "export as image"
+         * would be an online-only feature in an app whose entire premise is
+         * that it is not. It is the largest single file here by a distance, and
+         * that is the price of the promise rather than an oversight.
+         */
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,woff2}'],
+        // The pdf.js worker is over Workbox's 2 MB default on its own.
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         cleanupOutdatedCaches: true,
       },
     }),

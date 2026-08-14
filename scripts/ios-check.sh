@@ -75,36 +75,53 @@ fi
 
 # 3 — signing
 #
-# The certificate and the *account* are two different things, and only one of
-# them was ever checked here. A signing certificate sits in the keychain and
-# survives; the Apple ID account in Xcode is what creates and renews the
-# provisioning profile that goes with it. When the account went missing the
-# certificate stayed behind, this check said "✔ יש תעודת חתימה", and the build
-# then failed five minutes later with "No Accounts: Add a new account in
-# Accounts settings" — after the app on the phone had already expired with
-# nothing able to re-sign it.
-XCODE_ACCOUNTS=$(defaults read com.apple.dt.Xcode DVTDeveloperAccountManagerAppleIDLists 2>/dev/null \
-  | tr -d ' \n')
-PROFILE_COUNT=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision 2>/dev/null | wc -l | tr -d ' ')
-
-case "$XCODE_ACCOUNTS" in
-  ''|*'=();'*|*'=()'*)
-    bad "אין חשבון Apple ID ב-Xcode — בלי זה אי אפשר לחתום על האפליקציה"
-    todo 'פותחים Xcode ← תפריט Xcode ← Settings ← Accounts ← + ← Apple ID ומתחברים'
-    printf '     %s  (חשבון רגיל וחינמי מספיק — זה מה שמחדש את החתימה כל 7 ימים)%s\n' "$YELLOW" "$OFF"
-    READY=0
-    ;;
-esac
-
-if [ "$PROFILE_COUNT" = 0 ] && [ -n "$XCODE_ACCOUNTS" ]; then
-  printf '%s•%s אין פרופיל חתימה שמור — הוא ייווצר בבנייה הראשונה\n' "$YELLOW" "$OFF"
-fi
+# What actually matters is whether a valid profile exists and when it runs out,
+# not where Xcode decided to keep it this year. Xcode 16 moved them out of
+# ~/Library/MobileDevice into its own UserData folder, and a check that only
+# knew the old path reported "0 profiles" on a machine that had just built and
+# installed successfully — a false alarm that would have sent the user to add an
+# Apple ID account that was already there. Both paths are searched now.
+#
+# The expiry is the useful part. A free account signs for seven days, and the
+# app going dead on the phone with no warning is what started all of this.
+PROFILE_DIRS=(
+  "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+  "$HOME/Library/MobileDevice/Provisioning Profiles"
+)
+NEWEST_PROFILE=""
+for dir in "${PROFILE_DIRS[@]}"; do
+  for f in "$dir"/*.mobileprovision; do
+    [ -e "$f" ] || continue
+    if [ -z "$NEWEST_PROFILE" ] || [ "$f" -nt "$NEWEST_PROFILE" ]; then
+      NEWEST_PROFILE="$f"
+    fi
+  done
+done
 
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "Apple Development"; then
   ok "יש תעודת חתימה"
-elif [ -d "$HOME/Library/Developer/Xcode/UserData" ]; then
-  printf '%s•%s אין עדיין תעודת חתימה — היא נוצרת אוטומטית בבנייה הראשונה\n' "$YELLOW" "$OFF"
-  todo 'אם הבנייה מתלוננת על Team: npm run ios:open ואז App ← Signing & Capabilities ← Team'
+else
+  bad "אין תעודת חתימה"
+  todo 'פותחים Xcode ← תפריט Xcode ← Settings ← Accounts ← + ← Apple ID ומתחברים'
+  READY=0
+fi
+
+if [ -n "$NEWEST_PROFILE" ]; then
+  EXPIRES=$(security cms -D -i "$NEWEST_PROFILE" 2>/dev/null \
+    | plutil -extract ExpirationDate raw -o - - 2>/dev/null | cut -dT -f1)
+  DEVICES=$(security cms -D -i "$NEWEST_PROFILE" 2>/dev/null \
+    | plutil -extract ProvisionedDevices raw -o - - 2>/dev/null | head -1)
+  if [ -n "$EXPIRES" ]; then
+    LEFT=$(( ( $(date -j -f "%Y-%m-%d" "$EXPIRES" "+%s" 2>/dev/null) - $(date "+%s") ) / 86400 ))
+    if [ "$LEFT" -le 2 ] 2>/dev/null; then
+      printf '%s•%s החתימה פגה בעוד %s ימים (%s) — הרץ התקנה כדי לחדש\n' "$YELLOW" "$OFF" "$LEFT" "$EXPIRES"
+    else
+      ok "החתימה תקפה עוד $LEFT ימים (עד $EXPIRES)${DEVICES:+, ל-$DEVICES מכשירים}"
+    fi
+  fi
+else
+  printf '%s•%s אין עדיין פרופיל חתימה — הוא ייווצר בבנייה הראשונה\n' "$YELLOW" "$OFF"
+  printf '     %s  אם הבנייה נכשלת על "No Accounts": Xcode ← Settings ← Accounts ← + ← Apple ID%s\n' "$YELLOW" "$OFF"
 fi
 
 printf '\n'
