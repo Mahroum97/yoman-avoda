@@ -1,6 +1,7 @@
 /** Small presentational primitives shared by every screen. */
 import type { ReactNode } from 'react';
 import { useLanguage } from '../i18n/useLanguage';
+import { useEscape } from '../hooks/useEscape';
 import { Icon, type IconName } from './Icon';
 
 export function Card({
@@ -120,6 +121,9 @@ export function Modal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  // A dialog closes on Escape everywhere else on the machine; it should here.
+  useEscape(onClose);
+
   return (
     <div
       className="modal-backdrop"

@@ -50,21 +50,56 @@ export function contactsToCsv(
       contact.notes,
     ].map(cell).join(','),
   );
-  // \r\n: the line ending every spreadsheet on every platform accepts.
-  return `﻿${header.map(cell).join(',')}\r\n${rows.join('\r\n')}\r\n`;
+  /*
+   * Three things in front of the data, each earning its place:
+   *
+   *  - the byte-order mark, or Excel reads UTF-8 as the local codepage and
+   *    every Hebrew name arrives as mojibake;
+   *  - `sep=,`, which is Excel's own directive for the separator. Without it
+   *    Excel uses the machine's *locale* list separator — a semicolon on a
+   *    Hebrew or European Windows — and shows the whole file as one column;
+   *  - \r\n line endings, which every spreadsheet on every platform accepts.
+   */
+  return `﻿sep=,\r\n${header.map(cell).join(',')}\r\n${rows.join('\r\n')}\r\n`;
 }
 
 /* ---------------------------------------------------------------------- in */
 
 /**
- * A CSV reader that understands quoting.
+ * Which character separates the fields.
  *
- * Small enough to be worth writing: a note can hold a comma, a line break or a
- * quotation mark, and a split on commas turns any of those into a broken row —
- * silently, halfway down someone's supplier list.
+ * Excel writes the *list separator of the machine's locale*, not a comma — on a
+ * Hebrew or European Windows that is a semicolon. A file exported from this app,
+ * opened in Excel, edited and saved would come back semicolon-separated and be
+ * read as a single column of gibberish. It is decided from the first line, where
+ * the winner is whichever character appears more often outside quotes.
  */
-export function parseCsv(text: string): string[][] {
-  const source = text.replace(/^﻿/, '');
+function detectDelimiter(text: string): string {
+  const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
+  let commas = 0;
+  let semis = 0;
+  let quoted = false;
+  for (let i = 0; i < firstLine.length; i += 1) {
+    const c = firstLine[i];
+    if (c === '"') quoted = !quoted;
+    else if (!quoted && c === ',') commas += 1;
+    else if (!quoted && c === ';') semis += 1;
+  }
+  return semis > commas ? ';' : ',';
+}
+
+/**
+ * A CSV reader that understands quoting, and both separators.
+ *
+ * Worth writing rather than splitting on a character: a note can hold a comma, a
+ * line break or a quotation mark, and a naive split turns any of those into a
+ * broken row — silently, halfway down someone's supplier list.
+ */
+export function parseCsv(text: string, delimiter = detectDelimiter(text)): string[][] {
+  // `sep=,` is Excel's own directive and is not data. It is written on the way
+  // out (see below) and has to be swallowed on the way back in, or the list
+  // gains a supplier called "sep=".
+  const source = text.replace(/^﻿/, '').replace(/^sep=.\r?\n/i, '');
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -90,7 +125,7 @@ export function parseCsv(text: string): string[][] {
 
     if (char === '"') {
       quoted = true;
-    } else if (char === ',') {
+    } else if (char === delimiter) {
       row.push(field);
       field = '';
     } else if (char === '\r') {

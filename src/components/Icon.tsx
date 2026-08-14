@@ -46,7 +46,8 @@ export type IconName =
   | 'undo'
   | 'redo'
   | 'camera'
-  | 'sync';
+  | 'sync'
+  | 'backup';
 
 const PATHS: Record<IconName, JSX.Element> = {
   // A bound notebook: cover, spine, and two written lines.
@@ -197,6 +198,14 @@ const PATHS: Record<IconName, JSX.Element> = {
     <>
       <path d="M4 8.5h3l1.5-2.5h7L17 8.5h3a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 20 19.5H4A1.5 1.5 0 0 1 2.5 18v-8A1.5 1.5 0 0 1 4 8.5z" />
       <circle cx="12" cy="13.5" r="3.4" />
+    </>
+  ),
+  // A shield with a tick: "kept safe", which is what a backup is — and clearly
+  // not the download arrow the export buttons already use.
+  backup: (
+    <>
+      <path d="M12 3.2l7 2.6v5.4c0 4.2-2.9 7.6-7 9.6-4.1-2-7-5.4-7-9.6V5.8z" />
+      <path d="M8.8 12.1l2.2 2.2 4.2-4.4" />
     </>
   ),
   sync: (

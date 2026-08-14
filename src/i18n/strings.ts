@@ -314,6 +314,8 @@ export interface Strings {
   logoSaved: string;
   logoRemoved: string;
   logoFailed: string;
+  backupNowAction: string;
+  backupSaved: (where: string) => string;
   backupNever: string;
   backupLast: (when: string) => string;
   backupWhere: (where: string) => string;
@@ -781,6 +783,12 @@ const he: Strings = {
   logoSaved: 'הלוגו נשמר ויופיע בדוחות',
   logoRemoved: 'הלוגו הוסר',
   logoFailed: 'לא ניתן היה לטעון את הלוגו',
+  backupNowAction: 'גיבוי עכשיו',
+  backupSaved: (where) =>
+    ({
+      mac: 'הגיבוי נשמר בתיקיית מסמכים',
+      device: 'הגיבוי נשמר במכשיר',
+    })[where] ?? 'הגיבוי נשמר',
   backupNever: 'עדיין לא נשמר גיבוי אוטומטי',
   backupLast: (when) => `גיבוי אחרון: ${when}`,
   backupWhere: (where) =>
@@ -1273,6 +1281,12 @@ const ar: Strings = {
   logoSaved: 'تم حفظ الشعار وسيظهر في التقارير',
   logoRemoved: 'تمت إزالة الشعار',
   logoFailed: 'تعذر تحميل الشعار',
+  backupNowAction: 'نسخ احتياطي الآن',
+  backupSaved: (where) =>
+    ({
+      mac: 'حُفظت النسخة في مجلد المستندات',
+      device: 'حُفظت النسخة على الجهاز',
+    })[where] ?? 'حُفظت النسخة',
   backupNever: 'لم يُحفظ نسخ احتياطي تلقائي بعد',
   backupLast: (when) => `آخر نسخة: ${when}`,
   backupWhere: (where) =>
@@ -1769,6 +1783,12 @@ const en: Strings = {
   logoSaved: 'Logo saved — it will appear on reports',
   logoRemoved: 'Logo removed',
   logoFailed: 'Could not load the logo',
+  backupNowAction: 'Back up now',
+  backupSaved: (where) =>
+    ({
+      mac: 'Backup written to Documents',
+      device: 'Backup written on this device',
+    })[where] ?? 'Backup written',
   backupNever: 'No automatic backup yet',
   backupLast: (when) => `Last backup: ${when}`,
   backupWhere: (where) =>

@@ -9,6 +9,7 @@ import { useCompanyLogo } from '../hooks/useBranding';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
+import { useEscape } from '../hooks/useEscape';
 import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
 import { canShareFiles, needsShareToPrint } from '../lib/save';
@@ -29,6 +30,9 @@ export function PreviewScreen({
   const [busy, setBusy] = useState<'pdf' | 'word' | 'share' | null>(null);
   const canShare = useMemo(() => canShareFiles(), []);
 
+
+  // Escape leaves the preview the same way the button beside it does.
+  useEscape(() => navigate(`/entry/${entryId}`));
   if (!entry) return <p className="muted">{t.loading}</p>;
 
   const pages = entry.photos.length > 0 ? 2 : 1;

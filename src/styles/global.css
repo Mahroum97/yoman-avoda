@@ -2609,3 +2609,26 @@ label.btn {
 .backup-state svg {
   flex: none;
 }
+
+/*
+ * The backup button wears a mark when it has been too long.
+ *
+ * A dot rather than a colour change on the icon itself: the bar is the one
+ * place in the app that must stay calm, and an amber icon up there reads as an
+ * error rather than as a reminder.
+ */
+.topbar__icon--backup {
+  position: relative;
+}
+
+.topbar__icon--backup[data-stale]::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  inset-inline-end: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px var(--topbar);
+}

@@ -17,6 +17,7 @@ import { useTrashedEntries } from '../hooks/useData';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
+import { useEscape } from '../hooks/useEscape';
 import { formatDdMmYyyy, formatLongDate } from '../lib/dates';
 import { EmptyState, StatusChip } from '../components/ui';
 import { logger } from '../lib/log';
@@ -85,6 +86,10 @@ export function TrashScreen({ project }: { project?: Project }) {
     setPicked(new Set());
     toast.show(t.trashPurged(count));
   };
+
+  // Escape clears a selection first, and only then leaves the screen — one
+  // press per layer, the same rule the rest of the app follows.
+  useEscape(chosen.length > 0 ? () => setPicked(new Set()) : () => navigate('/'));
 
   if (!rows) return <p className="muted">{t.loading}</p>;
 

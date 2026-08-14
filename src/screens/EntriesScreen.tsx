@@ -11,6 +11,7 @@ import {
 } from '../db';
 import { formatDdMmYyyy, isoDate, monthKey, monthLabel, weekday } from '../lib/dates';
 import { useEntries, useTrashedEntries } from '../hooks/useData';
+import { useEscape } from '../hooks/useEscape';
 import { useCompanyLogo } from '../hooks/useBranding';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
@@ -193,6 +194,10 @@ export function EntriesScreen({ project }: { project: Project }) {
   useEffect(() => {
     leaveSelection();
   }, [project.id, leaveSelection]);
+
+  // Only while selecting: otherwise Escape on the diary list would have nothing
+  // to close and would swallow the key from whatever else wanted it.
+  useEscape(selecting ? leaveSelection : null);
 
   const toggle = (id: number) => {
     setSelected((was) => {

@@ -20,6 +20,7 @@ import { useCompanyLogo } from '../hooks/useBranding';
 import { useDocThemeId } from '../hooks/useDocTheme';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
+import { useEscape } from '../hooks/useEscape';
 import { navigate } from '../hooks/useRoute';
 import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
@@ -91,6 +92,12 @@ export function ReportPreviewScreen({
       setBusy(null);
     }
   };
+
+  // Above the early return, not below it: a hook that only runs once the
+  // entries have loaded is a hook that runs on some renders and not others,
+  // which is the one thing React does not allow — and it took the whole screen
+  // down rather than merely failing to listen.
+  useEscape(() => navigate('/reports'));
 
   if (!entries) return <p className="muted">{t.loading}</p>;
 

@@ -87,6 +87,7 @@ function Shell() {
             {project && <div className="topbar__sub">{project.name}</div>}
           </div>
           <UndoButtons />
+          <BackupButton />
           <ThemeButton />
         </header>
       )}
@@ -134,6 +135,84 @@ function Shell() {
       )}
     </div>
     </EditorActionsContext.Provider>
+  );
+}
+
+/**
+ * Backup, one tap, from wherever you are in the app.
+ *
+ * It sits in the bar rather than only in Settings because of what it is for: the
+ * moment you want to know your work is safe is the moment you have just written
+ * something, not a moment you are willing to go looking through settings for.
+ *
+ * On a device that can write a copy by itself it writes one. On a browser,
+ * which cannot, it falls back to the ordinary export — so the button always
+ * does the most this device is capable of rather than being disabled and
+ * explaining why.
+ */
+function BackupButton() {
+  const { t } = useLanguage();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [stale, setStale] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      const { lastBackupAt, STALE_MS } = await import('./lib/autoBackup');
+      const at = lastBackupAt();
+      if (!cancelled) setStale(at === null || Date.now() - at > STALE_MS);
+    };
+    void check();
+    // Re-read rather than trusting one reading: the automatic backup runs a few
+    // seconds after launch, behind this button.
+    const timer = window.setInterval(check, 30000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const run = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { backupNow, lastBackupAt, STALE_MS } = await import('./lib/autoBackup');
+      const where = await backupNow();
+      if (where) {
+        toast.show(t.backupSaved(where));
+      } else {
+        // Nowhere to write on its own — hand the file to the user instead.
+        const { backupToJson } = await import('./db');
+        const { saveBlob } = await import('./lib/save');
+        const name = `${t.fileBackupPrefix}-${new Date().toISOString().slice(0, 10)}.json`;
+        const saved = await saveBlob(
+          new Blob([await backupToJson()], { type: 'application/json' }),
+          name,
+        );
+        if (saved) toast.show(t.backupDownloaded);
+      }
+      const at = lastBackupAt();
+      setStale(at === null || Date.now() - at > STALE_MS);
+    } catch {
+      toast.error(t.backupFailed);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      className="topbar__icon topbar__icon--backup"
+      data-stale={stale || undefined}
+      onClick={() => void run()}
+      disabled={busy}
+      title={t.backupNowAction}
+      aria-label={t.backupNowAction}
+    >
+      <Icon name="backup" size={19} />
+    </button>
   );
 }
 
