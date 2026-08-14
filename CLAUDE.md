@@ -260,6 +260,10 @@ a number takes a moment while the man is still standing there.
   test the live query hands back the row as saved and eats the last letter typed.
 - **It is reachable with no project** (`PROJECTLESS` in `App.tsx`), like Settings:
   the book belongs to the person, not to a site.
+- **תחום התעסקות suggests the trades the diary already learned.** `usePresets().trade` is
+  fed by every contractor row ever saved, and the trades on a site are the same handful
+  over and over — asking for them again here would be asking twice. A `<datalist>`, so a
+  trade the diary has not seen is still typeable.
 - Deleting offers an undo, and `restoreContact` drops the tombstone with it — the
   same rule, for the same reason, as `restoreEntry`.
 - **Contacts are in the backup and in the sync, and neither version moved.**

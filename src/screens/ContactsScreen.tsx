@@ -18,7 +18,7 @@ import {
   restoreContact,
   saveContact,
 } from '../db';
-import { useContacts } from '../hooks/useData';
+import { useContacts, usePresets } from '../hooks/useData';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { EmptyState } from '../components/ui';
@@ -29,8 +29,17 @@ const SAVE_AFTER_MS = 500;
 /** The five typed columns, in the order the user asked for them. */
 type Column = 'name' | 'trade' | 'phone' | 'projects' | 'notes';
 
+/** The one column the diary can already answer for itself. */
+const TRADE_LIST_ID = 'contact-trades';
+
 export function ContactsScreen() {
   const stored = useContacts();
+  /*
+   * Every מקצוע ever typed into a diary page's contractor rows, most-used first.
+   * The trades on a site are the same handful over and over, and the app already
+   * knows them — asking for them again here would be asking twice.
+   */
+  const presets = usePresets();
   const toast = useToast();
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
@@ -233,6 +242,14 @@ export function ContactsScreen() {
         <p className="muted">{t.noMatches}</p>
       ) : (
         <div className="ctable">
+          {presets.trade.length > 0 && (
+            <datalist id={TRADE_LIST_ID}>
+              {presets.trade.map((trade) => (
+                <option key={trade} value={trade} />
+              ))}
+            </datalist>
+          )}
+
           {/* Column titles on a wide window only; on a phone each cell carries
               its own label, so repeating them here would read twice. */}
           <div className="ctable__head" aria-hidden="true">
@@ -291,6 +308,9 @@ function Row({
           key={column.key}
         >
           <input
+            // Suggestions, never a closed list: a trade the diary has not seen
+            // yet must still be typeable, which is what a datalist gives.
+            list={column.key === 'trade' ? TRADE_LIST_ID : undefined}
             type={column.key === 'phone' ? 'tel' : 'text'}
             /* A phone number is Latin digits inside a Hebrew or Arabic page:
                without its own direction it renders with the sign and any dash

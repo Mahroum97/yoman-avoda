@@ -34,6 +34,17 @@ copied into `/Applications`), every connected iPhone and iPad, and GitHub Pages.
 - It classifies pairing **before** developer mode: an untrusted device cannot report its
   developer-mode status, and the setting does not appear on it until it has been connected
   to a Mac it trusts. "Trust this computer" is genuinely the first step on a new device.
+- **A locked device passes every readiness test and then fails the build.** It is on the
+  end of the cable and answering, so `ios-devices.py` calls it ready — but the developer
+  disk image cannot mount on a locked device, and `xcodebuild` spends a minute timing out
+  on a destination that will never appear. `build_for` therefore tees its output to
+  `$BUILD_LOG`, and `device_is_locked` reads that back for
+  `developer disk image could not be mounted` / `Timed out waiting for all destinations`.
+  That case reports "המכשיר נעול" and **skips the Swift-package retry**, which costs
+  another minute per device and cannot possibly help. Both devices failed this way on a
+  push at 21:20 at night and the summary said only "בנייה נכשלה" — four wasted minutes
+  and nothing pointing at the passcode. `ios-check.sh` cannot detect it in advance (there
+  is nothing to ask before a build is attempted), so it says so as a reminder instead.
 - The Mac leg asks the running app to quit before replacing the bundle, and **skips the
   replace** if it is still running after eight seconds rather than forcing it.
 

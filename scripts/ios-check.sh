@@ -84,6 +84,10 @@ fi
 printf '\n'
 if [ "$READY" = 1 ]; then
   printf '%s%s✔ הכול מוכן — אפשר להריץ "דחיפה לכל המכשירים.command"%s\n' "$GREEN" "$BOLD" "$OFF"
+  # The one thing this check cannot see. A locked device answers everything asked
+  # of it here and then refuses to mount the developer disk image, so the install
+  # fails a minute later for a reason nothing up to this point hinted at.
+  printf '%s  השאר את המכשירים פתוחים (לא נעולים) בזמן ההתקנה%s\n' "$YELLOW" "$OFF"
 else
   printf '%s%sעדיין חסר משהו — ראה למעלה%s\n' "$YELLOW" "$BOLD" "$OFF"
 fi

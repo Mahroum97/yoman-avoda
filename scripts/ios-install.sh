@@ -73,6 +73,11 @@ still_reachable() {
     | awk -F'\t' -v id="$1" '$1 == id && $2 == "ready" { found = 1 } END { exit !found }'
 }
 
+# Kept as well as shown. The reason a build failed is somewhere in xcodebuild's
+# output, and the reasons that matter need opposite answers from the user — so
+# the run is teed to a file the caller can ask questions of afterwards.
+BUILD_LOG=$(mktemp -t yoman-build-log)
+
 build_for() {
   xcodebuild \
     -project ios/App/App.xcodeproj \
@@ -83,7 +88,22 @@ build_for() {
     -allowProvisioningUpdates \
     DEVELOPMENT_TEAM="$TEAM_ID" \
     CODE_SIGN_STYLE=Automatic \
-    build < /dev/null
+    build < /dev/null 2>&1 | tee "$BUILD_LOG"
+  # tee's status is not the one that matters.
+  return "${PIPESTATUS[0]}"
+}
+
+# A device that is plugged in but locked.
+#
+# It passes every readiness test there is — it is on the end of the cable and
+# answering, so `ios-devices.py` calls it ready — but the developer disk image
+# cannot be mounted on a locked device, and xcodebuild spends a full minute
+# timing out on a destination that is never going to appear. Both devices failed
+# this way on a push at 21:20 at night, and the summary said only "בנייה נכשלה",
+# which sends you to read the code when the answer is the passcode.
+device_is_locked() {
+  grep -qi 'developer disk image could not be mounted' "$BUILD_LOG" ||
+    grep -qi 'Timed out waiting for all destinations' "$BUILD_LOG"
 }
 
 # push-all.sh passes a path in and prints back what it finds there, so a partial
@@ -127,7 +147,7 @@ explain() {
 
 step "מחפש מכשירים"
 DEVICE_LIST=$(mktemp -t yoman-device-list)
-trap 'rm -f "$DEVICE_LIST"' EXIT
+trap 'rm -f "$DEVICE_LIST" "$BUILD_LOG"' EXIT
 python3 scripts/ios-devices.py > "$DEVICE_LIST" 2>/dev/null
 
 # Read the whole list before looping: xcodebuild and devicectl run inside the
@@ -235,6 +255,17 @@ for entry in "${READY[@]}"; do
       printf '   %s\n' "המכשיר התנתק באמצע — חבר אותו שוב והרץ שוב"
       FAILED+=("$name|התנתק באמצע ההתקנה")
       FAILED_LIST=$(append_to "$FAILED_LIST" "$name (התנתק)")
+      continue
+    fi
+
+    # Still connected, so the build did not fail for want of a device — but a
+    # locked one cannot mount the developer disk image, and no amount of
+    # rebuilding changes that. Reported here rather than retried: the retry below
+    # costs another minute per device and cannot succeed.
+    if device_is_locked; then
+      printf '   %s\n' "המכשיר נעול — פתח אותו (הזן קוד), השאר אותו פתוח, והרץ שוב"
+      FAILED+=("$name|נעול — פתח את המכשיר והרץ שוב")
+      FAILED_LIST=$(append_to "$FAILED_LIST" "$name (נעול)")
       continue
     fi
 
