@@ -10,7 +10,8 @@
  *
  *  - **Mac** — a dated file in `Documents/יומן עבודה - גיבויים`, written with
  *    no dialog. Visible in Finder, swept up by Time Machine, and thirty of them
- *    are kept.
+ *    are kept — six on a phone, where every copy holds every photo and there is
+ *    neither the room nor a Time Machine behind it.
  *  - **iPhone / iPad** — the app's own Documents folder, which is included in
  *    the device's iCloud backup and (with the Info.plist keys that go with this
  *    file) shows up in the Files app under "On My iPhone".
@@ -24,7 +25,7 @@
  *  - **It never blocks the first paint.** It runs after the app is up, because
  *    serialising a diary full of photos takes long enough to be felt.
  */
-import { backupToJson } from '../db';
+import { backupToJson, db } from '../db';
 import { isNativeApp } from './save';
 import { logger } from './log';
 
@@ -66,15 +67,52 @@ const stamp = (): string => {
 };
 
 /**
+ * Whether anything has been written since the last copy was taken.
+ *
+ * A backup carries every photo in the diary, so an unchanged one written again
+ * every launch is tens of megabytes of duplicate on a phone — and a folder of
+ * fourteen identical copies is not fourteen times safer than one. The stamp
+ * still moves when nothing has changed, because the existing copy *is* current
+ * and the reminder in Settings would otherwise nag about a diary that is
+ * perfectly backed up.
+ */
+async function changedSinceLastBackup(): Promise<boolean> {
+  const last = lastBackupAt();
+  if (last === null) return true;
+  try {
+    const [entry] = await db.entries.orderBy('updatedAt').reverse().limit(1).toArray();
+    const contact = await db.contacts.orderBy('updatedAt').reverse().limit(1).toArray();
+    const newest = Math.max(entry?.updatedAt ?? 0, contact[0]?.updatedAt ?? 0);
+    return newest > last;
+  } catch {
+    // If the question cannot be answered, take the copy. Backing up too often
+    // is a cost; backing up too rarely is the thing this file exists to stop.
+    return true;
+  }
+}
+
+/**
  * Writes one copy now, wherever this device can put it.
  *
  * Returns where it went, or null when there was nowhere to put it — which the
  * caller reports rather than swallowing, so "backed up" is never claimed for a
- * device that cannot back anything up.
+ * device that cannot back anything up. `force` is for the button in the bar: a
+ * press is an instruction, and skipping it because nothing changed would look
+ * like the button doing nothing at all.
  */
-export async function backupNow(): Promise<BackupWhere | null> {
+export async function backupNow(options: { force?: boolean } = {}): Promise<BackupWhere | null> {
   const where = backupTarget();
   if (where === 'none') return null;
+
+  if (!options.force && !(await changedSinceLastBackup())) {
+    try {
+      localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
+    } catch {
+      // The copy on disk is still the current one either way.
+    }
+    log.debug('automatic backup skipped — nothing changed');
+    return where;
+  }
 
   const done = log.time('automatic backup');
   try {
@@ -130,7 +168,9 @@ async function pruneDeviceBackups(): Promise<void> {
       .filter((n) => n.startsWith('גיבוי-יומן-עבודה-') && n.endsWith('.json'))
       .sort()
       .reverse();
-    for (const old of ours.slice(14)) {
+    // Fewer than the Mac keeps: every copy holds every photo, and a phone
+    // has neither the room nor a Time Machine behind it.
+    for (const old of ours.slice(6)) {
       await Filesystem.deleteFile({ path: old, directory: Directory.Documents });
     }
   } catch (error) {

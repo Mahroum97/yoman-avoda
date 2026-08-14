@@ -178,7 +178,9 @@ function BackupButton() {
     setBusy(true);
     try {
       const { backupNow, lastBackupAt, STALE_MS } = await import('./lib/autoBackup');
-      const where = await backupNow();
+      // Forced: a button press is an instruction, not a suggestion — skipping
+      // it because nothing changed would look like the button doing nothing.
+      const where = await backupNow({ force: true });
       if (where) {
         toast.show(t.backupSaved(where));
       } else {
