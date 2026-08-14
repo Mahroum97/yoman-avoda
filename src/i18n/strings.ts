@@ -314,6 +314,9 @@ export interface Strings {
   logoSaved: string;
   logoRemoved: string;
   logoFailed: string;
+  backupNever: string;
+  backupLast: (when: string) => string;
+  backupWhere: (where: string) => string;
   backupTitle: string;
   backupHint: string;
   downloadBackup: string;
@@ -778,6 +781,14 @@ const he: Strings = {
   logoSaved: 'הלוגו נשמר ויופיע בדוחות',
   logoRemoved: 'הלוגו הוסר',
   logoFailed: 'לא ניתן היה לטעון את הלוגו',
+  backupNever: 'עדיין לא נשמר גיבוי אוטומטי',
+  backupLast: (when) => `גיבוי אחרון: ${when}`,
+  backupWhere: (where) =>
+    ({
+      mac: 'נשמר לבד בתיקיית מסמכים ← "יומן עבודה - גיבויים"',
+      device: 'נשמר לבד במכשיר, ונכלל בגיבוי iCloud',
+      none: 'בדפדפן אין לאן לשמור לבד — כדאי לייצא גיבוי מדי פעם',
+    })[where] ?? '',
   backupTitle: 'גיבוי ושחזור',
   backupHint: 'הנתונים נשמרים במכשיר בלבד. מומלץ לגבות מדי שבוע.',
   downloadBackup: 'ייצוא נתונים',
@@ -1262,6 +1273,14 @@ const ar: Strings = {
   logoSaved: 'تم حفظ الشعار وسيظهر في التقارير',
   logoRemoved: 'تمت إزالة الشعار',
   logoFailed: 'تعذر تحميل الشعار',
+  backupNever: 'لم يُحفظ نسخ احتياطي تلقائي بعد',
+  backupLast: (when) => `آخر نسخة: ${when}`,
+  backupWhere: (where) =>
+    ({
+      mac: 'تُحفظ تلقائيًا في مجلد المستندات ← "يومن عفودا - نسخ احتياطية"',
+      device: 'تُحفظ تلقائيًا على الجهاز وتدخل في نسخة iCloud',
+      none: 'في المتصفح لا مكان للحفظ التلقائي — صدّر نسخة من حين لآخر',
+    })[where] ?? '',
   backupTitle: 'النسخ الاحتياطي والاستعادة',
   backupHint: 'تُحفظ البيانات على الجهاز فقط. يُنصح بعمل نسخة احتياطية أسبوعيًا.',
   downloadBackup: 'تصدير البيانات',
@@ -1750,6 +1769,14 @@ const en: Strings = {
   logoSaved: 'Logo saved — it will appear on reports',
   logoRemoved: 'Logo removed',
   logoFailed: 'Could not load the logo',
+  backupNever: 'No automatic backup yet',
+  backupLast: (when) => `Last backup: ${when}`,
+  backupWhere: (where) =>
+    ({
+      mac: 'written by itself to Documents → "יומן עבודה - גיבויים"',
+      device: 'written by itself on the device, and included in the iCloud backup',
+      none: 'a browser has nowhere to write on its own — export one now and then',
+    })[where] ?? '',
   backupTitle: 'Backup and restore',
   backupHint: 'Data is stored on this device only. Back up weekly.',
   downloadBackup: 'Export data',

@@ -17,6 +17,8 @@ import {
   restoreFromJson,
 } from '../db';
 import { formatBytes } from '../lib/images';
+import { backupTarget, backupNow, lastBackupAt, STALE_MS } from '../lib/autoBackup';
+import { formatDateTime } from '../lib/dates';
 import { requestPersistentStorage } from '../lib/native';
 import { isoDate } from '../lib/dates';
 import { usePresetRows } from '../hooks/useData';
@@ -72,6 +74,10 @@ export function SettingsScreen() {
   const docThemeId = useDocThemeId();
   useEffect(() => setFontState(readFont(language)), [language]);
 
+  const [lastBackup, setLastBackup] = useState<number | null>(() => lastBackupAt());
+  const backupWhere = backupTarget();
+  const backupStale = lastBackup === null || Date.now() - lastBackup > STALE_MS;
+
   const [usage, setUsage] = useState<{ used: number; quota: number } | null>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [newValue, setNewValue] = useState<Record<string, string>>({});
@@ -92,7 +98,13 @@ export function SettingsScreen() {
         new Blob([json], { type: 'application/json' }),
         `${t.fileBackupPrefix}-${isoDate()}.json`,
       );
-      if (saved) toast.show(t.backupDownloaded);
+      if (saved) {
+        toast.show(t.backupDownloaded);
+        // A copy the user asked for is still a copy: it counts against the
+        // "how long since the last one" warning like an automatic one does.
+        await backupNow();
+        setLastBackup(lastBackupAt());
+      }
     } catch {
       toast.error(t.backupFailed);
     } finally {
@@ -265,6 +277,20 @@ export function SettingsScreen() {
       <SignaturesCard />
 
       <Card title={t.backupTitle} note={t.backupHint}>
+        {/* Said plainly, and in the app's own words rather than a green tick:
+            a backup nobody can see the age of is one nobody notices has
+            stopped, which is exactly how this diary came to have none. */}
+        <p className={`backup-state${backupStale ? ' backup-state--stale' : ''}`}>
+          <Icon name={backupStale ? 'warning' : 'check'} size={17} />
+          <span>
+            {lastBackup === null
+              ? t.backupNever
+              : t.backupLast(formatDateTime(lastBackup, language) ?? '')}
+            {' · '}
+            {t.backupWhere(backupWhere)}
+          </span>
+        </p>
+
         <div className="btn-row">
           <button
             type="button"

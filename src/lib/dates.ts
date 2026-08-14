@@ -58,3 +58,19 @@ export function addDays(iso: string, days: number): string {
   d.setDate(d.getDate() + days);
   return isoDate(d);
 }
+
+/**
+ * A moment, short enough to sit inside a sentence: "02/08 14:31".
+ *
+ * Shared by the sync card and the backup line, which both answer the same kind
+ * of question — how long has it been since this last happened.
+ */
+export function formatDateTime(stamp: number | null, locale: string): string | null {
+  if (!stamp) return null;
+  return new Date(stamp).toLocaleString(locale, {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}

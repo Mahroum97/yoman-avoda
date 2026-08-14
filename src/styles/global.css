@@ -2580,3 +2580,32 @@ label.btn {
   font-size: 0.72rem;
   font-weight: 400;
 }
+
+/* ------------------------------------------------------- backup state */
+
+/*
+ * How long it has been, said in the card itself. A backup nobody can see the
+ * age of is one nobody notices has stopped — which is how this diary came to
+ * have its last copy from two days after the first.
+ */
+.backup-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.backup-state--stale {
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+.backup-state svg {
+  flex: none;
+}

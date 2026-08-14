@@ -10,6 +10,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('yoman', {
   saveFile: (name, data) => ipcRenderer.invoke('yoman:saveFile', name, data),
   shareFile: (name, data) => ipcRenderer.invoke('yoman:shareFile', name, data),
+  /**
+   * Writes a backup without a dialog. The page supplies a name and bytes; the
+   * folder is chosen by the main process, so this grants no ability to write
+   * anywhere of the page's choosing.
+   */
+  autoBackup: (name, data) => ipcRenderer.invoke('yoman:autoBackup', name, data),
   platform: process.platform,
   version: process.versions.electron,
 

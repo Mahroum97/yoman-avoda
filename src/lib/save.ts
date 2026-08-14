@@ -30,6 +30,14 @@ export interface DesktopBridge {
     name: string,
     data: Uint8Array,
   ) => Promise<{ saved: boolean; path?: string }>;
+  /**
+   * Writes a dated backup with no dialog, into a folder the main process picks.
+   * Absent on older builds of the Mac app, which is why every call is guarded.
+   */
+  autoBackup?: (
+    name: string,
+    data: Uint8Array,
+  ) => Promise<{ saved: boolean; path?: string; kept?: number; error?: string }>;
   /** The macOS share sheet. Absent on older builds of the Mac app. */
   shareFile?: (
     name: string,

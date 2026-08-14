@@ -11,6 +11,10 @@ import './styles/global.css';
 // the device instead of vanishing into a console nobody can open on site.
 installGlobalLogHandlers();
 
+// A copy of the diary, taken by the app rather than by the user remembering to.
+// After the handlers, so a failure in it is recorded like any other.
+void import('./lib/autoBackup').then(({ scheduleAutoBackup }) => scheduleAutoBackup());
+
 const log = logger('app');
 log.info('started', {
   shell: isDesktop() ? 'mac' : isNativeApp() ? 'ios-app' : isIos() ? 'ios-web' : 'web',

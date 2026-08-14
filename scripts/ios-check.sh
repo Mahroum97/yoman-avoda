@@ -74,6 +74,32 @@ else
 fi
 
 # 3 — signing
+#
+# The certificate and the *account* are two different things, and only one of
+# them was ever checked here. A signing certificate sits in the keychain and
+# survives; the Apple ID account in Xcode is what creates and renews the
+# provisioning profile that goes with it. When the account went missing the
+# certificate stayed behind, this check said "✔ יש תעודת חתימה", and the build
+# then failed five minutes later with "No Accounts: Add a new account in
+# Accounts settings" — after the app on the phone had already expired with
+# nothing able to re-sign it.
+XCODE_ACCOUNTS=$(defaults read com.apple.dt.Xcode DVTDeveloperAccountManagerAppleIDLists 2>/dev/null \
+  | tr -d ' \n')
+PROFILE_COUNT=$(ls "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision 2>/dev/null | wc -l | tr -d ' ')
+
+case "$XCODE_ACCOUNTS" in
+  ''|*'=();'*|*'=()'*)
+    bad "אין חשבון Apple ID ב-Xcode — בלי זה אי אפשר לחתום על האפליקציה"
+    todo 'פותחים Xcode ← תפריט Xcode ← Settings ← Accounts ← + ← Apple ID ומתחברים'
+    printf '     %s  (חשבון רגיל וחינמי מספיק — זה מה שמחדש את החתימה כל 7 ימים)%s\n' "$YELLOW" "$OFF"
+    READY=0
+    ;;
+esac
+
+if [ "$PROFILE_COUNT" = 0 ] && [ -n "$XCODE_ACCOUNTS" ]; then
+  printf '%s•%s אין פרופיל חתימה שמור — הוא ייווצר בבנייה הראשונה\n' "$YELLOW" "$OFF"
+fi
+
 if security find-identity -v -p codesigning 2>/dev/null | grep -q "Apple Development"; then
   ok "יש תעודת חתימה"
 elif [ -d "$HOME/Library/Developer/Xcode/UserData" ]; then

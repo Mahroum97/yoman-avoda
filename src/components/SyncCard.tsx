@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { useLanguage } from '../i18n/useLanguage';
+import { formatDateTime } from '../lib/dates';
 import { useToast } from '../hooks/toastContext';
 import type { SyncServerStatus } from '../lib/save';
 import type { Strings } from '../i18n/strings';
@@ -24,16 +25,6 @@ import {
 } from '../sync/client';
 import { autoSyncEnabled, setAutoSyncEnabled } from '../hooks/useAutoSync';
 import { Card, Field } from './ui';
-
-function formatTime(stamp: number | null, locale: string): string | null {
-  if (!stamp) return null;
-  return new Date(stamp).toLocaleString(locale, {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 /* ------------------------------------------------------------------ the Mac */
 
@@ -75,7 +66,7 @@ function HostPanel() {
     );
   }
 
-  const seen = formatTime(status.lastSyncAt, language);
+  const seen = formatDateTime(status.lastSyncAt, language);
 
   return (
     <div className="stack">
@@ -127,7 +118,7 @@ function ClientPanel() {
   const [address, setAddress] = useState(peer?.address ?? '');
   const [code, setCode] = useState(peer?.code ?? '');
   const [busy, setBusy] = useState(false);
-  const [seen, setSeen] = useState<string | null>(formatTime(lastSyncAt(), language));
+  const [seen, setSeen] = useState<string | null>(formatDateTime(lastSyncAt(), language));
   // A transfer full of photos takes real time; without this the phone just
   // sits there and the user assumes it has hung — which is what they reported.
   const [progress, setProgress] = useState<SyncProgress | null>(null);
@@ -139,7 +130,7 @@ function ClientPanel() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setFailure(lastSyncError());
-      setSeen(formatTime(lastSyncAt(), language));
+      setSeen(formatDateTime(lastSyncAt(), language));
     }, 4000);
     return () => window.clearInterval(timer);
   }, [language]);
@@ -169,7 +160,7 @@ function ClientPanel() {
     setProgress(null);
     try {
       const outcome = await syncNow(target, setProgress);
-      setSeen(formatTime(Date.now(), language));
+      setSeen(formatDateTime(Date.now(), language));
       setFailure(null);
       toast.show(
         t.syncDone(

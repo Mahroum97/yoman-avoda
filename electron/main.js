@@ -6,7 +6,7 @@
  * save dialog for exports and a Hebrew menu bar.
  */
 import { app, BrowserWindow, dialog, ipcMain, Menu, shell, ShareMenu } from 'electron';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, rm, writeFile } from 'node:fs/promises';
 import { basename, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -148,6 +148,47 @@ ipcMain.handle('yoman:saveFile', async (_event, name, data) => {
   await writeFile(filePath, Buffer.from(data));
   shell.showItemInFolder(filePath);
   return { saved: true, path: filePath };
+});
+
+/**
+ * The automatic backup, written without asking.
+ *
+ * The page hands over bytes and a file name; *where* they land is decided here
+ * and cannot be influenced from the renderer, which is the same bargain the
+ * save dialog makes. A folder in Documents rather than a hidden application
+ * directory, because a backup nobody can find is not a backup: it is visible in
+ * Finder, it is caught by Time Machine and by iCloud Documents, and it can be
+ * copied to another machine by dragging it.
+ *
+ * Old files are pruned here too. Thirty of them is about a month of daily
+ * cover, and without a limit a year of automatic backups would quietly fill the
+ * disk with copies of the same nine diary pages.
+ */
+const BACKUP_KEEP = 30;
+
+ipcMain.handle('yoman:autoBackup', async (_event, name, data) => {
+  try {
+    const dir = join(app.getPath('documents'), 'יומן עבודה - גיבויים');
+    await mkdir(dir, { recursive: true });
+    // `basename` for the same reason the share sheet uses it: the name is built
+    // in the renderer and is treated as untrusted here.
+    const file = join(dir, basename(String(name)) || 'backup.json');
+    await writeFile(file, Buffer.from(data));
+
+    const kept = (await readdir(dir))
+      .filter((f) => f.endsWith('.json'))
+      .sort()
+      .reverse();
+    for (const old of kept.slice(BACKUP_KEEP)) {
+      await rm(join(dir, old), { force: true });
+    }
+
+    return { saved: true, path: file, kept: Math.min(kept.length, BACKUP_KEEP) };
+  } catch (error) {
+    // Never throws at the caller: a failed backup must not break a save.
+    console.error('automatic backup failed:', error?.message ?? error);
+    return { saved: false, error: String(error?.message ?? error) };
+  }
 });
 
 /**
