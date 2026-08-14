@@ -35,6 +35,19 @@ const FONTS = [
   { family: 'Heebo', subset: 'hebrew,latin', weight: 700, file: 'heebo-bold.ttf' },
   { family: 'Cairo', subset: 'arabic,latin', weight: 400, file: 'cairo-regular.ttf' },
   { family: 'Cairo', subset: 'arabic,latin', weight: 700, file: 'cairo-bold.ttf' },
+  // The rest of the interface's typefaces, so a chosen font reaches the printed
+  // page too. pdf-lib embeds TrueType and cannot read the woff2 above, which is
+  // why the same families are fetched twice in two formats.
+  { family: 'Assistant', subset: 'hebrew,latin', weight: 400, file: 'assistant-regular.ttf' },
+  { family: 'Assistant', subset: 'hebrew,latin', weight: 700, file: 'assistant-bold.ttf' },
+  { family: 'Rubik', subset: 'hebrew,latin', weight: 400, file: 'rubik-regular.ttf' },
+  { family: 'Rubik', subset: 'hebrew,latin', weight: 700, file: 'rubik-bold.ttf' },
+  { family: 'Frank Ruhl Libre', subset: 'hebrew,latin', weight: 400, file: 'frank-regular.ttf' },
+  { family: 'Frank Ruhl Libre', subset: 'hebrew,latin', weight: 700, file: 'frank-bold.ttf' },
+  { family: 'Cousine', subset: 'hebrew,latin', weight: 400, file: 'cousine-regular.ttf' },
+  { family: 'Cousine', subset: 'hebrew,latin', weight: 700, file: 'cousine-bold.ttf' },
+  { family: 'Tajawal', subset: 'arabic,latin', weight: 400, file: 'tajawal-regular.ttf' },
+  { family: 'Tajawal', subset: 'arabic,latin', weight: 700, file: 'tajawal-bold.ttf' },
 ];
 
 /**
@@ -105,7 +118,9 @@ async function fetchWoff2(family, weight, wanted) {
 
 /** The TrueType the PDF embeds. pdf-lib cannot read woff or woff2. */
 async function fetchTtf(family, weight, subset) {
-  const cssUrl = `https://fonts.googleapis.com/css?family=${family}:${weight}&subset=${subset}`;
+  const cssUrl =
+    `https://fonts.googleapis.com/css?family=${encodeURIComponent(family)}:${weight}` +
+    `&subset=${subset}`;
   const css = await fetch(cssUrl, { headers: { 'User-Agent': LEGACY_UA } }).then((r) => r.text());
   const match = css.match(/url\((https:\/\/[^)]+)\)/);
   if (!match) throw new Error(`no font url in the css for weight ${weight}`);

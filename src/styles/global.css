@@ -48,10 +48,12 @@
   /* Height of the bottom tab bar, so anything floating above it can clear it. */
   --navh: 47px;
 
-  /* The default only. src/fonts.ts overwrites this property on <html> when a
-     typeface has been chosen, which is how one setting reaches every rule. */
+  /* The defaults only. src/fonts.ts overwrites both on <html> once a typeface
+     has been chosen, which is how one setting reaches every rule — `--font` for
+     the interface, `--doc-font` for the A4 preview and the documents. */
   --font: system-ui, -apple-system, 'SF Hebrew', 'Arial Hebrew', 'Segoe UI',
     Arial, sans-serif;
+  --doc-font: 'Heebo', Arial, sans-serif;
 
   color-scheme: light;
 }
@@ -1256,7 +1258,9 @@ select:focus {
   background: #fff;
   color: #101418;
   box-shadow: var(--shadow);
-  font-family: 'Heebo', Arial, var(--font);
+  /* The document's face, not the interface's — they differ when the app is
+     left on the system font, where the PDF still prints in Heebo. */
+  font-family: var(--doc-font, 'Heebo', Arial, sans-serif);
   font-size: 11px;
 }
 

@@ -24,11 +24,22 @@ import {
 import { drawContactsDocument } from './contactsPage';
 import { CONTENT_W, METRICS, PAGE, TYPE, paletteFor } from './theme';
 import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
+import { docFontId } from '../fonts';
 
 import heeboRegularUrl from '../assets/fonts/heebo-regular.ttf?url';
 import heeboBoldUrl from '../assets/fonts/heebo-bold.ttf?url';
 import cairoRegularUrl from '../assets/fonts/cairo-regular.ttf?url';
 import cairoBoldUrl from '../assets/fonts/cairo-bold.ttf?url';
+import assistantRegularUrl from '../assets/fonts/assistant-regular.ttf?url';
+import assistantBoldUrl from '../assets/fonts/assistant-bold.ttf?url';
+import rubikRegularUrl from '../assets/fonts/rubik-regular.ttf?url';
+import rubikBoldUrl from '../assets/fonts/rubik-bold.ttf?url';
+import frankRegularUrl from '../assets/fonts/frank-regular.ttf?url';
+import frankBoldUrl from '../assets/fonts/frank-bold.ttf?url';
+import cousineRegularUrl from '../assets/fonts/cousine-regular.ttf?url';
+import cousineBoldUrl from '../assets/fonts/cousine-bold.ttf?url';
+import tajawalRegularUrl from '../assets/fonts/tajawal-regular.ttf?url';
+import tajawalBoldUrl from '../assets/fonts/tajawal-bold.ttf?url';
 
 const LEFT = PAGE.margin;
 const RIGHT = PAGE.margin + CONTENT_W;
@@ -39,26 +50,37 @@ export interface FontBytes {
 }
 
 /**
- * Heebo carries Hebrew + Latin, Cairo carries Arabic + Latin. English reports
- * use Heebo, whose Latin is the same design.
+ * Every typeface the interface offers, as the TrueType a PDF can embed.
+ *
+ * Two go into each document — one carrying Hebrew + Latin, one Arabic + Latin —
+ * so a Hebrew diary stays readable in an Arabic report. Which two is the user's
+ * choice; the pair below is only what they default to.
+ *
+ * The files are fetched at export time rather than imported as bytes, so the
+ * ones nobody chose are never downloaded on a phone.
  */
-const FONT_URLS: Record<'hebrew' | 'arabic', { regular: string; bold: string }> = {
-  hebrew: { regular: heeboRegularUrl, bold: heeboBoldUrl },
-  arabic: { regular: cairoRegularUrl, bold: cairoBoldUrl },
+const FONT_URLS: Record<string, { regular: string; bold: string }> = {
+  heebo: { regular: heeboRegularUrl, bold: heeboBoldUrl },
+  assistant: { regular: assistantRegularUrl, bold: assistantBoldUrl },
+  rubik: { regular: rubikRegularUrl, bold: rubikBoldUrl },
+  frank: { regular: frankRegularUrl, bold: frankBoldUrl },
+  cousine: { regular: cousineRegularUrl, bold: cousineBoldUrl },
+  cairo: { regular: cairoRegularUrl, bold: cairoBoldUrl },
+  tajawal: { regular: tajawalRegularUrl, bold: tajawalBoldUrl },
 };
 
 const fontCache = new Map<string, FontBytes>();
 
-async function loadFontBytes(family: 'hebrew' | 'arabic'): Promise<FontBytes> {
-  const cached = fontCache.get(family);
+async function loadFontBytes(id: string): Promise<FontBytes> {
+  const cached = fontCache.get(id);
   if (cached) return cached;
-  const urls = FONT_URLS[family];
+  const urls = FONT_URLS[id] ?? FONT_URLS.heebo;
   const [regular, bold] = await Promise.all([
     fetch(urls.regular).then((r) => r.arrayBuffer()),
     fetch(urls.bold).then((r) => r.arrayBuffer()),
   ]);
   const bytes = { regular, bold };
-  fontCache.set(family, bytes);
+  fontCache.set(id, bytes);
   return bytes;
 }
 
@@ -66,8 +88,13 @@ async function loadFontBytes(family: 'hebrew' | 'arabic'): Promise<FontBytes> {
 export interface BuildOptions {
   /** Report language. Defaults to whatever the app is set to. */
   strings?: Strings;
-  /** Keyed by font family, for the Node sample generator. */
+  /** Keyed by script slot, for the Node sample generator. */
   fontBytes?: Partial<Record<'hebrew' | 'arabic', FontBytes>>;
+  /**
+   * Which typeface fills each slot. Defaults to what the user chose in
+   * Settings, so an exported report is set in the same face as the app.
+   */
+  fonts?: Partial<Record<'hebrew' | 'arabic', string>>;
   /** Company logo as a PNG/JPEG data URL, shown in the header band. */
   logoDataUrl?: string;
   /** Which of the document colour themes to print in. */
@@ -82,8 +109,8 @@ async function prepare(options: BuildOptions) {
 
   // Both families go in, so mixed-script content always has a glyph to use.
   const [hebrewBytes, arabicBytes] = await Promise.all([
-    options.fontBytes?.hebrew ?? loadFontBytes('hebrew'),
-    options.fontBytes?.arabic ?? loadFontBytes('arabic'),
+    options.fontBytes?.hebrew ?? loadFontBytes(options.fonts?.hebrew ?? docFontId('hebrew')),
+    options.fontBytes?.arabic ?? loadFontBytes(options.fonts?.arabic ?? docFontId('arabic')),
   ]);
   const fonts: Fonts = {
     hebrew: {

@@ -26,6 +26,16 @@ import { blobToUint8 } from '../lib/images';
 import { CELL_MARGIN, bar, labelledLine } from './blocks';
 import { entryPage, photoAppendix } from './entryPage';
 import { summarise, formatNum, type Tally } from './summary';
+import { wordFontFamily, type Script } from '../fonts';
+
+/**
+ * Which of the two typeface slots a report in this language is set in.
+ *
+ * An Arabic report takes the Arabic choice; Hebrew and English both take the
+ * Hebrew one, whose Latin is the same design — which is why an English report
+ * needs no third setting.
+ */
+const scriptOf = (t: Strings): Script => (t.locale.startsWith('ar') ? 'arabic' : 'hebrew');
 import {
   CONTENT_WIDTH,
   FILL,
@@ -40,6 +50,7 @@ import {
   hePara,
   isRtl,
   setDocDirection,
+  setDocFont,
   setDocPalette,
 } from './theme';
 
@@ -74,7 +85,7 @@ function documentOf(sections: ISectionOptions[]): Document {
     styles: {
       default: {
         document: {
-          run: { font: FONT, size: SIZE.cell },
+          run: { font: FONT(), size: SIZE.cell },
           paragraph: { spacing: { after: 0, line: 240 } },
         },
       },
@@ -84,6 +95,8 @@ function documentOf(sections: ISectionOptions[]): Document {
 }
 
 export interface EntryDocOptions {
+  /** Overrides the chosen typeface; the sample generator sets it explicitly. */
+  fontFamily?: string;
   includePhotos?: boolean;
   /** Report language. Defaults to whatever the app is set to. */
   strings?: Strings;
@@ -99,6 +112,9 @@ export async function buildEntryDoc(
 ): Promise<Document> {
   const t = options.strings ?? currentStrings();
   setDocDirection(t.dir);
+  // Named, not embedded: a .docx carries the family name and Word substitutes
+  // if the reader has not got it. The PDF is the copy that always looks right.
+  setDocFont(options.fontFamily ?? wordFontFamily(scriptOf(t)));
   setDocPalette(docTheme(options.themeId ?? DEFAULT_DOC_THEME));
   const includePhotos = options.includePhotos ?? true;
   const images = includePhotos ? await loadPhotos([entry]) : new Map();
@@ -245,6 +261,8 @@ function coverPage(
 }
 
 export interface RangeDocOptions {
+  /** Overrides the chosen typeface; the sample generator sets it explicitly. */
+  fontFamily?: string;
   includePhotos?: boolean;
   includeSummary?: boolean;
   strings?: Strings;
@@ -261,6 +279,9 @@ export async function buildRangeDoc(
 ): Promise<Document> {
   const t = options.strings ?? currentStrings();
   setDocDirection(t.dir);
+  // Named, not embedded: a .docx carries the family name and Word substitutes
+  // if the reader has not got it. The PDF is the copy that always looks right.
+  setDocFont(options.fontFamily ?? wordFontFamily(scriptOf(t)));
   setDocPalette(docTheme(options.themeId ?? DEFAULT_DOC_THEME));
   const includePhotos = options.includePhotos ?? false;
   const includeSummary = options.includeSummary ?? true;

@@ -25,8 +25,22 @@ export const PAGE = {
 
 export const CONTENT_WIDTH = PAGE.widthTwips - PAGE.margin * 2; // 10886
 
-/** Arial covers Hebrew on both Windows and macOS Word installs. */
-export const FONT = 'Arial';
+/**
+ * The typeface named in the .docx.
+ *
+ * Module state set at the top of a build, exactly like the direction below and
+ * safe for the same reason: a build is synchronous. Arial is the fallback
+ * because it covers Hebrew on every Windows and macOS Word install — a name
+ * the reader's Word does not have is silently substituted, which is the one
+ * way a Word file differs from the PDF, where the face is embedded.
+ */
+let docFont = 'Arial';
+
+export const setDocFont = (family: string): void => {
+  docFont = family;
+};
+
+export const FONT = (): string => docFont;
 
 /** Font sizes in half-points. */
 export const SIZE = {
@@ -150,7 +164,7 @@ export function he(text: string, opts: RunOpts = {}): TextRun {
   return new TextRun({
     text,
     rightToLeft: docDirection === 'rtl',
-    font: FONT,
+    font: FONT(),
     size: opts.size ?? SIZE.cell,
     bold: opts.bold,
     italics: opts.italics,
