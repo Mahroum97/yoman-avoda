@@ -26,11 +26,30 @@
   --topbar-line: #e8e5df;
   --topbar-btn: rgb(20 20 22 / 5%);
   --topbar-btn-line: rgb(20 20 22 / 8%);
-  /* Blue is what an iPad notebook app uses for "you can press this", and it
-     leaves amber free to mean something — a draft, a warning — instead of
-     being the colour of everything. */
-  --accent: #007aff;
-  --accent-soft: #e9f2ff;
+  /*
+   * The app wears the colours of the thing it makes.
+   *
+   * This was #007aff — stock iOS blue, the colour you get when you have not
+   * chosen one — while the document it exists to produce is printed in the navy
+   * and amber of `docTheme.ts` (`band: 0F2D4A`, `accent: D97706`). Two unrelated
+   * blues in one product, and the app's own identity absent from its interface.
+   * That mismatch, more than any single screen, is what made this read as a
+   * default: nothing about the colour said which app you were in.
+   *
+   * The navy is now the interactive colour, exactly the value the header band is
+   * printed in, and the amber below it is already the document's accent to the
+   * digit. Press a button and it is the colour of the page that comes out.
+   *
+   * Three tokens rather than one, because a colour dark enough to read as text
+   * on paper is not automatically a fill you can put white on at night:
+   *   --accent       text, icons, borders, focus rings — contrasts with --bg
+   *   --accent-fill  a filled surface
+   *   --accent-ink   what sits on --accent-fill
+   */
+  --accent: #0f2d4a;
+  --accent-fill: #0f2d4a;
+  --accent-ink: #ffffff;
+  --accent-soft: #e7edf5;
   --amber: #d97706;
   --amber-soft: #fef3e2;
   --ok: #1c9c5c;
@@ -138,8 +157,12 @@
   --topbar-line: #3a3a3c;
   --topbar-btn: rgb(255 255 255 / 8%);
   --topbar-btn-line: rgb(255 255 255 / 16%);
-  --accent: #0a84ff;
-  --accent-soft: #10243c;
+  /* The same navy, lit. At night #0f2d4a on charcoal is invisible, so the
+     readable colour lifts and the fill stays dark enough to carry white. */
+  --accent: #7fb0e0;
+  --accent-fill: #2f6ba8;
+  --accent-ink: #ffffff;
+  --accent-soft: #16273a;
   --amber: #f0a13a;
   --amber-soft: #3a2c15;
   --ok: #4ec08b;
@@ -168,7 +191,9 @@
   --topbar-line: #26272c;
   --topbar-btn: rgb(255 255 255 / 8%);
   --topbar-btn-line: rgb(255 255 255 / 20%);
-  --accent: #0a84ff;
+  --accent: #86b6e6;
+  --accent-fill: #2b6399;
+  --accent-ink: #ffffff;
   --accent-soft: #0b1c2e;
   --amber: #f0a13a;
   --amber-soft: #2a1f0d;
@@ -650,23 +675,37 @@ select:focus {
  * emphasis comes from being the only one, not from being lit from underneath.
  */
 .btn--primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--accent-ink);
 }
 
 .btn--primary:hover:not(:disabled) {
-  /* Darkened rather than tinted, so it stays the same colour under the cursor
-     as it is at rest — a hover that changes hue reads as a different button. */
-  filter: brightness(0.93);
-  background: var(--accent);
-  border-color: var(--accent);
+  /* Lifted rather than tinted, so it stays the same colour under the cursor as
+     it is at rest — a hover that changes hue reads as a different button. */
+  filter: brightness(1.12);
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
 }
 
+/*
+ * The second-strongest action, and no longer a second filled one.
+ *
+ * `--brand` was the same navy the accent is now, so "הפק PDF" and "ייצא ל-Word"
+ * sat side by side as two filled navy buttons, each insisting it was the main
+ * thing to do. Only one of them is: the PDF is the deliverable and the Word file
+ * is the editable copy. Outlined in the accent gives three legible tiers —
+ * filled, outlined, plain — where there had been two-and-a-half.
+ */
 .btn--brand {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--brand-ink);
+  background: transparent;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn--brand:hover:not(:disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .btn--ghost {
@@ -2371,8 +2410,9 @@ input[type='date']::-webkit-calendar-picker-indicator {
 }
 
 .tile__check--on {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--accent-ink);
 }
 
 .tile__count {
@@ -2446,8 +2486,9 @@ input[type='date']::-webkit-calendar-picker-indicator {
 }
 
 .entry__check--on {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--accent-fill);
+  background: var(--accent-fill);
+  color: var(--accent-ink);
 }
 
 /*
@@ -2845,8 +2886,8 @@ label.btn {
   min-width: 20px;
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-fill);
+  color: var(--accent-ink);
   font-size: var(--fs-2xs);
   font-weight: 700;
   text-align: center;
@@ -3012,4 +3053,35 @@ label.btn {
    nothing here, but it inherits the accent colour rather than the field's. */
 .searchbox input[type='search']::-webkit-search-cancel-button {
   cursor: pointer;
+}
+
+/*
+ * The strip above a list: what filters it, and what orders it.
+ *
+ * The search field used to sit on its own band with the view menu two rows
+ * above it, beside the title — two controls that act on the same list, as far
+ * apart as the header allowed. Together they read as a toolbar; apart they read
+ * as two things somebody added on different days.
+ */
+.listbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+
+.listbar .searchbox {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+  margin-bottom: 0;
+}
+
+/* With no search field the menu would stretch; it keeps to the end edge. */
+.listbar {
+  justify-content: flex-end;
+}
+
+.screen-title {
+  margin-bottom: var(--s4);
 }

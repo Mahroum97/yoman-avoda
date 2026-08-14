@@ -544,9 +544,9 @@ const he: Strings = {
   noEntriesTitle: 'עדיין אין רישומים',
   noEntriesBody: 'התחל ביומן של היום — הוא ייפתח בתבנית של הטופס המקורי.',
   noMatches: 'לא נמצאו רישומים תואמים',
-  daysCount: (n) => `${n} ימים`,
-  workersShort: (n) => `${n} עובדים`,
-  toolsShort: (n) => `${n} כלים`,
+  daysCount: (n) => (n === 1 ? 'יום אחד' : n === 2 ? 'יומיים' : `${n} ימים`),
+  workersShort: (n) => (n === 1 ? 'עובד אחד' : `${n} עובדים`),
+  toolsShort: (n) => (n === 1 ? 'כלי אחד' : `${n} כלים`),
   photosShort: (n) => `${n}`,
   noDescription: 'ללא תיאור עבודה',
   statusDraft: 'טיוטה',
@@ -881,7 +881,8 @@ const he: Strings = {
   syncProgress: (done, total) => `מסנכרן ${done} מתוך ${total}…`,
   syncAuto: 'סנכרון אוטומטי',
   syncAutoHint: 'מסנכרן לבד כשהאפליקציה פתוחה ושני המכשירים על אותה רשת — בפתיחה, בחזרה לאפליקציה, וכל כמה דקות.',
-  syncAutoReceived: (n) => `התקבלו ${n} עדכונים מהמכשיר השני`,
+  syncAutoReceived: (n) =>
+    n === 1 ? 'התקבל עדכון אחד מהמכשיר השני' : `התקבלו ${n} עדכונים מהמכשיר השני`,
   syncDone: (received, sent) => `הסנכרון הושלם · התקבלו ${received}, נשלחו ${sent}`,
   syncLastAt: (when) => `סנכרון אחרון: ${when}`,
 
@@ -907,11 +908,12 @@ const he: Strings = {
   selectDone: 'סיום',
   selectAll: 'בחר הכל',
   selectNone: 'נקה בחירה',
-  selectedCount: (n) => `${n} נבחרו`,
+  selectedCount: (n) => (n === 1 ? 'אחד נבחר' : `${n} נבחרו`),
   selectNothing: 'לא נבחר אף יומן',
   deleteSelected: 'מחק',
-  confirmDeleteSelected: (n) => `למחוק ${n} יומנים? הפעולה אינה הפיכה.`,
-  deletedSelected: (n) => `${n} יומנים נמחקו`,
+  confirmDeleteSelected: (n) =>
+    n === 1 ? 'למחוק יומן אחד? הפעולה אינה הפיכה.' : `למחוק ${n} יומנים? הפעולה אינה הפיכה.`,
+  deletedSelected: (n) => (n === 1 ? 'יומן אחד נמחק' : `${n} יומנים נמחקו`),
   reportFromSelected: 'דוח מהנבחרים',
 
   pinAction: 'הצמד',
@@ -924,7 +926,7 @@ const he: Strings = {
   undoEdit: 'בטל שינוי',
   redoEdit: 'בצע שוב',
   pinSelected: 'הצמד',
-  pinnedSelected: (n) => `${n} יומנים הוצמדו`,
+  pinnedSelected: (n) => (n === 1 ? 'יומן אחד הוצמד' : `${n} יומנים הוצמדו`),
   swipeHint: 'החליקו יומן הצידה כדי להצמיד או למחוק',
   actionFailed: 'הפעולה נכשלה',
 
@@ -955,7 +957,7 @@ const he: Strings = {
   logClear: 'נקה יומן',
   logCleared: 'היומן נוקה',
   logEmpty: 'עוד לא נרשם כלום',
-  logEntries: (n) => `${n} רשומות`,
+  logEntries: (n) => (n === 1 ? 'רשומה אחת' : `${n} רשומות`),
   logShow: 'הצג',
   logHide: 'הסתר',
   logPrivacy: 'היומן רושם פעולות ושגיאות בלבד — לא את תוכן הדוחות, לא שמות ולא תמונות.',
@@ -1044,9 +1046,18 @@ const ar: Strings = {
   noEntriesTitle: 'لا توجد سجلات بعد',
   noEntriesBody: 'ابدأ بسجل اليوم — سيُفتح بنفس تنسيق النموذج الأصلي.',
   noMatches: 'لم يتم العثور على سجلات مطابقة',
-  daysCount: (n) => `${n} أيام`,
-  workersShort: (n) => `${n} عمال`,
-  toolsShort: (n) => `${n} معدات`,
+  /*
+   * Arabic counts in four forms, not two: one, a dual, a paucal for three to
+   * ten, and the accusative singular from eleven up. `${n} أيام` is only ever
+   * right for three to ten of them — it reads as broken for every other count,
+   * which on a diary heading is most of the time.
+   */
+  daysCount: (n) =>
+    n === 1 ? 'يوم واحد' : n === 2 ? 'يومان' : n <= 10 ? `${n} أيام` : `${n} يومًا`,
+  workersShort: (n) =>
+    n === 1 ? 'عامل واحد' : n === 2 ? 'عاملان' : n <= 10 ? `${n} عمال` : `${n} عاملًا`,
+  toolsShort: (n) =>
+    n === 1 ? 'معدة واحدة' : n === 2 ? 'معدتان' : n <= 10 ? `${n} معدات` : `${n} معدة`,
   photosShort: (n) => `${n}`,
   noDescription: 'بدون وصف للعمل',
   statusDraft: 'مسودة',
@@ -1381,7 +1392,14 @@ const ar: Strings = {
   syncProgress: (done, total) => `تتم المزامنة ${done} من ${total}…`,
   syncAuto: 'مزامنة تلقائية',
   syncAutoHint: 'تتم المزامنة تلقائياً عندما يكون التطبيق مفتوحاً والجهازان على نفس الشبكة — عند الفتح، وعند العودة للتطبيق، وكل بضع دقائق.',
-  syncAutoReceived: (n) => `تم استلام ${n} تحديثات من الجهاز الآخر`,
+  syncAutoReceived: (n) =>
+    n === 1
+      ? 'تم استلام تحديث واحد من الجهاز الآخر'
+      : n === 2
+        ? 'تم استلام تحديثين من الجهاز الآخر'
+        : n <= 10
+          ? `تم استلام ${n} تحديثات من الجهاز الآخر`
+          : `تم استلام ${n} تحديثًا من الجهاز الآخر`,
   syncDone: (received, sent) => `اكتملت المزامنة · وردت ${received}، أُرسلت ${sent}`,
   syncLastAt: (when) => `آخر مزامنة: ${when}`,
 
@@ -1407,11 +1425,25 @@ const ar: Strings = {
   selectDone: 'تم',
   selectAll: 'اختيار الكل',
   selectNone: 'إلغاء الاختيار',
-  selectedCount: (n) => `${n} مختارة`,
+  selectedCount: (n) => (n === 1 ? 'واحدة مختارة' : `${n} مختارة`),
   selectNothing: 'لم تُختر أي يومية',
   deleteSelected: 'حذف',
-  confirmDeleteSelected: (n) => `حذف ${n} يوميات؟ لا يمكن التراجع.`,
-  deletedSelected: (n) => `تم حذف ${n} يوميات`,
+  confirmDeleteSelected: (n) =>
+    n === 1
+      ? 'حذف يومية واحدة؟ لا يمكن التراجع.'
+      : n === 2
+        ? 'حذف يوميتين؟ لا يمكن التراجع.'
+        : n <= 10
+          ? `حذف ${n} يوميات؟ لا يمكن التراجع.`
+          : `حذف ${n} يومية؟ لا يمكن التراجع.`,
+  deletedSelected: (n) =>
+    n === 1
+      ? 'تم حذف يومية واحدة'
+      : n === 2
+        ? 'تم حذف يوميتين'
+        : n <= 10
+          ? `تم حذف ${n} يوميات`
+          : `تم حذف ${n} يومية`,
   reportFromSelected: 'تقرير من المختارة',
 
   pinAction: 'تثبيت',
@@ -1424,7 +1456,14 @@ const ar: Strings = {
   undoEdit: 'تراجع عن التغيير',
   redoEdit: 'إعادة التغيير',
   pinSelected: 'تثبيت',
-  pinnedSelected: (n) => `تم تثبيت ${n} يوميات`,
+  pinnedSelected: (n) =>
+    n === 1
+      ? 'تم تثبيت يومية واحدة'
+      : n === 2
+        ? 'تم تثبيت يوميتين'
+        : n <= 10
+          ? `تم تثبيت ${n} يوميات`
+          : `تم تثبيت ${n} يومية`,
   swipeHint: 'اسحب اليومية جانبًا للتثبيت أو الحذف',
   actionFailed: 'فشل تنفيذ العملية',
 
@@ -1455,7 +1494,8 @@ const ar: Strings = {
   logClear: 'مسح السجل',
   logCleared: 'تم مسح السجل',
   logEmpty: 'لم يُسجَّل شيء بعد',
-  logEntries: (n) => `${n} سجلات`,
+  logEntries: (n) =>
+    n === 1 ? 'سجل واحد' : n === 2 ? 'سجلان' : n <= 10 ? `${n} سجلات` : `${n} سجلًا`,
   logShow: 'عرض',
   logHide: 'إخفاء',
   logPrivacy: 'السجل يسجّل الإجراءات والأخطاء فقط — لا محتوى التقارير ولا الأسماء ولا الصور.',
@@ -1544,9 +1584,9 @@ const en: Strings = {
   noEntriesTitle: 'No entries yet',
   noEntriesBody: "Start with today's entry — it opens in the original form's layout.",
   noMatches: 'No matching entries',
-  daysCount: (n) => `${n} days`,
-  workersShort: (n) => `${n} workers`,
-  toolsShort: (n) => `${n} machines`,
+  daysCount: (n) => `${n} ${n === 1 ? 'day' : 'days'}`,
+  workersShort: (n) => `${n} ${n === 1 ? 'worker' : 'workers'}`,
+  toolsShort: (n) => `${n} ${n === 1 ? 'machine' : 'machines'}`,
   photosShort: (n) => `${n}`,
   noDescription: 'No work description',
   statusDraft: 'Draft',
@@ -1885,7 +1925,8 @@ const en: Strings = {
   syncProgress: (done, total) => `Syncing ${done} of ${total}…`,
   syncAuto: 'Automatic sync',
   syncAutoHint: 'Syncs by itself while the app is open and both devices are on the same network — on opening, on returning to the app, and every few minutes.',
-  syncAutoReceived: (n) => `${n} updates received from the other device`,
+  syncAutoReceived: (n) =>
+    `${n} ${n === 1 ? 'update' : 'updates'} received from the other device`,
   syncDone: (received, sent) => `Sync complete · ${received} in, ${sent} out`,
   syncLastAt: (when) => `Last sync: ${when}`,
 
@@ -1914,8 +1955,9 @@ const en: Strings = {
   selectedCount: (n) => `${n} selected`,
   selectNothing: 'No pages selected',
   deleteSelected: 'Delete',
-  confirmDeleteSelected: (n) => `Delete ${n} pages? This cannot be undone.`,
-  deletedSelected: (n) => `${n} pages deleted`,
+  confirmDeleteSelected: (n) =>
+    `Delete ${n} ${n === 1 ? 'page' : 'pages'}? This cannot be undone.`,
+  deletedSelected: (n) => `${n} ${n === 1 ? 'page' : 'pages'} deleted`,
   reportFromSelected: 'Report from selected',
 
   pinAction: 'Pin',
@@ -1928,7 +1970,7 @@ const en: Strings = {
   undoEdit: 'Undo change',
   redoEdit: 'Redo change',
   pinSelected: 'Pin',
-  pinnedSelected: (n) => `${n} pages pinned`,
+  pinnedSelected: (n) => `${n} ${n === 1 ? 'page' : 'pages'} pinned`,
   swipeHint: 'Swipe a page sideways to pin or delete it',
   actionFailed: 'The action failed',
 
@@ -1959,7 +2001,7 @@ const en: Strings = {
   logClear: 'Clear log',
   logCleared: 'Log cleared',
   logEmpty: 'Nothing recorded yet',
-  logEntries: (n) => `${n} entries`,
+  logEntries: (n) => `${n} ${n === 1 ? 'entry' : 'entries'}`,
   logShow: 'Show',
   logHide: 'Hide',
   logPrivacy: 'The log records actions and errors only — never report contents, names or photos.',

@@ -376,23 +376,7 @@ export function EntriesScreen({ project }: { project: Project }) {
 
   return (
     <div className={selecting ? 'has-selectionbar' : undefined}>
-      <div className="row row--wrap" style={{ marginBottom: 14 }}>
-        <h1 className="grow">{t.diaryTitle}</h1>
-        {entries.length > 0 && (
-          <ViewMenu
-            open={menuOpen}
-            onOpenChange={setMenuOpen}
-            mode={mode}
-            onModeChange={setModeSticky}
-            sort={sort}
-            onSortChange={setSortSticky}
-            descending={descending}
-            onDirectionChange={setDirectionSticky}
-            onStartSelecting={() => setSelecting(true)}
-            trashCount={trashed?.length ?? 0}
-          />
-        )}
-      </div>
+      <h1 className="screen-title">{t.diaryTitle}</h1>
 
       {!selecting && (
         <div className="btn-row" style={{ marginBottom: 16 }}>
@@ -411,15 +395,38 @@ export function EntriesScreen({ project }: { project: Project }) {
         </div>
       )}
 
-      {entries.length > 3 && (
-        <div className="searchbox">
-          <Icon name="search" size={18} className="searchbox__icon" />
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t.searchPlaceholder}
-            aria-label={t.searchPlaceholder}
+      {/*
+        Search and the view menu are one strip rather than two bands. The header
+        had grown to six stacked rows before the first diary page — title, menu,
+        actions, search, hint, month heading — which on a phone left room for two
+        entries. A field and the control that sorts what it filters belong on the
+        same line anyway.
+      */}
+      {entries.length > 0 && !selecting && (
+        <div className="listbar">
+          {entries.length > 3 && (
+            <div className="searchbox">
+              <Icon name="search" size={18} className="searchbox__icon" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t.searchPlaceholder}
+                aria-label={t.searchPlaceholder}
+              />
+            </div>
+          )}
+          <ViewMenu
+            open={menuOpen}
+            onOpenChange={setMenuOpen}
+            mode={mode}
+            onModeChange={setModeSticky}
+            sort={sort}
+            onSortChange={setSortSticky}
+            descending={descending}
+            onDirectionChange={setDirectionSticky}
+            onStartSelecting={() => setSelecting(true)}
+            trashCount={trashed?.length ?? 0}
           />
         </div>
       )}
