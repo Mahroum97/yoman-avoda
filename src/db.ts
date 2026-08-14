@@ -325,11 +325,18 @@ export function blankEntry(
   };
 }
 
+/**
+ * The page for a day, if there is one — ignoring the trash, so a date whose
+ * page was thrown away is free to be written again.
+ */
 export async function findEntryByDate(
   projectId: number,
   date: string,
 ): Promise<DiaryEntry | undefined> {
-  return db.entries.where({ projectId, date }).first();
+  return db.entries
+    .where({ projectId, date })
+    .filter((e) => e.deletedAt === undefined)
+    .first();
 }
 
 /**
@@ -367,8 +374,33 @@ export async function saveEntry(entry: DiaryEntry): Promise<number> {
   return id;
 }
 
-/** Deletes one diary page, recording it so the deletion syncs. */
+/**
+ * Moves one diary page to the trash.
+ *
+ * A soft delete, and deliberately not a tombstone: the page is still a record,
+ * still syncs, and still turns up on the other device — in *its* trash. Only
+ * emptying the trash destroys it. A day's page is the account of what happened
+ * on a site, and it should not be possible to lose one by a mis-tap and seven
+ * seconds of not noticing.
+ */
 export async function deleteEntry(id: number): Promise<void> {
+  const entry = await db.entries.get(id);
+  if (!entry) return;
+  const now = Date.now();
+  await db.entries.update(id, { deletedAt: now, updatedAt: now });
+  // Logged here rather than at the button, so a page trashed from the editor
+  // leaves the same trace as one swiped away in the list. Deleting from the
+  // editor used to leave none at all.
+  log.info('page moved to trash', { date: entry.date, photos: entry.photos.length });
+}
+
+/**
+ * Destroys a page for good, from the trash.
+ *
+ * This is where the tombstone is written — the record of a deletion that has to
+ * travel, or the other device simply sends the page back on the next sync.
+ */
+export async function purgeEntry(id: number): Promise<void> {
   let gone: DiaryEntry | undefined;
   await db.transaction('rw', db.entries, db.tombstones, async () => {
     const entry = await db.entries.get(id);
@@ -378,10 +410,51 @@ export async function deleteEntry(id: number): Promise<void> {
     await db.entries.delete(id);
     gone = entry;
   });
-  // Logged here rather than at the button, so a page deleted from the editor
-  // leaves the same trace as one swiped away in the list. Deleting from the
-  // editor used to leave none at all.
-  if (gone) log.info('page deleted', { date: gone.date, photos: gone.photos.length });
+  if (gone) {
+    log.warn('page deleted for good', { date: gone.date, photos: gone.photos.length });
+  }
+}
+
+/** Empties the trash. Returns how many pages were destroyed. */
+export async function emptyTrash(projectId?: number): Promise<number> {
+  const doomed = await trashedEntries(projectId);
+  for (const entry of doomed) {
+    if (entry.id !== undefined) await purgeEntry(entry.id);
+  }
+  log.warn('trash emptied', { pages: doomed.length });
+  return doomed.length;
+}
+
+/** Pages in the trash, most recently deleted first. */
+export async function trashedEntries(projectId?: number): Promise<DiaryEntry[]> {
+  const rows = await db.entries.filter((e) => e.deletedAt !== undefined).toArray();
+  return rows
+    .filter((e) => projectId === undefined || e.projectId === projectId)
+    .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
+}
+
+/**
+ * Takes a page back out of the trash.
+ *
+ * The one-page-per-project-per-day rule still holds, and nothing stopped a new
+ * page for that date being written while this one sat in the trash — so a
+ * clash is refused rather than silently creating two pages for one day.
+ */
+export async function restoreFromTrash(id: number): Promise<void> {
+  await db.transaction('rw', db.entries, async () => {
+    const entry = await db.entries.get(id);
+    if (!entry) return;
+    const clash = await db.entries
+      .where({ projectId: entry.projectId, date: entry.date })
+      .filter((e) => e.uid !== entry.uid && e.deletedAt === undefined)
+      .first();
+    if (clash) throw new Error(`קיים כבר יומן לתאריך ${entry.date}`);
+    // `deletedAt: undefined` would be dropped by IndexedDB's structured clone
+    // rather than removed, so the field is deleted from a copy of the record.
+    const { deletedAt: _gone, ...rest } = entry;
+    await db.entries.put({ ...rest, updatedAt: Date.now() });
+  });
+  log.info('page restored from trash');
 }
 
 /**
@@ -429,7 +502,9 @@ export async function entriesInRange(
   const rows = await db.entries
     .where('date')
     .between(from, to, true, true)
-    .filter((e) => e.projectId === projectId)
+    // A page in the trash is not part of the record of the job, so it stays out
+    // of every report and every total built from one.
+    .filter((e) => e.projectId === projectId && e.deletedAt === undefined)
     .toArray();
   return rows.sort((a, b) => a.date.localeCompare(b.date));
 }

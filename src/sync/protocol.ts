@@ -87,6 +87,12 @@ export interface WireEntry {
    * unpinned, which is the right answer rather than an error.
    */
   pinned?: boolean;
+  /**
+   * In the other device's trash too. Optional for the same reason as `pinned`:
+   * a peer on an older build omits it, and its pages arrive not-in-the-trash,
+   * which is the right answer rather than an error.
+   */
+  deletedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

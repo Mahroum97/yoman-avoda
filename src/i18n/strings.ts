@@ -187,6 +187,22 @@ export interface Strings {
   photoLoadFailed: string;
   photoNumber: (n: number) => string;
 
+  /* סל מחיקה */
+  trashTitle: string;
+  trashOpen: string;
+  trashBlurb: string;
+  trashEmptyTitle: string;
+  trashEmptyBody: string;
+  trashDeletedOn: (when: string) => string;
+  trashRestore: string;
+  trashDeleteForever: string;
+  trashEmptyAll: string;
+  trashRestored: (n: number) => string;
+  trashPurged: (n: number) => string;
+  trashClash: string;
+  confirmPurge: (n: number) => string;
+  backToDiary: string;
+
   /* projects */
   projectsTitle: string;
   newProject: string;
@@ -620,6 +636,23 @@ const he: Strings = {
   photoLoadFailed: 'לא ניתן היה לטעון את התמונות',
   photoNumber: (n) => `תמונה ${n}`,
 
+  trashTitle: 'סל מחיקה',
+  trashOpen: '🗑️ סל מחיקה',
+  trashBlurb: 'יומנים שנמחקו נשמרים כאן עד שתרוקן את הסל. הם לא מופיעים ברשימה ולא נכנסים לדוחות.',
+  trashEmptyTitle: 'הסל ריק',
+  trashEmptyBody: 'יומן שתמחק יגיע לכאן, ותוכל להחזיר אותו כל עוד לא רוקנת את הסל.',
+  trashDeletedOn: (when) => `נמחק ב-${when}`,
+  trashRestore: 'שחזור',
+  trashDeleteForever: 'מחיקה לצמיתות',
+  trashEmptyAll: 'רוקן את הסל',
+  trashRestored: (n) => (n === 1 ? 'היומן שוחזר' : `${n} יומנים שוחזרו`),
+  trashPurged: (n) => (n === 1 ? 'היומן נמחק לצמיתות' : `${n} יומנים נמחקו לצמיתות`),
+  trashClash: 'כבר קיים יומן לתאריך הזה — מחק אותו קודם או שנה את התאריך',
+  confirmPurge: (n) =>
+    n === 1
+      ? 'למחוק את היומן לצמיתות? אי אפשר לבטל את זה.'
+      : `למחוק ${n} יומנים לצמיתות? אי אפשר לבטל את זה.`,
+  backToDiary: '→ חזרה ליומן',
   projectsTitle: 'פרויקטים',
   newProject: 'פרויקט חדש',
   noProjectsTitle: 'אין עדיין פרויקטים',
@@ -1075,6 +1108,23 @@ const ar: Strings = {
   photoLoadFailed: 'تعذر تحميل الصور',
   photoNumber: (n) => `صورة ${n}`,
 
+  trashTitle: 'سلة المحذوفات',
+  trashOpen: '🗑️ سلة المحذوفات',
+  trashBlurb: 'السجلات المحذوفة تبقى هنا حتى تُفرغ السلة. لا تظهر في القائمة ولا تدخل في التقارير.',
+  trashEmptyTitle: 'السلة فارغة',
+  trashEmptyBody: 'أي سجل تحذفه سيصل إلى هنا، ويمكنك استعادته ما دامت السلة لم تُفرَّغ.',
+  trashDeletedOn: (when) => `حُذف في ${when}`,
+  trashRestore: 'استعادة',
+  trashDeleteForever: 'حذف نهائي',
+  trashEmptyAll: 'إفراغ السلة',
+  trashRestored: (n) => (n === 1 ? 'تمت استعادة السجل' : `تمت استعادة ${n} سجلات`),
+  trashPurged: (n) => (n === 1 ? 'حُذف السجل نهائيًا' : `حُذفت ${n} سجلات نهائيًا`),
+  trashClash: 'يوجد سجل بهذا التاريخ — احذفه أولاً أو غيّر التاريخ',
+  confirmPurge: (n) =>
+    n === 1
+      ? 'حذف السجل نهائيًا؟ لا يمكن التراجع عن ذلك.'
+      : `حذف ${n} سجلات نهائيًا؟ لا يمكن التراجع عن ذلك.`,
+  backToDiary: '→ العودة إلى السجل',
   projectsTitle: 'المشاريع',
   newProject: 'مشروع جديد',
   noProjectsTitle: 'لا توجد مشاريع بعد',
@@ -1531,6 +1581,24 @@ const en: Strings = {
   photoLoadFailed: 'Could not load the photos',
   photoNumber: (n) => `Photo ${n}`,
 
+  trashTitle: 'Trash',
+  trashOpen: '🗑️ Trash',
+  trashBlurb:
+    'Deleted pages stay here until you empty the trash. They are out of the list and out of every report.',
+  trashEmptyTitle: 'The trash is empty',
+  trashEmptyBody: 'A page you delete lands here, and can be put back until you empty the trash.',
+  trashDeletedOn: (when) => `Deleted ${when}`,
+  trashRestore: 'Restore',
+  trashDeleteForever: 'Delete for good',
+  trashEmptyAll: 'Empty the trash',
+  trashRestored: (n) => (n === 1 ? 'Page restored' : `${n} pages restored`),
+  trashPurged: (n) => (n === 1 ? 'Page deleted for good' : `${n} pages deleted for good`),
+  trashClash: 'There is already a page for that date — delete it first, or change the date',
+  confirmPurge: (n) =>
+    n === 1
+      ? 'Delete this page for good? This cannot be undone.'
+      : `Delete ${n} pages for good? This cannot be undone.`,
+  backToDiary: '→ Back to the diary',
   projectsTitle: 'Projects',
   newProject: 'New project',
   noProjectsTitle: 'No projects yet',

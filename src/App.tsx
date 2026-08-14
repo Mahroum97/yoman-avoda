@@ -10,6 +10,7 @@ import { EntryEditor } from './screens/EntryEditor';
 import { PreviewScreen } from './screens/PreviewScreen';
 import { ProjectsScreen } from './screens/ProjectsScreen';
 import { ContactsScreen } from './screens/ContactsScreen';
+import { TrashScreen } from './screens/TrashScreen';
 import { ReportsScreen } from './screens/ReportsScreen';
 import { ReportPreviewScreen } from './screens/ReportPreviewScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
@@ -29,7 +30,7 @@ const TAB_KEYS = ['', 'reports', 'projects', 'contacts', 'settings'] as const;
 const TAB_ICONS = ['📋', '📊', '🏗️', '📇', '⚙️'];
 
 /** Sections that work with no project at all, and so escape the onboarding redirect. */
-const PROJECTLESS = new Set(['projects', 'settings', 'contacts']);
+const PROJECTLESS = new Set(['projects', 'settings', 'contacts', 'trash']);
 
 export default function App() {
   return (
@@ -200,6 +201,11 @@ function Screen({
   // Before the project guard: the address book needs no site.
   if (section === 'contacts') {
     return <ContactsScreen />;
+  }
+
+  // Also before it: a diary with every page in the trash still has a trash.
+  if (section === 'trash') {
+    return <TrashScreen project={project} />;
   }
 
   if (!hasProjects || !project) {

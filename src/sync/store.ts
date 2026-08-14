@@ -192,6 +192,7 @@ async function toWireEntry(entry: DiaryEntry): Promise<WireEntry> {
     ),
     status: entry.status,
     pinned: entry.pinned ?? false,
+    deletedAt: entry.deletedAt,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
@@ -334,7 +335,10 @@ async function mergeInTransaction(
 
     // One page per project per day: an entry arriving for a date that already
     // has a different page replaces it, since the newer stamp wins.
-    const clash = await db.entries.where({ projectId: project.id, date: wire.date }).first();
+    const clash = await db.entries
+      .where({ projectId: project.id, date: wire.date })
+      .filter((e) => e.deletedAt === undefined)
+      .first();
     if (clash?.id !== undefined && clash.uid !== wire.uid) {
       if (clash.updatedAt > wire.updatedAt) continue;
       await db.entries.delete(clash.id);
@@ -362,6 +366,9 @@ async function mergeInTransaction(
       createdAt: wire.createdAt,
       updatedAt: wire.updatedAt,
     };
+    // Set rather than always assigned: `deletedAt: undefined` on a record is
+    // not the same as no `deletedAt` at all once it has been through IndexedDB.
+    if (wire.deletedAt !== undefined) entry.deletedAt = wire.deletedAt;
     await db.entries.put(entry);
     result.entries += 1;
   }

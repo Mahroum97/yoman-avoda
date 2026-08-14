@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import type { Contact, Preset, PresetKind, Project } from '../types';
-import { ACTIVE_PROJECT_KEY, db, getSetting, setSetting } from '../db';
+import { ACTIVE_PROJECT_KEY, db, getSetting, setSetting, trashedEntries } from '../db';
 
 export function useProjects(): Project[] | undefined {
   return useLiveQuery(() => db.projects.orderBy('createdAt').toArray(), []);
@@ -102,8 +102,15 @@ export function useEntries(projectId?: number) {
   return useLiveQuery(async () => {
     if (projectId === undefined) return [];
     const rows = await db.entries.where('projectId').equals(projectId).toArray();
-    return rows.sort((a, b) => b.date.localeCompare(a.date));
+    return rows
+      .filter((entry) => entry.deletedAt === undefined)
+      .sort((a, b) => b.date.localeCompare(a.date));
   }, [projectId]);
+}
+
+/** The trash, newest deletion first. Its own hook so the badge can count it. */
+export function useTrashedEntries(projectId?: number) {
+  return useLiveQuery(() => trashedEntries(projectId), [projectId]);
 }
 
 /**

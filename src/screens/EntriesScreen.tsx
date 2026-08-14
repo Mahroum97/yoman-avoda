@@ -10,7 +10,7 @@ import {
   setEntryPinned,
 } from '../db';
 import { formatDdMmYyyy, isoDate, monthKey, monthLabel, weekday } from '../lib/dates';
-import { useEntries } from '../hooks/useData';
+import { useEntries, useTrashedEntries } from '../hooks/useData';
 import { useCompanyLogo } from '../hooks/useBranding';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
@@ -53,6 +53,8 @@ const remember = (key: string, value: string) => {
 
 export function EntriesScreen({ project }: { project: Project }) {
   const entries = useEntries(project.id);
+  // Only for the count beside the trash in the view menu.
+  const trashed = useTrashedEntries(project.id);
   const logoDataUrl = useCompanyLogo();
   const toast = useToast();
   const { t } = useLanguage();
@@ -383,6 +385,7 @@ export function EntriesScreen({ project }: { project: Project }) {
             descending={descending}
             onDirectionChange={setDirectionSticky}
             onStartSelecting={() => setSelecting(true)}
+            trashCount={trashed?.length ?? 0}
           />
         )}
       </div>

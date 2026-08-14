@@ -8,6 +8,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { useLanguage } from '../i18n/useLanguage';
+import { navigate } from '../hooks/useRoute';
 
 import { SORT_KEYS, VIEW_MODES, type SortKey, type ViewMode } from './viewOptions';
 
@@ -21,6 +22,7 @@ export function ViewMenu({
   descending,
   onDirectionChange,
   onStartSelecting,
+  trashCount = 0,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -31,6 +33,8 @@ export function ViewMenu({
   descending: boolean;
   onDirectionChange: (descending: boolean) => void;
   onStartSelecting: () => void;
+  /** How many pages are in the trash, for the badge. 0 hides the count. */
+  trashCount?: number;
 }) {
   const { t } = useLanguage();
   const wrapper = useRef<HTMLDivElement | null>(null);
@@ -85,6 +89,23 @@ export function ViewMenu({
               ⊙
             </span>
             {t.selectItems}
+          </button>
+
+          {/* The trash lives here rather than in the tab bar: it is somewhere
+              you go on the rare day you deleted the wrong page, not one of the
+              six places you work. The count is what makes it discoverable at
+              the moment it matters. */}
+          <button
+            type="button"
+            className="viewmenu__item"
+            role="menuitem"
+            onClick={choose(() => navigate('/trash'))}
+          >
+            <span className="viewmenu__tick" aria-hidden="true">
+              🗑️
+            </span>
+            {t.trashTitle}
+            {trashCount > 0 && <span className="viewmenu__badge">{trashCount}</span>}
           </button>
 
           <div className="viewmenu__rule" />

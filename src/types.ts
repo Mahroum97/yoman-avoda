@@ -128,6 +128,19 @@ export interface DiaryEntry {
    * unpinned.
    */
   pinned?: boolean;
+  /**
+   * In the trash since this moment — out of the diary, but not gone.
+   *
+   * Deleting a page is a soft delete now. A day's page is the record of what
+   * happened on a site, and the seven seconds of an undo toast is not long
+   * enough to notice that the wrong one went; emptying the trash is what
+   * actually destroys it, and that is the only path that writes a tombstone.
+   *
+   * It travels like any other field, so the trash is the same on the phone and
+   * on the Mac. Optional, so a page written before the trash existed — or
+   * arriving from a device that has not been updated — is simply not in it.
+   */
+  deletedAt?: number;
   createdAt: number;
   updatedAt: number;
 }

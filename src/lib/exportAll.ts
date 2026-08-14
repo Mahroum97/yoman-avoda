@@ -56,9 +56,11 @@ export async function buildEverythingZip(
   let total = 0;
   for (const project of projects) {
     if (project.id === undefined) continue;
-    const rows = (await db.entries.where('projectId').equals(project.id).toArray()).sort((a, b) =>
-      a.date.localeCompare(b.date),
-    );
+    // "Everything" means the diary, not the trash: a page thrown away should
+    // not come back as a PDF in the handover archive.
+    const rows = (await db.entries.where('projectId').equals(project.id).toArray())
+      .filter((entry) => entry.deletedAt === undefined)
+      .sort((a, b) => a.date.localeCompare(b.date));
     byProject.set(project.id, rows);
     total += rows.length;
   }
