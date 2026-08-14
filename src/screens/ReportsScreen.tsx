@@ -1,5 +1,5 @@
 /** Combined report over a period: summaries plus one page per diary day. */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DiaryEntry, Project } from '../types';
 import { entriesInRange } from '../db';
 import { formatDdMmYyyy, isoDate, monthRange } from '../lib/dates';
@@ -10,6 +10,7 @@ import { useLanguage } from '../i18n/useLanguage';
 import { Card, EmptyState, Field } from '../components/ui';
 import { navigate } from '../hooks/useRoute';
 import { canShareFiles, type ExportResult } from '../lib/save';
+import { useEditorActions } from '../hooks/editorActionsContext';
 import { Icon } from '../components/Icon';
 
 export function ReportsScreen({ project }: { project: Project }) {
@@ -22,8 +23,9 @@ export function ReportsScreen({ project }: { project: Project }) {
   const [includePhotos, setIncludePhotos] = useState(false);
   const [includeSummary, setIncludeSummary] = useState(true);
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
-  const [busy, setBusy] = useState<'pdf' | 'word' | 'excel' | 'share' | null>(null);
+  const [busy, setBusy] = useState<'pdf' | 'image' | 'word' | 'excel' | 'share' | null>(null);
   const canShare = useMemo(() => canShareFiles(), []);
+  const { publishPage } = useEditorActions();
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +44,7 @@ export function ReportsScreen({ project }: { project: Project }) {
 
   const stats = useMemo(() => (entries ? summarise(entries) : null), [entries]);
 
-  const download = async (format: 'pdf' | 'word' | 'excel') => {
+  const download = async (format: 'pdf' | 'image' | 'word' | 'excel') => {
     if (!entries?.length) return;
     setBusy(format);
     try {
@@ -50,6 +52,11 @@ export function ReportsScreen({ project }: { project: Project }) {
       let name: ExportResult;
       if (format === 'pdf') {
         name = await (await import('../pdf/export')).exportRangePdf(entries, project, from, to, {
+          ...options,
+          logoDataUrl,
+        });
+      } else if (format === 'image') {
+        name = await (await import('../pdf/export')).exportRangeImage(entries, project, from, to, {
           ...options,
           logoDataUrl,
         });
@@ -97,6 +104,108 @@ export function ReportsScreen({ project }: { project: Project }) {
     });
     navigate(`/report-preview?${q.toString()}`);
   };
+
+  /*
+   * The report's actions, at the top like the editor's.
+   *
+   * This screen is a form whose whole purpose is the button at the end of it, and
+   * the button was at the end of it — under the period, the two checkboxes and a
+   * summary that grows with the month. Producing the report meant scrolling past
+   * the report.
+   *
+   * The picture is new here. It was on a single day and not on a range, which is
+   * backwards: a fortnight's report is exactly the thing that gets sent to
+   * somebody in a chat, and a PDF arrives there as a file to open first.
+   */
+  /*
+   * The handlers go in a ref and the effect depends only on primitives.
+   *
+   * `download`, `shareReport` and `openPreview` are rebuilt on every render, so
+   * an effect that listed them — or listed nothing — would publish a new object
+   * every render, set state in the parent, and re-render forever. The ref keeps
+   * the actions pointing at the current closures without being a dependency.
+   */
+  const latest = useRef({ download, shareReport, openPreview });
+  useEffect(() => {
+    latest.current = { download, shareReport, openPreview };
+  });
+
+  const count = entries?.length ?? 0;
+  useEffect(() => {
+    const none = busy !== null || count === 0;
+    publishPage({
+      menuTitle: t.pageActions,
+      primary: {
+        id: 'pdf',
+        label: t.generateReportPdf(count),
+        icon: 'download',
+        run: () => void latest.current.download('pdf'),
+        disabled: none,
+        busy: busy === 'pdf',
+        busyLabel: t.generating,
+      },
+      groups: [
+        {
+          title: t.actionsExport,
+          items: [
+            {
+              id: 'image',
+              label: t.exportImage,
+              icon: 'image',
+              run: () => void latest.current.download('image'),
+              disabled: none,
+              busy: busy === 'image',
+              busyLabel: t.generating,
+            },
+            {
+              id: 'word',
+              label: t.exportWord,
+              icon: 'doc',
+              run: () => void latest.current.download('word'),
+              disabled: none,
+              busy: busy === 'word',
+              busyLabel: t.exporting,
+            },
+            {
+              id: 'excel',
+              label: t.exportExcel,
+              icon: 'sheet',
+              run: () => void latest.current.download('excel'),
+              disabled: none,
+              busy: busy === 'excel',
+              busyLabel: t.exporting,
+            },
+            ...(canShare
+              ? [
+                  {
+                    id: 'share',
+                    label: t.shareButton,
+                    icon: 'share' as const,
+                    run: () => void latest.current.shareReport(),
+                    disabled: none,
+                    busy: busy === 'share',
+                    busyLabel: t.sharing,
+                  },
+                ]
+              : []),
+          ],
+        },
+        {
+          title: t.actionsPage,
+          items: [
+            {
+              id: 'preview',
+              label: t.previewButton,
+              icon: 'eye',
+              run: () => latest.current.openPreview(),
+              disabled: none,
+            },
+          ],
+        },
+      ],
+    });
+    return () => publishPage(null);
+  }, [publishPage, t, busy, count, canShare]);
 
   const shiftMonth = (delta: number) => {
     const base = new Date(from);
@@ -193,64 +302,6 @@ export function ReportsScreen({ project }: { project: Project }) {
         </Card>
       )}
 
-      <div className="btn-row" style={{ marginBottom: 24 }}>
-        <button
-          type="button"
-          className="btn btn--primary"
-          disabled={busy !== null || !entries?.length}
-          onClick={() => void download('pdf')}
-        >
-          {busy === 'pdf' ? (
-            t.generating
-          ) : (
-            <>
-              <Icon name="download" size={17} />
-              {t.generateReportPdf(entries?.length ?? 0)}
-            </>
-          )}
-        </button>
-        <button
-          type="button"
-          className="btn btn--brand"
-          disabled={busy !== null || !entries?.length}
-          onClick={() => void download('word')}
-        >
-          {busy === 'word' ? t.exporting : t.exportWord}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={busy !== null || !entries?.length}
-          onClick={() => void download('excel')}
-        >
-          {busy === 'excel' ? t.exporting : t.exportExcel}
-        </button>
-        {canShare && (
-          <button
-            type="button"
-            className="btn"
-            disabled={busy !== null || !entries?.length}
-            onClick={() => void shareReport()}
-          >
-            {busy === 'share' ? (
-              t.sharing
-            ) : (
-              <>
-                <Icon name="share" size={17} />
-                {t.shareButton}
-              </>
-            )}
-          </button>
-        )}
-        <button
-          type="button"
-          className="btn"
-          disabled={busy !== null || !entries?.length}
-          onClick={openPreview}
-        >
-          {t.previewButton}
-        </button>
-      </div>
 
       {entries && entries.length > 0 && (
         <p className="muted small" style={{ marginBottom: 32 }}>

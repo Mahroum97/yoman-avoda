@@ -59,7 +59,11 @@ export type IconName =
   | 'chevron'
   | 'arrowUp'
   | 'arrowDown'
-  | 'pen';
+  | 'pen'
+  | 'eye'
+  | 'doc'
+  | 'sheet'
+  | 'more';
 
 const PATHS: Record<IconName, JSX.Element> = {
   // A bound notebook: cover, spine, and two written lines.
@@ -321,6 +325,35 @@ const PATHS: Record<IconName, JSX.Element> = {
     <>
       <path d="M16.4 3.9a2.1 2.1 0 0 1 3 3l-9.3 9.3-3.9.9.9-3.9z" />
       <path d="M4 20.4h16" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2.5 12s3.6-6.5 9.5-6.5S21.5 12 21.5 12s-3.6 6.5-9.5 6.5S2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="3.1" />
+    </>
+  ),
+  // A page with lines on it — the Word file. The corner fold is what stops it
+  // reading as the `image` frame at the sizes these sit at in a menu.
+  doc: (
+    <>
+      <path d="M14 3.5H7a1.8 1.8 0 0 0-1.8 1.8v13.4A1.8 1.8 0 0 0 7 20.5h10a1.8 1.8 0 0 0 1.8-1.8V8.3z" />
+      <path d="M14 3.5V8.3h4.8" />
+      <path d="M8.6 12.8h6.8M8.6 16.2h4.6" />
+    </>
+  ),
+  // A grid — the workbook. Columns and rows say spreadsheet at any size.
+  sheet: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M3.5 9.5h17M3.5 14.5h17M9.5 4.5v15M15 4.5v15" />
+    </>
+  ),
+  more: (
+    <>
+      <circle cx="5.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="18.5" cy="12" r="1.4" fill="currentColor" stroke="none" />
     </>
   ),
 };

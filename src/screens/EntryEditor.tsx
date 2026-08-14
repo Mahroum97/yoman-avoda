@@ -23,9 +23,16 @@ import { PhotoGrid } from '../components/PhotoGrid';
 import { canShareFiles } from '../lib/save';
 import { useUndoable } from '../hooks/useUndoable';
 import { useEditorActions } from '../hooks/editorActionsContext';
-import { Icon } from '../components/Icon';
 
 const AUTOSAVE_MS = 1200;
+
+interface Handlers {
+  saveNow: () => Promise<void>;
+  doExport: (format: 'pdf' | 'word' | 'image') => Promise<void>;
+  doShare: () => Promise<void>;
+  toggleSigned: () => Promise<void>;
+  remove: () => Promise<void>;
+}
 
 export function EntryEditor({
   entryId,
@@ -54,7 +61,7 @@ export function EntryEditor({
   const { value: entry, commit, amend, reset, undo, redo, canUndo, canRedo } =
     useUndoable<DiaryEntry>();
   const [loading, setLoading] = useState(true);
-  const { publish } = useEditorActions();
+  const { publish, publishPage } = useEditorActions();
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dateConflict, setDateConflict] = useState(false);
@@ -181,6 +188,14 @@ export function EntryEditor({
   }, [publish, stepBack, stepForward, canUndo, canRedo]);
 
   /*
+   * The same seven actions the form used to end with, now at the top.
+   *
+   * Save is the primary because it is what you came to do; everything else is
+   * behind the menu beside it. Deleting is last and marked, so a menu opened to
+   * export something never has "delete the page" under the thumb.
+   */
+
+  /*
    * ⌘Z / ⌘⇧Z, but never while the caret is in a field.
    *
    * A text input has its own undo stack, and taking that over would make ⌘Z
@@ -225,6 +240,130 @@ export function EntryEditor({
     ],
     [presets.equipment, t],
   );
+
+  /*
+   * The handlers go in a ref and the effect depends only on primitives.
+   *
+   * `saveNow`, `doExport` and the rest are rebuilt on every render, so an effect
+   * that listed them — or listed nothing — would publish a new object every
+   * render, set state in the parent and re-render without end. The ref keeps the
+   * actions calling the current closures without being a dependency of the
+   * effect that publishes them.
+   */
+  const handlers = useRef<Handlers | null>(null);
+
+  const pageId = entry?.id;
+  const entryStatus = entry?.status;
+  const signedByManager = Boolean(entry?.managerSignature?.trim());
+  useEffect(() => {
+    if (!entry) {
+      publishPage(null);
+      return;
+    }
+    const busy = exporting !== null;
+    publishPage({
+      menuTitle: t.pageActions,
+      primary: {
+        id: 'save',
+        label: t.save,
+        icon: 'check',
+        run: () => void handlers.current?.saveNow(),
+        busy: saving,
+      },
+      groups: [
+        {
+          title: t.actionsExport,
+          items: [
+            {
+              id: 'pdf',
+              label: t.exportPdf,
+              icon: 'download',
+              run: () => void handlers.current?.doExport('pdf'),
+              disabled: busy,
+              busy: exporting === 'pdf',
+              busyLabel: t.generating,
+            },
+            // A picture arrives in WhatsApp as something already visible, where
+            // a PDF arrives as a file to download first — which on a site is the
+            // difference between a page being read and being ignored.
+            {
+              id: 'image',
+              label: t.exportImage,
+              icon: 'image',
+              run: () => void handlers.current?.doExport('image'),
+              disabled: busy,
+              busy: exporting === 'image',
+              busyLabel: t.generating,
+            },
+            {
+              id: 'word',
+              label: t.exportWord,
+              icon: 'doc',
+              run: () => void handlers.current?.doExport('word'),
+              disabled: busy,
+              busy: exporting === 'word',
+              busyLabel: t.exporting,
+            },
+            ...(canShare
+              ? [
+                  {
+                    id: 'share',
+                    label: t.shareButton,
+                    icon: 'share' as const,
+                    run: () => void handlers.current?.doShare(),
+                    disabled: busy,
+                    busy: exporting === 'share',
+                    busyLabel: t.sharing,
+                  },
+                ]
+              : []),
+          ],
+        },
+        {
+          title: t.actionsPage,
+          items: [
+            ...(pageId !== undefined
+              ? [
+                  {
+                    id: 'preview',
+                    label: t.previewButton,
+                    icon: 'eye' as const,
+                    run: () => navigate(`/preview/${pageId}`),
+                  },
+                ]
+              : []),
+            /*
+              Only while the status is still a choice. Once the מנ"ע has signed,
+              the signature decides it — offering "back to draft" there would be
+              an action that undoes itself on the next save.
+            */
+            ...(!signedByManager
+              ? [
+                  {
+                    id: 'status',
+                    label: entryStatus === 'signed' ? t.markDraft : t.markSigned,
+                    icon: 'pen' as const,
+                    run: () => void handlers.current?.toggleSigned(),
+                  },
+                ]
+              : []),
+          ],
+        },
+        {
+          items: [
+            {
+              id: 'delete',
+              label: t.deleteEntry,
+              icon: 'trash',
+              run: () => void handlers.current?.remove(),
+              danger: true,
+            },
+          ],
+        },
+      ],
+    });
+    return () => publishPage(null);
+  }, [publishPage, t, exporting, saving, canShare, pageId, entryStatus, signedByManager, entry]);
 
   if (loading || !entry) {
     return <p className="muted">{t.loading}</p>;
@@ -297,6 +436,12 @@ export function EntryEditor({
     toast.show(t.entryDeleted);
     navigate('/');
   };
+
+  // Filled during render, not in an effect: the hook that publishes these has
+  // to sit above the loading guard, while the functions themselves are defined
+  // below it. A plain assignment crosses that line; a hook call cannot.
+  handlers.current = { saveNow, doExport, doShare, toggleSigned, remove };
+
 
   return (
     <div>
@@ -496,91 +641,6 @@ export function EntryEditor({
         />
       </Card>
 
-      <div className="btn-row" style={{ marginBottom: 24 }}>
-        <button type="button" className="btn btn--primary" onClick={() => void saveNow()}>
-          {t.save}
-        </button>
-        <button
-          type="button"
-          className="btn btn--brand"
-          disabled={exporting !== null}
-          onClick={() => void doExport('pdf')}
-        >
-          {exporting === 'pdf' ? (
-            t.generating
-          ) : (
-            <>
-              <Icon name="download" size={17} />
-              {t.exportPdf}
-            </>
-          )}
-        </button>
-        {canShare && (
-          <button
-            type="button"
-            className="btn"
-            disabled={exporting !== null}
-            onClick={() => void doShare()}
-          >
-            {exporting === 'share' ? (
-              t.sharing
-            ) : (
-              <>
-                <Icon name="share" size={17} />
-                {t.shareButton}
-              </>
-            )}
-          </button>
-        )}
-        {/* A picture goes into WhatsApp as something already visible, where a
-            PDF arrives as a file to download first — which on a site is the
-            whole difference between a page being read and being ignored. */}
-        <button
-          type="button"
-          className="btn"
-          disabled={exporting !== null}
-          onClick={() => void doExport('image')}
-        >
-          {exporting === 'image' ? (
-            t.generating
-          ) : (
-            <>
-              <Icon name="image" size={17} />
-              {t.exportImage}
-            </>
-          )}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={exporting !== null}
-          onClick={() => void doExport('word')}
-        >
-          {exporting === 'word' ? t.exporting : t.exportWord}
-        </button>
-        {entry.id !== undefined && (
-          <button
-            type="button"
-            className="btn"
-            onClick={() => navigate(`/preview/${entry.id}`)}
-          >
-            {t.previewButton}
-          </button>
-        )}
-        {/*
-          Only while the status is still a choice. Once the מנ"ע has signed,
-          the signature decides it — offering "back to draft" there would be a
-          button that undoes itself on the next save.
-        */}
-        {!entry.managerSignature?.trim() && (
-          <button type="button" className="btn" onClick={() => void toggleSigned()}>
-            {entry.status === 'signed' ? t.markDraft : t.markSigned}
-          </button>
-        )}
-        <button type="button" className="btn btn--danger" onClick={() => void remove()}>
-          {t.deleteEntry}
-        </button>
-      </div>
     </div>
   );
 }

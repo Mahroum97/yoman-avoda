@@ -428,6 +428,36 @@ protocol, the chunking, the four performance traps, and the rules — tombstones
 numeric ids, last-write-wins — that are easy to undo by accident. Read it before
 touching either file.
 
+## A screen's actions live at the top
+
+`src/hooks/editorActionsContext.ts` is how a screen puts its own actions in the
+app bar. It began as undo/redo and now carries the rest: a screen publishes a
+`PageActions` — one `primary` and grouped `groups` — and `PageActionsBar`
+renders it. Screens that publish nothing get no bar, so the diary list and
+settings are untouched.
+
+- **The editor's seven buttons were at the bottom of the form**, wrapped over
+  three rows, under two crew tables and a photo grid. The button pressed most
+  often was a screen of scrolling from where you were typing. Same for the range
+  report, whose whole purpose was the button underneath it.
+- **One action is a button, the rest are a menu.** Six filled pills beside the
+  primary would be the bottom row again, moved up.
+- **`.chrome` wraps the app bar and the action bar in ONE sticky element.**
+  Sticking them separately at `top: 0` makes them pile on top of each other the
+  moment the page scrolls.
+- **The menu is a portal on `document.body`, and it has to be.** The bar is
+  frosted, and in Chrome anything with `backdrop-filter` turns its whole subtree
+  into a backdrop root: an opaque white card inside it renders *see-through*.
+  Moving the blur to a pseudo-element does not help — the pseudo is still in the
+  subtree. Out of the subtree is the only fix.
+- **The publishing effect must depend on primitives, never on the handlers.**
+  `saveNow`, `doExport` and friends are rebuilt every render, so an effect
+  listing them — or listing nothing — publishes a new object every render, sets
+  state in the parent, and re-renders without end. The handlers go in a ref;
+  the effect depends on `t`, the busy flag and the ids. In `EntryEditor` that
+  ref is filled **during render** rather than in an effect, because the hook has
+  to sit above the loading guard while the functions are defined below it.
+
 ## The look: a scale, a grid, and one family of icons
 
 Three things in `global.css` are shared by every screen, and each was added

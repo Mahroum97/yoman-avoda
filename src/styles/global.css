@@ -279,10 +279,22 @@ p {
   min-height: 100%;
 }
 
-.topbar {
+/*
+ * The app bar and the screen's action bar are one piece of chrome. `.chrome`
+ * does the sticking and owns the stacking context; the two bars inside it are
+ * in normal flow, so they stack in order instead of on top of one another.
+ *
+ * 30 puts it above the page and the tab bar (20) and below the modal backdrop
+ * (50) and the toast (60) — which is what lets a menu opened from the action
+ * bar cover the form while a dialog still covers the menu.
+ */
+.chrome {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: 30;
+}
+
+.topbar {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -3084,4 +3096,193 @@ label.btn {
 
 .screen-title {
   margin-bottom: var(--s4);
+}
+
+/* ------------------------------------------------ the screen's own actions */
+
+/*
+ * A second row of chrome, directly under the app bar and made of the same
+ * material — same translucency, same blur, and only one rule, under the pair.
+ * Two bars stacked with a border between them would read as two things; the
+ * point is that this *is* the bar, for screens that have something to put in it.
+ */
+.actionbar {
+  position: relative;
+  border-bottom: 0.5px solid var(--topbar-line);
+}
+
+/*
+ * The frosting is on a pseudo-element, and it has to be.
+ *
+ * `backdrop-filter` composites every descendant into the filtered layer, so the
+ * bar's own 78%-opaque background bled straight through the menu that opens
+ * from it — an opaque white card, `opacity: 1`, rendering see-through with the
+ * form legible underneath it. Putting the blur behind the content instead of
+ * around it keeps the material and lets the menu be a solid object.
+ */
+.actionbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--topbar);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+.actionbar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--s2);
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: var(--s2) var(--s4);
+  padding-inline: max(var(--s4), env(safe-area-inset-left), env(safe-area-inset-right));
+}
+
+/*
+ * The share icon with a caret under it, which is the shape every operating
+ * system uses for "there is more behind this". Without the caret it reads as a
+ * share button that has stopped working, because one press appears to do
+ * nothing — the menu it opens is the whole response.
+ */
+.actionmenu__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--tap);
+  padding: 0 var(--s3);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.actionmenu__button:hover {
+  background: var(--surface-2);
+  border-color: var(--muted);
+}
+
+/* Down, not along: it points at the sheet below it, so it is one of the few
+   marks in this app that must NOT flip with the writing direction. */
+.actionmenu__caret {
+  transform: rotate(90deg);
+  opacity: 0.6;
+}
+
+[dir='rtl'] .actionmenu__caret {
+  transform: rotate(90deg);
+}
+
+.actionmenu__sheet {
+  /* Fixed, on document.body: see the comment in PageActions.tsx for why it
+     cannot live inside the bar. Its top/left/width are set from the button's
+     rect, so everything positional is in the component and nothing here has to
+     guess where the button is. */
+  position: fixed;
+  z-index: 45;
+  padding: var(--s3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-lift);
+  animation: menu-in 0.14s ease-out;
+}
+
+/* On the black theme the shadow does nothing, so the border has to carry the
+   separation on its own — the same bargain the cards make. */
+:root[data-theme='black'] .actionmenu__sheet {
+  border-color: var(--line-strong);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .actionmenu__sheet {
+    animation: none;
+  }
+}
+
+.actionmenu__title {
+  margin: var(--s1) var(--s2) var(--s3);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-tight);
+  text-align: center;
+}
+
+.actionmenu__group + .actionmenu__group {
+  margin-top: var(--s3);
+}
+
+.actionmenu__heading {
+  margin: 0 var(--s2) var(--s1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-label);
+  color: var(--muted);
+}
+
+/* The group is one rounded block with hairlines between its rows, which is what
+   makes three separate actions read as one list of related things. */
+.actionmenu__items {
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.actionmenu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s2) var(--s3);
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-medium);
+  text-align: start;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.actionmenu__item + .actionmenu__item {
+  border-top: 1px solid var(--line);
+}
+
+.actionmenu__item:hover:not(:disabled) {
+  background: var(--line);
+}
+
+.actionmenu__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.actionmenu__item svg {
+  flex: none;
+  color: var(--muted);
+}
+
+/* Set apart rather than merely coloured: the icon takes the danger tone too, so
+   it is recognisable before the label is read. */
+.actionmenu__item--danger,
+.actionmenu__item--danger svg {
+  color: var(--danger);
+}
+
+.actionmenu__item--danger:hover:not(:disabled) {
+  background: var(--danger-soft);
 }

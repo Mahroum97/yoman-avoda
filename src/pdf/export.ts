@@ -129,6 +129,28 @@ export async function exportEntryImage(
   return exportImage(bytes, entryFileName(entry, project, t), options.deliver);
 }
 
+/**
+ * A range report as pictures — one per page, zipped.
+ *
+ * The same argument as a single day: what gets sent to a supervisor is whatever
+ * they can already see. A month is many pages, so this is nearly always an
+ * archive rather than one file, and it is the slowest thing the app does — every
+ * page of the PDF is rasterised. Worth it for the fortnight report that has to
+ * go into a group chat.
+ */
+export async function exportRangeImage(
+  entries: DiaryEntry[],
+  project: Project,
+  from: string,
+  to: string,
+  options: BuildOptions & { includeSummary?: boolean; deliver?: Deliver } = {},
+): Promise<ExportResult> {
+  const t = options.strings ?? currentStrings();
+  const themeId = options.themeId ?? (await currentDocThemeId());
+  const bytes = await buildRangePdf(entries, project, from, to, { ...options, strings: t, themeId });
+  return exportImage(bytes, rangeFileName(project, from, to, t), options.deliver);
+}
+
 export async function exportRangePdf(
   entries: DiaryEntry[],
   project: Project,

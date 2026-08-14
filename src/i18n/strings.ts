@@ -116,6 +116,11 @@ export interface Strings {
   reportPreviewTitle: string;
   reportPreviewOf: (shown: number, total: number) => string;
   exportImage: string;
+  /** The heading on the actions menu, and its label for a screen reader. */
+  pageActions: string;
+  /** Group headings inside it. */
+  actionsExport: string;
+  actionsPage: string;
   exportWord: string;
   generating: string;
   exporting: string;
@@ -594,6 +599,9 @@ const he: Strings = {
   reportPreviewTitle: 'תצוגה מקדימה של הדוח',
   reportPreviewOf: (shown, total) => `מוצגים ${shown} מתוך ${total} ימים`,
   exportImage: 'ייצא כתמונה',
+  pageActions: 'שיתוף וייצוא',
+  actionsExport: 'ייצוא',
+  actionsPage: 'הדף',
   exportWord: 'ייצא ל-Word',
   generating: 'מפיק…',
   exporting: 'מייצא…',
@@ -1105,6 +1113,9 @@ const ar: Strings = {
   reportPreviewTitle: 'معاينة التقرير',
   reportPreviewOf: (shown, total) => `يتم عرض ${shown} من ${total} أيام`,
   exportImage: 'تصدير كصورة',
+  pageActions: 'مشاركة وتصدير',
+  actionsExport: 'تصدير',
+  actionsPage: 'الصفحة',
   exportWord: 'تصدير إلى Word',
   generating: 'جارٍ الإنشاء…',
   exporting: 'جارٍ التصدير…',
@@ -1635,6 +1646,9 @@ const en: Strings = {
   reportPreviewTitle: 'Report preview',
   reportPreviewOf: (shown, total) => `Showing ${shown} of ${total} days`,
   exportImage: 'Export as image',
+  pageActions: 'Share and export',
+  actionsExport: 'Export',
+  actionsPage: 'Page',
   exportWord: 'Export to Word',
   generating: 'Creating…',
   exporting: 'Exporting…',

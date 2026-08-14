@@ -22,9 +22,11 @@ import { useLanguage } from './i18n/useLanguage';
 import type { Strings } from './i18n/strings';
 import { useAutoSync } from './hooks/useAutoSync';
 import { UndoButtons } from './components/UndoButtons';
+import { PageActionsBar } from './components/PageActions';
 import {
   EditorActionsContext,
   type EditorActions,
+  type PageActions,
 } from './hooks/editorActionsContext';
 
 const TAB_KEYS = ['', 'reports', 'projects', 'contacts', 'settings'] as const;
@@ -52,9 +54,16 @@ function Shell() {
   // Undo and redo live in the bar above, but the history belongs to whichever
   // screen is being edited. It publishes here and the bar reads it.
   const [editorActions, setEditorActions] = useState<EditorActions | null>(null);
+  // And beside them, whatever else the screen can do — save, export, delete.
+  const [pageActions, setPageActions] = useState<PageActions | null>(null);
   const registry = useMemo(
-    () => ({ actions: editorActions, publish: setEditorActions }),
-    [editorActions],
+    () => ({
+      actions: editorActions,
+      publish: setEditorActions,
+      page: pageActions,
+      publishPage: setPageActions,
+    }),
+    [editorActions, pageActions],
   );
 
   // Mounted once, for the whole app: the diary keeps itself current while it is
@@ -79,17 +88,28 @@ function Shell() {
   return (
     <EditorActionsContext.Provider value={registry}>
     <div className="app">
+      {/*
+        One sticky element holds both bars, and that is load-bearing twice over.
+        Sticking them separately at `top: 0` makes them pile on top of each other
+        the moment the page scrolls; and a menu opening out of the lower bar
+        cannot escape that bar's own stacking context, so it was painting behind
+        the form underneath it. One container, one context, no overlap.
+      */}
       {!isPreview && (
-        <header className="topbar">
-          <Logo size={30} />
-          <div className="topbar__grow">
-            <div className="topbar__title">{project ? project.name : t.appName}</div>
-            {project?.address && <div className="topbar__sub">{project.address}</div>}
-          </div>
-          <UndoButtons />
-          <BackupButton />
-          <ThemeButton />
-        </header>
+        <div className="chrome">
+          <header className="topbar">
+            <Logo size={30} />
+            <div className="topbar__grow">
+              <div className="topbar__title">{project ? project.name : t.appName}</div>
+              {project?.address && <div className="topbar__sub">{project.address}</div>}
+            </div>
+            <UndoButtons />
+            <BackupButton />
+            <ThemeButton />
+          </header>
+          {/* Renders nothing at all when the screen has published no actions. */}
+          <PageActionsBar />
+        </div>
       )}
 
       <main className="main">
