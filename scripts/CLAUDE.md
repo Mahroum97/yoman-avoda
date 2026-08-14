@@ -48,6 +48,15 @@ copied into `/Applications`), every connected iPhone and iPad, and GitHub Pages.
 - The Mac leg asks the running app to quit before replacing the bundle, and **skips the
   replace** if it is still running after eight seconds rather than forcing it.
 
+**`ios-check.sh` checks the Apple ID account, not just the certificate.** They are
+different things and only one of them used to be tested. The signing certificate sits in
+the keychain and survives; the *account* in Xcode is what creates and renews the
+provisioning profile that goes with it. When the account went missing the certificate
+stayed behind, the check reported "✔ יש תעודת חתימה", and the build failed five minutes
+later with `No Accounts: Add a new account in Accounts settings` — by which time the app
+on the phone had already expired with nothing able to re-sign it. Signing in again is the
+one repair here that cannot be automated: it needs the user's Apple ID password.
+
 **The Mac window shows itself even when the renderer never becomes ready.** It is created
 with `show: false` so it appears painted rather than white, and `ready-to-show` used to be
 the only thing that could ever show it: when the renderer failed to start, the app sat in

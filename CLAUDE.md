@@ -240,6 +240,51 @@ way to do it in the grid or with a keyboard.
   drops the tombstone along with putting the record back — leaving it would let the *other*
   device delete the page again on the next sync, outliving the undo.
 
+## סל מחיקה — deleting a page does not destroy it
+
+Deleting a diary page is a **soft delete**: `deletedAt` is stamped on the record
+and it leaves the list, the reports, and every total. `purgeEntry` is the only
+thing that destroys one, and it is reachable only from the trash screen.
+
+- **The tombstone is the whole distinction.** A soft delete writes none — the
+  page still syncs, and turns up in the *other* device's trash rather than
+  vanishing from it. Only emptying the trash writes a tombstone, because only
+  then is there a deletion that has to travel. `deletedAt` rides the wire as an
+  optional field, so `SYNC_PROTOCOL_VERSION` did not move.
+- **Every query that means "the diary" must exclude the trash**: `useEntries`,
+  `entriesInRange` (and therefore every report), `findEntryByDate` (so a
+  trashed date is free to be written again), and `exportAll`. The backup keeps
+  them, deliberately — a backup is a copy of the state, trash included.
+- **Restoring re-checks one page per project per day.** Nothing stopped that
+  date being written again while the page sat in the trash, so a clash is
+  refused with a reason rather than silently making two pages for one day.
+- The trash is the one screen with selection always on, and the one place in
+  the app with a confirmation dialog — emptying it is the only action that
+  cannot be undone.
+
+## The typeface is a setting, and it reaches the documents
+
+`src/fonts.ts` is the catalogue: seven faces, five Hebrew and two Arabic, all
+carrying Latin. The choice is **per language** — a Hebrew face says nothing
+about how Arabic should look — and it is stored in localStorage under
+`yoman-font-<lang>`, applied in the pre-paint script in `index.html` beside the
+theme and the direction.
+
+- **It reaches everything because it is one custom property.** `--font` was
+  already what every rule read; the setting writes it onto `<html>`. There is no
+  list of places to remember to update.
+- **`--doc-font` is a second property, and the difference is load-bearing.** The
+  A4 preview reads it rather than `--font`: on the system font the screen uses
+  the device's face while the document still prints Heebo, and a preview showing
+  the screen's font would be lying about the PDF.
+- **The PDF embeds, the Word file names.** Each family is fetched twice by
+  `npm run fonts` — woff2 for the interface, TrueType for `pdf-lib`, which
+  cannot read woff2. The TTFs are fetched at export time rather than imported as
+  bytes, so a phone never downloads the faces nobody picked.
+- **Word keeps saying Arial unless a face was chosen.** A .docx carries a name
+  and Word substitutes silently; Arial is the one face every Word install has.
+  Naming an unchosen Heebo would have most machines quietly replace it.
+
 ## ספקים וקבלנים — the address book
 
 `ContactsScreen` is the one screen that is not the printed form. Six columns —
@@ -288,6 +333,27 @@ them so the totals are there without opening thirty documents. It is the one exp
 runs long enough to need a progress callback (`ExportAllProgress`), because it builds a
 PDF per diary page. The backup JSON is a different thing and stays a different thing: it
 moves the *data* to another device, and only `restoreFromJson` reads it.
+
+## Backups that do not depend on anyone remembering
+
+`src/lib/autoBackup.ts`. The manual export in Settings was always there and it
+did not save this diary: the files on disk were two days apart and then nothing
+for a fortnight. Anything that depends on discipline produces that.
+
+- **Each platform writes where it can.** The Mac gets a dated file in
+  `Documents/יומן עבודה - גיבויים` through `yoman:autoBackup`, an IPC handler
+  that takes bytes and a name and chooses the folder itself — the renderer
+  cannot influence where it lands, the same bargain the save dialog makes. The
+  phone writes into its own Documents directory, which is in the device's iCloud
+  backup; `UIFileSharingEnabled` and `LSSupportsOpeningDocumentsInPlace` are
+  what make that folder visible in Files. A browser can write nothing silently
+  and says so instead of pretending.
+- **It runs on launch, not on a timer**, at most twice a day and four seconds
+  in. A diary is edited in bursts and closed; a clock ticking in a hidden tab
+  covers that worse and costs a phone battery.
+- **It never throws.** A failed backup must not take a save or a launch with it.
+- **Settings shows the age of the last one**, amber past three days. A backup
+  nobody can see the age of is one nobody notices has stopped.
 
 ## The activity log
 
