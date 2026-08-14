@@ -9,6 +9,7 @@
 import { useEffect, useRef } from 'react';
 import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
+import { Icon } from './Icon';
 
 import { SORT_KEYS, VIEW_MODES, type SortKey, type ViewMode } from './viewOptions';
 
@@ -79,14 +80,14 @@ export function ViewMenu({
         title={t.viewOptions}
         onClick={() => onOpenChange(!open)}
       >
-        ☰
+        <Icon name="sort" size={20} />
       </button>
 
       {open && (
         <div className="viewmenu__panel" role="menu">
           <button type="button" className="viewmenu__item" role="menuitem" onClick={choose(onStartSelecting)}>
             <span className="viewmenu__tick" aria-hidden="true">
-              ⊙
+              <Icon name="select" size={18} />
             </span>
             {t.selectItems}
           </button>
@@ -102,7 +103,7 @@ export function ViewMenu({
             onClick={choose(() => navigate('/trash'))}
           >
             <span className="viewmenu__tick" aria-hidden="true">
-              🗑️
+              <Icon name="trash" size={18} />
             </span>
             {t.trashTitle}
             {trashCount > 0 && <span className="viewmenu__badge">{trashCount}</span>}
@@ -123,7 +124,7 @@ export function ViewMenu({
                 {mode === id ? '✓' : ''}
               </span>
               <span className="viewmenu__glyph" aria-hidden="true">
-                {id === 'grid' ? '▦' : '☰'}
+                <Icon name={id === 'grid' ? 'grid' : 'list'} size={18} />
               </span>
               {id === 'grid' ? t.viewGrid : t.viewList}
             </button>

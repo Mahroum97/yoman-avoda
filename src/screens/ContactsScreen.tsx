@@ -25,6 +25,7 @@ import { useLanguage } from '../i18n/useLanguage';
 import { saveBlob } from '../lib/save';
 import { logger } from '../lib/log';
 import { EmptyState } from '../components/ui';
+import { Icon } from '../components/Icon';
 
 const log = logger('contacts');
 
@@ -302,16 +303,19 @@ export function ContactsScreen() {
 
         <div className="btn-row contacts__files">
           <button type="button" className="btn btn--sm" onClick={() => void printList()}>
-            🖨️ {t.contactsPrint}
+            <Icon name="printer" size={17} />
+            {t.contactsPrint}
           </button>
           <button type="button" className="btn btn--sm" onClick={() => void exportList()}>
-            ⬇️ {t.contactsExport}
+            <Icon name="download" size={17} />
+            {t.contactsExport}
           </button>
           {/* A label rather than a button: the file picker has to be opened by
               the input itself, and a styled label is the one way to do that
               without an invisible control jumping about the layout. */}
           <label className="btn btn--sm">
-            ⬆️ {t.contactsImport}
+            <Icon name="upload" size={17} />
+            {t.contactsImport}
             <input
               type="file"
               accept=".csv,text/csv,text/plain"
@@ -329,7 +333,7 @@ export function ContactsScreen() {
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon="📇" title={t.noContactsTitle}>
+        <EmptyState icon="contacts" title={t.noContactsTitle}>
           <p className="muted" style={{ marginBottom: 16 }}>
             {t.noContactsBody}
           </p>
@@ -436,7 +440,7 @@ function Row({
             aria-label={t.callContact(row.name || t.unnamedContact)}
             title={t.callContact(row.name || t.unnamedContact)}
           >
-            <span aria-hidden="true">📞</span>
+            <Icon name="phone" size={17} />
           </a>
         )}
         <button
@@ -446,7 +450,7 @@ function Row({
           aria-label={t.deleteContact}
           title={t.deleteContact}
         >
-          <span aria-hidden="true">✕</span>
+          <Icon name="close" size={17} />
         </button>
       </div>
     </div>

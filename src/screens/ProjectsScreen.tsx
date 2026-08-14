@@ -65,7 +65,7 @@ export function ProjectsScreen({ activeId }: { activeId?: number }) {
       </div>
 
       {projects.length === 0 && (
-        <EmptyState icon="🏗️" title={t.noProjectsTitle}>
+        <EmptyState icon="projects" title={t.noProjectsTitle}>
           <p className="muted" style={{ marginBottom: 16 }}>
             {t.noProjectsBody}
           </p>

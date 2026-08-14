@@ -4,6 +4,7 @@
  */
 import { uid } from '../lib/id';
 import { Combobox, Field } from './ui';
+import { Icon } from './Icon';
 import { useLanguage } from '../i18n/useLanguage';
 
 export interface ColumnDef<T> {
@@ -78,7 +79,7 @@ export function RowsEditor<T extends { id: string }>({
                   aria-label={t.deleteRow}
                   onClick={() => remove(row.id)}
                 >
-                  ✕
+                  <Icon name="close" size={16} />
                 </button>
               </div>
             </div>

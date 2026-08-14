@@ -5,37 +5,45 @@
  */
 
 :root {
-  --bg: #eceff4;
+  /* Warm paper rather than cool grey. The app is a notebook, and a notebook is
+     not blue-white; this is the single change that does most of the work. */
+  --bg: #f6f5f1;
   --surface: #ffffff;
-  --surface-2: #f6f8fb;
-  --ink: #101418;
-  --muted: #5b6675;
-  --line: #d5dbe4;
-  --line-strong: #b6c0ce;
+  --surface-2: #faf9f6;
+  --ink: #1c1c1e;
+  --muted: #6e6e73;
+  /* Barely-there rules: on paper the shadow separates a card, not a border. */
+  --line: #e8e5df;
+  --line-strong: #d6d2ca;
   --brand: #0f2d4a;
   --brand-ink: #ffffff;
-  /* The top bar is deliberately *not* --brand. In day mode a navy bar sits on
-     a light page looking like a leftover from night mode, and on iOS it drags
-     the status-bar strip above it dark too. The brand still reads through the
-     logo and the amber accents. */
-  --topbar: #ffffff;
-  --topbar-ink: #101418;
-  --topbar-line: #d5dbe4;
-  --topbar-btn: rgb(16 20 24 / 6%);
-  --topbar-btn-line: rgb(16 20 24 / 14%);
-  --accent: #d97706;
-  --accent-soft: #fef3e2;
-  --ok: #0f7a4a;
-  --ok-soft: #e6f4ec;
-  --danger: #b42318;
-  --danger-soft: #fdeceb;
+  /* The bars are the page's own colour with a blur behind them, so content
+     scrolling underneath tints them instead of disappearing under a slab. */
+  --topbar: rgb(255 255 255 / 78%);
+  --topbar-ink: #1c1c1e;
+  --topbar-line: #e8e5df;
+  --topbar-btn: rgb(20 20 22 / 5%);
+  --topbar-btn-line: rgb(20 20 22 / 8%);
+  /* Blue is what an iPad notebook app uses for "you can press this", and it
+     leaves amber free to mean something — a draft, a warning — instead of
+     being the colour of everything. */
+  --accent: #007aff;
+  --accent-soft: #e9f2ff;
+  --amber: #d97706;
+  --amber-soft: #fef3e2;
+  --ok: #1c9c5c;
+  --ok-soft: #e7f6ee;
+  --danger: #d92d20;
+  --danger-soft: #fdecea;
 
-  --radius: 12px;
-  --radius-sm: 8px;
-  --shadow: 0 1px 2px rgb(16 20 24 / 8%), 0 8px 24px rgb(16 20 24 / 6%);
+  /* Generous corners and a soft, wide shadow — paper resting on a desk. */
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-pill: 999px;
+  --shadow: 0 1px 2px rgb(20 20 22 / 4%), 0 6px 20px rgb(20 20 22 / 7%);
+  --shadow-lift: 0 2px 6px rgb(20 20 22 / 6%), 0 14px 34px rgb(20 20 22 / 10%);
   --tap: 46px;
-  /* Height of the bottom tab bar, so anything floating above it can clear it.
-     Zeroed on wide screens, where the bar moves to the top of the page. */
+  /* Height of the bottom tab bar, so anything floating above it can clear it. */
   --navh: 47px;
 
   --font: system-ui, -apple-system, 'SF Hebrew', 'Arial Hebrew', 'Segoe UI',
@@ -51,44 +59,36 @@
  * prefers-color-scheme rule to keep in sync.
  */
 :root[data-theme='dark'] {
-  --bg: #12161c;
-  --surface: #1a2029;
-  --surface-2: #212936;
-  --ink: #eef2f7;
-  --muted: #9aa7b8;
-  --line: #2d3745;
-  --line-strong: #3d4a5c;
-  /* Navy stays the brand surface in both themes; only its shade shifts. */
+  /* Neutral charcoal, not tinted navy: a warm-paper app at night should read as
+     the lights being off, not as a different product. */
+  --bg: #1c1c1e;
+  --surface: #2c2c2e;
+  --surface-2: #363638;
+  --ink: #f2f2f7;
+  --muted: #9a9aa0;
+  --line: #3a3a3c;
+  --line-strong: #4a4a4e;
   --brand: #16293f;
   --brand-ink: #eaf1f9;
-  --topbar: #16293f;
-  --topbar-ink: #eaf1f9;
-  --topbar-line: #22334a;
-  --topbar-btn: rgb(255 255 255 / 10%);
-  --topbar-btn-line: rgb(255 255 255 / 22%);
-  --accent: #f0a13a;
-  --accent-soft: #3a2c15;
+  --topbar: rgb(28 28 30 / 78%);
+  --topbar-ink: #f2f2f7;
+  --topbar-line: #3a3a3c;
+  --topbar-btn: rgb(255 255 255 / 8%);
+  --topbar-btn-line: rgb(255 255 255 / 16%);
+  --accent: #0a84ff;
+  --accent-soft: #10243c;
+  --amber: #f0a13a;
+  --amber-soft: #3a2c15;
   --ok: #4ec08b;
   --ok-soft: #16321f;
   --danger: #f2837a;
   --danger-soft: #3a1c1a;
+  --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 8px 24px rgb(0 0 0 / 34%);
+  --shadow-lift: 0 2px 8px rgb(0 0 0 / 36%), 0 16px 38px rgb(0 0 0 / 44%);
 
   color-scheme: dark;
 }
 
-/*
- * True black, for a phone in the dark.
- *
- * Not "dark mode, but more so": the page is #000 so an OLED screen switches
- * those pixels off entirely, which is both easier on the eyes at night on site
- * and cheaper on the battery. Everything else is built up from that — surfaces
- * are near-black greys rather than tinted navy, because a blue cast against a
- * pure black page reads as a smudge rather than as a card.
- *
- * The rules stay light enough to be *seen* (a 1px #1e1e1e line on black is
- * invisible) and the accent stays the amber of the other themes, so the app
- * still looks like itself.
- */
 :root[data-theme='black'] {
   --bg: #000000;
   --surface: #0c0c0e;
@@ -105,14 +105,17 @@
   --topbar-line: #26272c;
   --topbar-btn: rgb(255 255 255 / 8%);
   --topbar-btn-line: rgb(255 255 255 / 20%);
-  --accent: #f0a13a;
-  --accent-soft: #2a1f0d;
+  --accent: #0a84ff;
+  --accent-soft: #0b1c2e;
+  --amber: #f0a13a;
+  --amber-soft: #2a1f0d;
   --ok: #4ec08b;
   --ok-soft: #0d2418;
   --danger: #f2837a;
   --danger-soft: #2b1211;
   /* A shadow does nothing on black; the borders do the separating instead. */
   --shadow: none;
+  --shadow-lift: none;
 
   color-scheme: dark;
 }
@@ -180,9 +183,14 @@ p {
   padding: 10px 16px;
   padding-top: max(10px, env(safe-area-inset-top));
   background: var(--topbar);
+  /* The bar takes its colour from whatever scrolls under it. Behind a
+     `backdrop-filter` the fill must stay translucent, which is why --topbar
+     carries an alpha; browsers without it fall back to that same wash. */
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
   color: var(--topbar-ink);
-  border-bottom: 1px solid var(--topbar-line);
-  box-shadow: var(--shadow);
+  border-bottom: 0.5px solid var(--topbar-line);
+  box-shadow: none;
 }
 
 .topbar__title {
@@ -213,7 +221,7 @@ p {
   height: 38px;
   flex: none;
   border: 1px solid var(--topbar-btn-line);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   background: var(--topbar-btn);
   color: inherit;
   font-size: 1.05rem;
@@ -240,8 +248,10 @@ p {
   display: grid;
   /* Six: diary, reports, projects, suppliers, settings, new. */
   grid-template-columns: repeat(6, 1fr);
-  background: var(--surface);
-  border-top: 1px solid var(--line);
+  background: var(--topbar);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid var(--topbar-line);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -265,8 +275,13 @@ p {
   font-weight: 700;
 }
 
+/* Line icons rather than emoji: a fixed box so the label below never shifts
+   between tabs, and `currentColor` so the selected tab's blue reaches the
+   glyph as well as the word. */
 .nav__icon {
-  font-size: 1.15rem;
+  display: grid;
+  place-items: center;
+  height: 24px;
   line-height: 1;
 }
 
@@ -319,17 +334,20 @@ p {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  margin-bottom: 16px;
+  margin-bottom: 18px;
   overflow: hidden;
 }
 
+/* No tinted strip and no rule under it: the heading is set in the card's own
+   surface and separated by space, which is what stops a screen of cards
+   reading as a stack of filing boxes. */
 .card__head {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--line);
+  padding: 16px 18px 6px;
+  background: transparent;
+  border-bottom: 0;
 }
 
 .card__head h2 {
@@ -338,7 +356,7 @@ p {
 }
 
 .card__body {
-  padding: 16px;
+  padding: 18px;
 }
 
 .card__note {
@@ -397,9 +415,9 @@ textarea,
 select {
   width: 100%;
   min-height: var(--tap);
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1.5px solid var(--line-strong);
+  padding: 11px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   outline-offset: 2px;
 }
@@ -414,8 +432,17 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 button:focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 2.5px solid var(--accent);
   outline-offset: 1px;
+}
+
+/* A field being typed into lifts to the card's own white and takes the accent
+   border, the way an iOS text field does. */
+input:focus,
+textarea:focus,
+select:focus {
+  background: var(--surface);
+  border-color: var(--accent);
 }
 
 .grid-2 {
@@ -438,15 +465,15 @@ button:focus-visible {
   justify-content: center;
   gap: 8px;
   min-height: var(--tap);
-  padding: 0 18px;
-  border: 1.5px solid var(--line-strong);
-  border-radius: var(--radius-sm);
+  padding: 0 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--ink);
   font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  transition: transform 0.06s ease, background 0.15s ease;
+  transition: transform 0.06s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .btn:active {
@@ -462,6 +489,7 @@ button:focus-visible {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+  box-shadow: 0 1px 2px rgb(0 122 255 / 24%), 0 6px 16px rgb(0 122 255 / 20%);
 }
 
 .btn--brand {
@@ -483,7 +511,7 @@ button:focus-visible {
 
 .btn--sm {
   min-height: 36px;
-  padding: 0 12px;
+  padding: 0 15px;
   font-size: 0.85rem;
 }
 
@@ -496,6 +524,12 @@ button:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/* An icon inside a button is a glyph beside the label, not a block above it. */
+.btn svg {
+  flex: none;
+  margin-block: -1px;
 }
 
 .btn-row--end {
@@ -524,9 +558,9 @@ button:focus-visible {
 }
 
 .chip--draft {
-  background: var(--accent-soft);
+  background: var(--amber-soft);
   border-color: transparent;
-  color: var(--accent);
+  color: var(--amber);
 }
 
 /* ------------------------------------------------------- row editor */
@@ -695,13 +729,18 @@ button:focus-visible {
 .entry {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   width: 100%;
-  padding: 14px 16px;
+  padding: 15px 17px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.entry:hover {
+  box-shadow: var(--shadow-lift);
 }
 
 .entry__pin {
@@ -753,7 +792,7 @@ button:focus-visible {
   width: 54px;
   height: 54px;
   flex: none;
-  border-radius: var(--radius-sm);
+  border-radius: 14px;
   background: var(--brand);
   color: var(--brand-ink);
   line-height: 1.1;
@@ -812,7 +851,14 @@ button:focus-visible {
 }
 
 .empty__icon {
-  font-size: 2.4rem;
+  display: grid;
+  place-items: center;
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 4px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
 }
 
 .empty__title {
@@ -1919,30 +1965,46 @@ input[type='date']::-webkit-calendar-picker-indicator {
   margin-bottom: 22px;
 }
 
+/*
+ * A day is a cover on a shelf, not a card in a table.
+ *
+ * The border and the box are gone: the *preview* carries the rounded corners
+ * and the shadow, and the title sits underneath it on the page itself. That is
+ * the difference between a document browser and a list with pictures in it —
+ * and it is why the page background is warm rather than white, because the
+ * covers have to sit on something.
+ */
 .tile {
   display: flex;
   flex-direction: column;
   padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
+  border: 0;
+  background: none;
   color: var(--ink);
   font: inherit;
   text-align: start;
   cursor: pointer;
 }
 
-.tile--selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent) inset;
-}
-
 .tile__preview {
   position: relative;
   display: block;
-  aspect-ratio: 4 / 3;
-  background: var(--bg);
+  /* Portrait, like the page it stands for. */
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.tile:hover .tile__preview {
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-2px);
+}
+
+.tile--selected .tile__preview {
+  box-shadow: 0 0 0 3px var(--accent), var(--shadow);
 }
 
 .tile__preview img {
@@ -1962,6 +2024,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
     transparent 0 16px,
     var(--line) 16px 17px
   );
+  background-color: var(--surface);
 }
 
 .tile__day {
@@ -2016,7 +2079,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 
 .tile__label {
   display: block;
-  padding: 10px 10px 4px;
+  padding: 10px 2px 2px;
 }
 
 .tile__title {
@@ -2038,7 +2101,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 
 .tile__status {
   display: block;
-  padding: 0 10px 10px;
+  padding: 0 2px 10px;
 }
 
 /* ------------------------------------------------------------- selection */

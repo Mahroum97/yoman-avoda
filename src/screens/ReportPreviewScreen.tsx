@@ -131,7 +131,7 @@ export function ReportPreviewScreen({
       </div>
 
       {entries.length === 0 ? (
-        <EmptyState icon="🗓️" title={t.noEntriesInRange} />
+        <EmptyState icon="reports" title={t.noEntriesInRange} />
       ) : (
         <SheetScaler>
           {shown.map((entry) => (

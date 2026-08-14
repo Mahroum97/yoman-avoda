@@ -30,6 +30,7 @@ import { LogCard } from '../components/LogCard';
 import { SignaturesCard } from '../components/SignaturesCard';
 import { SyncCard } from '../components/SyncCard';
 import { DocThemePicker } from '../components/DocThemePicker';
+import { Icon } from '../components/Icon';
 import { setDocThemeId, useDocThemeId } from '../hooks/useDocTheme';
 
 
@@ -299,7 +300,7 @@ export function SettingsScreen() {
                       aria-label={`${t.delete} ${row.value}`}
                       onClick={() => void deletePreset(row.id!)}
                     >
-                      ✕
+                      <Icon name="close" size={16} />
                     </button>
                   </span>
                 ))}

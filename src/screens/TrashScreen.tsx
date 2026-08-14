@@ -101,7 +101,7 @@ export function TrashScreen({ project }: { project?: Project }) {
       </p>
 
       {rows.length === 0 ? (
-        <EmptyState icon="🗑️" title={t.trashEmptyTitle}>
+        <EmptyState icon="trash" title={t.trashEmptyTitle}>
           <p className="muted">{t.trashEmptyBody}</p>
         </EmptyState>
       ) : (

@@ -7,6 +7,7 @@ import type { Photo } from '../types';
 import { formatBytes, prepareImage } from '../lib/images';
 import { uid } from '../lib/id';
 import { useLanguage } from '../i18n/useLanguage';
+import { Icon } from './Icon';
 
 export function PhotoGrid({
   photos,
@@ -119,7 +120,7 @@ export function PhotoGrid({
                   aria-label={t.deletePhoto}
                   onClick={() => onChange(photos.filter((p) => p.id !== photo.id))}
                 >
-                  ✕
+                  <Icon name="close" size={16} />
                 </button>
               </div>
             </figure>

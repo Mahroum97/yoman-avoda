@@ -15,6 +15,7 @@ import { ReportsScreen } from './screens/ReportsScreen';
 import { ReportPreviewScreen } from './screens/ReportPreviewScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { EmptyState } from './components/ui';
+import { Icon, type IconName } from './components/Icon';
 import { Logo } from './components/Logo';
 import { useTheme, type ThemePreference } from './hooks/useTheme';
 import { useLanguage } from './i18n/useLanguage';
@@ -27,7 +28,7 @@ import {
 } from './hooks/editorActionsContext';
 
 const TAB_KEYS = ['', 'reports', 'projects', 'contacts', 'settings'] as const;
-const TAB_ICONS = ['📋', '📊', '🏗️', '📇', '⚙️'];
+const TAB_ICONS: IconName[] = ['diary', 'reports', 'projects', 'contacts', 'settings'];
 
 /** Sections that work with no project at all, and so escape the onboarding redirect. */
 const PROJECTLESS = new Set(['projects', 'settings', 'contacts', 'trash']);
@@ -110,8 +111,8 @@ function Shell() {
               aria-current={section === key ? 'page' : undefined}
               onClick={() => navigate(`/${key}`)}
             >
-              <span className="nav__icon" aria-hidden="true">
-                {TAB_ICONS[i]}
+              <span className="nav__icon">
+                <Icon name={TAB_ICONS[i]} size={23} />
               </span>
               <span>
                 {[t.navDiary, t.navReports, t.navProjects, t.navContacts, t.navSettings][i]}
@@ -124,8 +125,8 @@ function Shell() {
             onClick={() => navigate('/entry/new')}
             disabled={!project}
           >
-            <span className="nav__icon" aria-hidden="true">
-              ＋
+            <span className="nav__icon">
+              <Icon name="plus" size={23} />
             </span>
             <span>{t.navNew}</span>
           </button>
@@ -136,11 +137,11 @@ function Shell() {
   );
 }
 
-const THEME_ICONS: Record<ThemePreference, string> = {
-  light: '☀️',
-  dark: '🌙',
-  black: '⬛',
-  auto: '🌗',
+const THEME_ICONS: Record<ThemePreference, IconName> = {
+  light: 'sun',
+  dark: 'moon',
+  black: 'black',
+  auto: 'auto',
 };
 
 const THEME_LABELS: Record<ThemePreference, keyof Strings> = {
@@ -170,7 +171,7 @@ function ThemeButton() {
       title={label}
       aria-label={label}
     >
-      <span aria-hidden="true">{THEME_ICONS[preference]}</span>
+      <Icon name={THEME_ICONS[preference]} size={19} />
     </button>
   );
 }
@@ -269,7 +270,7 @@ function Loading() {
 
   if (health === 'stuck' || health === 'failed') {
     return (
-      <EmptyState icon="⚠️" title={t.dbStuckTitle}>
+      <EmptyState icon="warning" title={t.dbStuckTitle}>
         <p className="muted" style={{ marginBottom: 16 }}>
           {health === 'stuck' ? t.dbStuckBody : t.dbFailedBody}
         </p>
@@ -284,13 +285,13 @@ function Loading() {
 }
 
 function NotFound() {
-  return <EmptyState icon="⚠️" title="404" />;
+  return <EmptyState icon="warning" title="404" />;
 }
 
 function StartHere() {
   const { t } = useLanguage();
   return (
-    <EmptyState icon="🏗️" title={t.startTitle}>
+    <EmptyState icon="projects" title={t.startTitle}>
       <p className="muted" style={{ marginBottom: 16 }}>
         {t.startBody}
       </p>

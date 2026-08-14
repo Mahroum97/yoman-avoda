@@ -1,6 +1,7 @@
 /** Small presentational primitives shared by every screen. */
 import type { ReactNode } from 'react';
 import { useLanguage } from '../i18n/useLanguage';
+import { Icon, type IconName } from './Icon';
 
 export function Card({
   title,
@@ -95,13 +96,15 @@ export function EmptyState({
   title,
   children,
 }: {
-  icon: string;
+  icon: IconName;
   title: string;
   children?: ReactNode;
 }) {
   return (
     <div className="empty">
-      <div className="empty__icon">{icon}</div>
+      <div className="empty__icon">
+        <Icon name={icon} size={34} strokeWidth={1.5} />
+      </div>
       <p className="empty__title">{title}</p>
       {children}
     </div>

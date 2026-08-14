@@ -417,12 +417,12 @@ export function EntriesScreen({ project }: { project: Project }) {
       )}
 
       {entries.length === 0 && (
-        <EmptyState icon="📋" title={t.noEntriesTitle}>
+        <EmptyState icon="diary" title={t.noEntriesTitle}>
           <p className="muted">{t.noEntriesBody}</p>
         </EmptyState>
       )}
 
-      {entries.length > 0 && filtered.length === 0 && <EmptyState icon="🔍" title={t.noMatches} />}
+      {entries.length > 0 && filtered.length === 0 && <EmptyState icon="search" title={t.noMatches} />}
 
       {showHint && !selecting && mode === 'list' && filtered.length > 0 && (
         <p className="swipe-hint">↔ {t.swipeHint}</p>

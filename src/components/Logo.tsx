@@ -1,9 +1,22 @@
 /**
- * The app mark: a navy clipboard with an amber clip and a completed-day check.
- * The same shapes are in public/favicon.svg (which the PWA and macOS icons are
- * rasterised from) and are drawn again in the PDF header band.
+ * The app mark: the document the app makes.
+ *
+ * A navy tile, a white sheet, and the same header band and amber rule that open
+ * every page this app exports — so the icon on the home screen and the paper
+ * that comes out of it are recognisably the same thing. The shapes are kept in
+ * step with `public/favicon.svg`, which the PWA and macOS icons are rasterised
+ * from; change one, change the other.
+ *
+ * The gradient ids are suffixed per instance: two of these on one page with the
+ * same id would have the second silently pick up the first one's definition.
  */
+import { useId } from 'react';
+
 export function Logo({ size = 30 }: { size?: number }) {
+  const id = useId();
+  const tile = `logo-tile-${id}`;
+  const page = `logo-page-${id}`;
+
   return (
     <svg
       width={size}
@@ -13,25 +26,29 @@ export function Logo({ size = 30 }: { size?: number }) {
       aria-label="יומן עבודה"
       focusable="false"
     >
-      <rect width="512" height="512" rx="96" fill="#0f2d4a" />
-      <rect x="118" y="118" width="276" height="316" rx="28" fill="#f7f9fc" />
-      <rect x="206" y="86" width="100" height="60" rx="18" fill="#d97706" />
-      <rect x="226" y="70" width="60" height="40" rx="14" fill="#d97706" />
-      <g fill="#0f2d4a">
-        <rect x="156" y="200" width="200" height="18" rx="9" />
-        <rect x="156" y="248" width="200" height="18" rx="9" opacity="0.75" />
-        <rect x="156" y="296" width="200" height="18" rx="9" opacity="0.55" />
-        <rect x="156" y="344" width="120" height="18" rx="9" opacity="0.4" />
+      <defs>
+        <linearGradient id={tile} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#17456e" />
+          <stop offset="1" stopColor="#0c2540" />
+        </linearGradient>
+        <clipPath id={page}>
+          <rect x="132" y="100" width="248" height="312" rx="26" />
+        </clipPath>
+      </defs>
+
+      <rect width="512" height="512" rx="114" fill={`url(#${tile})`} />
+      <rect x="132" y="100" width="248" height="312" rx="26" fill="#ffffff" />
+
+      <g clipPath={`url(#${page})`}>
+        <rect x="132" y="100" width="248" height="58" fill="#0f2d4a" />
+        <rect x="132" y="158" width="248" height="13" fill="#d97706" />
       </g>
-      <circle cx="336" cy="353" r="34" fill="#d97706" />
-      <path
-        d="M320 353l11 12 22-24"
-        fill="none"
-        stroke="#fff"
-        strokeWidth="12"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+
+      <g fill="#0f2d4a">
+        <rect x="168" y="216" width="176" height="19" rx="9.5" opacity="0.9" />
+        <rect x="168" y="266" width="176" height="19" rx="9.5" opacity="0.62" />
+        <rect x="168" y="316" width="104" height="19" rx="9.5" opacity="0.4" />
+      </g>
     </svg>
   );
 }

@@ -167,7 +167,7 @@ export function ReportsScreen({ project }: { project: Project }) {
       {stats && entries && (
         <Card title={t.periodSummary}>
           {entries.length === 0 ? (
-            <EmptyState icon="🗓️" title={t.noEntriesInRange} />
+            <EmptyState icon="reports" title={t.noEntriesInRange} />
           ) : (
             <>
               <div className="grid-2">
@@ -213,7 +213,7 @@ export function ReportsScreen({ project }: { project: Project }) {
           disabled={busy !== null || !entries?.length}
           onClick={() => void download('excel')}
         >
-          {busy === 'excel' ? t.exporting : `▦ ${t.exportExcel}`}
+          {busy === 'excel' ? t.exporting : t.exportExcel}
         </button>
         {canShare && (
           <button

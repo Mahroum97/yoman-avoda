@@ -1,18 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="יומן עבודה">
-  <rect width="512" height="512" rx="96" fill="#0f2d4a" />
-  <!-- clipboard body -->
-  <rect x="118" y="118" width="276" height="316" rx="28" fill="#f7f9fc" />
-  <!-- clip -->
-  <rect x="206" y="86" width="100" height="60" rx="18" fill="#d97706" />
-  <rect x="226" y="70" width="60" height="40" rx="14" fill="#d97706" />
-  <!-- ruled lines of the diary -->
-  <g fill="#0f2d4a">
-    <rect x="156" y="200" width="200" height="18" rx="9" />
-    <rect x="156" y="248" width="200" height="18" rx="9" opacity="0.75" />
-    <rect x="156" y="296" width="200" height="18" rx="9" opacity="0.55" />
-    <rect x="156" y="344" width="120" height="18" rx="9" opacity="0.4" />
+  <!--
+    The mark is the document the app makes.
+
+    Every page this app exports opens with a navy header band and an amber rule
+    under it, over a ruled sheet — so that is the icon, rather than a clipboard
+    or a hard hat that could belong to any site app. It also survives being
+    small: a tile, a page, one amber line and three rules still read at 16px,
+    where the old clip-and-checkmark version turned to mush.
+  -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#17456e" />
+      <stop offset="1" stop-color="#0c2540" />
+    </linearGradient>
+    <clipPath id="page">
+      <rect x="132" y="100" width="248" height="312" rx="26" />
+    </clipPath>
+  </defs>
+
+  <rect width="512" height="512" rx="114" fill="url(#tile)" />
+
+  <!-- The sheet, with a hairline edge so it reads as paper on navy. -->
+  <rect x="132" y="100" width="248" height="312" rx="26" fill="#ffffff" />
+
+  <g clip-path="url(#page)">
+    <!-- The document's own header band, and the amber rule beneath it. -->
+    <rect x="132" y="100" width="248" height="58" fill="#0f2d4a" />
+    <rect x="132" y="158" width="248" height="13" fill="#d97706" />
   </g>
-  <!-- amber check marking the day as recorded -->
-  <circle cx="336" cy="353" r="34" fill="#d97706" />
-  <path d="M320 353l11 12 22-24" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Three written lines. The last is short, the way a real one ends. -->
+  <g fill="#0f2d4a">
+    <rect x="168" y="216" width="176" height="19" rx="9.5" opacity="0.9" />
+    <rect x="168" y="266" width="176" height="19" rx="9.5" opacity="0.62" />
+    <rect x="168" y="316" width="104" height="19" rx="9.5" opacity="0.4" />
+  </g>
 </svg>
