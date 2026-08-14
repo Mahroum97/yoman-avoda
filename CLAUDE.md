@@ -428,6 +428,46 @@ protocol, the chunking, the four performance traps, and the rules — tombstones
 numeric ids, last-write-wins — that are easy to undo by accident. Read it before
 touching either file.
 
+## The look: a scale, a grid, and one family of icons
+
+Three things in `global.css` are shared by every screen, and each was added
+because its absence was what made the app look homemade.
+
+- **The type scale is nine steps, `--fs-2xs` … `--fs-3xl`, and there are no raw
+  sizes.** Before it there were seventeen, in three units, most within half a
+  pixel of a neighbour — 0.85, 0.84, 0.82, 0.8 — so nothing lined up and no size
+  meant anything. Pick a step; if none fits, the design is wrong, not the scale.
+  **`.sheet__*` is exempt and stays in px**: those are the PDF's `METRICS` at
+  96dpi, and a preview on the interface's scale is a preview that lies.
+- **Spacing is `--s1` … `--s12` on a 4px grid**, for the same reason.
+- **`.main` is 860px.** Not a window — a measure. It is the width of an A4 sheet
+  at 96dpi plus its margins, so the preview fits the same column as everything
+  else instead of being a special case. Fields cap tighter still: 46ch, 18ch for
+  a date, 12ch for a number. A form stretched across a Mac is the clearest sign
+  a layout was written for a phone and left to fend for itself.
+- **`src/components/Icon.tsx` is the only source of icons, and emoji are not
+  icons.** Every platform draws them differently, they carry their own colours so
+  they cannot follow the theme, and a row of them reads as decoration. If a new
+  control needs a mark, add a path to `PATHS` — 24×24, 1.8 stroke, round caps,
+  `currentColor`. Shapes are chosen for silhouette because most are drawn at
+  14–17px: a spanner for plant rather than an excavator, sliders for settings
+  rather than a cog.
+- **`svg { vertical-align: middle }` at the root is load-bearing.** An SVG is a
+  replaced inline element, so it sits on the baseline: a 14px icon beside 13px
+  text rides two pixels high, everywhere, until this rule.
+- **Every icon carries `.icon--<name>`,** which is how one rule mirrors `chevron`
+  in a right-to-left layout without each caller having to know it points the way
+  the text runs. `icon--back` is its opposite, whichever way round that is.
+- **Strings hold words, not glyphs.** Eight labels used to carry an emoji baked
+  into all three translations, which meant a mark nobody could restyle and three
+  copies of it to keep in step.
+- **A control repeated on every row cannot also be emphasised on every row.**
+  Export in a diary row and delete in a table row are quiet by default and take
+  colour only when reached for; they keep the full `--tap` target. The status in
+  a list is a dot on the meta line rather than a pill, because thirty coloured
+  pills stop being information and become the pattern the eye follows instead of
+  the descriptions.
+
 ## Conventions
 
 - One hand-written stylesheet, `src/styles/global.css`, custom properties + BEM-ish names.
