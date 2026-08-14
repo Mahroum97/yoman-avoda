@@ -10,6 +10,7 @@ import { useLanguage } from '../i18n/useLanguage';
 import { Card, EmptyState, Field } from '../components/ui';
 import { navigate } from '../hooks/useRoute';
 import { canShareFiles, type ExportResult } from '../lib/save';
+import { Icon } from '../components/Icon';
 
 export function ReportsScreen({ project }: { project: Project }) {
   const toast = useToast();
@@ -123,7 +124,8 @@ export function ReportsScreen({ project }: { project: Project }) {
         </div>
         <div className="month-jump">
           <button type="button" className="btn btn--sm" onClick={() => shiftMonth(-1)}>
-            ← {t.prevMonth}
+            <Icon name="chevron" size={15} className="icon--back" />
+            {t.prevMonth}
           </button>
           <button
             type="button"
@@ -137,7 +139,8 @@ export function ReportsScreen({ project }: { project: Project }) {
             {t.thisMonth}
           </button>
           <button type="button" className="btn btn--sm" onClick={() => shiftMonth(1)}>
-            {t.nextMonth} →
+            {t.nextMonth}
+            <Icon name="chevron" size={15} />
           </button>
         </div>
         {from > to && <p className="card__note">{t.invalidRange}</p>}
@@ -197,7 +200,14 @@ export function ReportsScreen({ project }: { project: Project }) {
           disabled={busy !== null || !entries?.length}
           onClick={() => void download('pdf')}
         >
-          {busy === 'pdf' ? t.generating : `⬇ ${t.generateReportPdf(entries?.length ?? 0)}`}
+          {busy === 'pdf' ? (
+            t.generating
+          ) : (
+            <>
+              <Icon name="download" size={17} />
+              {t.generateReportPdf(entries?.length ?? 0)}
+            </>
+          )}
         </button>
         <button
           type="button"
@@ -222,7 +232,14 @@ export function ReportsScreen({ project }: { project: Project }) {
             disabled={busy !== null || !entries?.length}
             onClick={() => void shareReport()}
           >
-            {busy === 'share' ? t.sharing : `↗ ${t.shareButton}`}
+            {busy === 'share' ? (
+              t.sharing
+            ) : (
+              <>
+                <Icon name="share" size={17} />
+                {t.shareButton}
+              </>
+            )}
           </button>
         )}
         <button

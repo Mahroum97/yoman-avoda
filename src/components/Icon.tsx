@@ -47,7 +47,18 @@ export type IconName =
   | 'redo'
   | 'camera'
   | 'sync'
-  | 'backup';
+  | 'backup'
+  | 'crew'
+  | 'equipment'
+  | 'concrete'
+  | 'image'
+  | 'share'
+  | 'swipe'
+  | 'copy'
+  | 'calendar'
+  | 'chevron'
+  | 'arrowUp'
+  | 'arrowDown';
 
 const PATHS: Record<IconName, JSX.Element> = {
   // A bound notebook: cover, spine, and two written lines.
@@ -215,6 +226,87 @@ const PATHS: Record<IconName, JSX.Element> = {
       <path d="M19.5 4.5v4.4h-4.4M4.5 19.5v-4.4h4.4" />
     </>
   ),
+
+  /*
+   * The five below label counts in a diary row — workers, plant, concrete,
+   * photos — where an icon has to survive being drawn at fourteen pixels beside
+   * a numeral. That rules out anything with interior detail: the shapes here are
+   * chosen for silhouette, because at that size a silhouette is all there is.
+   */
+  crew: (
+    <>
+      <circle cx="9" cy="8" r="3.1" />
+      <path d="M3.5 19.5c0-3.1 2.5-5 5.5-5s5.5 1.9 5.5 5" />
+      <path d="M16 5.6a3.1 3.1 0 0 1 0 5.8" />
+      <path d="M17.5 14.9c1.9.6 3 2.3 3 4.6" />
+    </>
+  ),
+  // A spanner, not a machine: an excavator at 14px is a smudge, a spanner is
+  // still a spanner.
+  equipment: (
+    <path d="M15.6 3.6a5 5 0 0 0-6.2 6.3L3.7 15.6a2 2 0 0 0 2.8 2.8l5.7-5.7a5 5 0 0 0 6.3-6.2l-2.9 2.9-2.5-.7-.7-2.5z" />
+  ),
+  // A cube, because what it labels is a volume in cubic metres.
+  concrete: (
+    <>
+      <path d="M12 3.2l7.5 4v9.6l-7.5 4-7.5-4V7.2z" />
+      <path d="M4.5 7.2l7.5 4 7.5-4" />
+      <path d="M12 11.2v9.6" />
+    </>
+  ),
+  // A picture, distinct from `camera`: one is "take one", this is "there are n".
+  image: (
+    <>
+      <rect x="3.2" y="4.8" width="17.6" height="14.4" rx="2.5" />
+      <circle cx="8.6" cy="9.8" r="1.6" />
+      <path d="M3.6 16.6l4.4-4a1.8 1.8 0 0 1 2.4 0l3.2 2.9" />
+      <path d="M13 14.2l2.2-2a1.8 1.8 0 0 1 2.4 0l2.8 2.5" />
+    </>
+  ),
+  share: (
+    <>
+      <path d="M12 15.2V3.8" />
+      <path d="M8.2 7.4L12 3.6l3.8 3.8" />
+      <path d="M6 11.5H5A1.5 1.5 0 0 0 3.5 13v6A1.5 1.5 0 0 0 5 20.5h14a1.5 1.5 0 0 0 1.5-1.5v-6a1.5 1.5 0 0 0-1.5-1.5h-1" />
+    </>
+  ),
+  // Two arrows from a centre line — the gesture, not a direction.
+  swipe: (
+    <>
+      <path d="M12 5.5v13" />
+      <path d="M8 9.5l-4 2.5 4 2.5" />
+      <path d="M16 9.5l4 2.5-4 2.5" />
+    </>
+  ),
+  copy: (
+    <>
+      <rect x="8.5" y="3.5" width="12" height="14" rx="2.2" />
+      <path d="M15.5 20.5h-10a2 2 0 0 1-2-2v-11" />
+    </>
+  ),
+  calendar: (
+    <>
+      <rect x="3.5" y="5.5" width="17" height="15" rx="2.5" />
+      <path d="M3.5 10h17" />
+      <path d="M8 3.5v4M16 3.5v4" />
+    </>
+  ),
+  // Points to the inline end; the stylesheet flips it with the language.
+  chevron: <path d="M9.5 5.5l6.5 6.5-6.5 6.5" />,
+  // Up and down are never flipped: reordering a row is vertical in every
+  // language, unlike `chevron`, which means "onwards" and follows the text.
+  arrowUp: (
+    <>
+      <path d="M12 19.5v-15" />
+      <path d="M6 10.5l6-6 6 6" />
+    </>
+  ),
+  arrowDown: (
+    <>
+      <path d="M12 4.5v15" />
+      <path d="M6 13.5l6 6 6-6" />
+    </>
+  ),
 };
 
 export function Icon({
@@ -230,7 +322,10 @@ export function Icon({
 }) {
   return (
     <svg
-      className={className}
+      // Named, so a rule can address one kind of icon — which is how `chevron`
+      // gets mirrored in a right-to-left layout without every caller of it
+      // having to remember that it points the way the text runs.
+      className={['icon', `icon--${name}`, className].filter(Boolean).join(' ')}
       width={size}
       height={size}
       viewBox="0 0 24 24"

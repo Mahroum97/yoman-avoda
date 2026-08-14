@@ -144,11 +144,41 @@ export function Modal({
   );
 }
 
-export function StatusChip({ status }: { status: 'draft' | 'signed' }) {
+/**
+ * `subtle` is for the diary list, and the difference is about what a row is for.
+ *
+ * On the editor and on a tile the status is a statement about the page you are
+ * looking at, and a filled pill is right. In a list of thirty rows it is one
+ * fact among four, and thirty coloured pills stop being information — they
+ * become the pattern your eye follows instead of the descriptions, which are
+ * the reason anyone opened the diary. Same words, a dot instead of a fill.
+ */
+export function StatusChip({
+  status,
+  subtle = false,
+}: {
+  status: 'draft' | 'signed';
+  subtle?: boolean;
+}) {
   const { t } = useLanguage();
-  return status === 'signed' ? (
-    <span className="chip chip--ok">{t.statusSigned}</span>
+  const signed = status === 'signed';
+  const label = signed ? t.statusSigned : t.statusDraft;
+
+  if (subtle) {
+    return (
+      <span className={`status status--${signed ? 'ok' : 'draft'}`}>
+        <span className="status__dot" aria-hidden="true" />
+        {label}
+      </span>
+    );
+  }
+
+  return signed ? (
+    <span className="chip chip--ok">
+      <Icon name="check" size={13} strokeWidth={2.8} />
+      {label}
+    </span>
   ) : (
-    <span className="chip chip--draft">{t.statusDraft}</span>
+    <span className="chip chip--draft">{label}</span>
   );
 }

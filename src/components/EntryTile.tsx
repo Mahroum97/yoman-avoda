@@ -11,6 +11,7 @@ import type { DiaryEntry } from '../types';
 import { weekday } from '../lib/dates';
 import { useLanguage } from '../i18n/useLanguage';
 import { StatusChip } from './ui';
+import { Icon } from './Icon';
 
 function usePhotoUrl(blob: Blob | undefined): string | undefined {
   const [url, setUrl] = useState<string>();
@@ -65,7 +66,7 @@ export function EntryTile({
         )}
         {selecting && (
           <span className={`tile__check${selected ? ' tile__check--on' : ''}`} aria-hidden="true">
-            {selected ? '✓' : ''}
+            {selected && <Icon name="check" size={14} strokeWidth={2.6} />}
           </span>
         )}
         {entry.photos.length > 1 && (

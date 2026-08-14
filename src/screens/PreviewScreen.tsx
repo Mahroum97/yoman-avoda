@@ -14,6 +14,7 @@ import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
 import { canShareFiles, needsShareToPrint } from '../lib/save';
 import { useDocThemeId } from '../hooks/useDocTheme';
+import { Icon } from '../components/Icon';
 
 export function PreviewScreen({
   entryId,
@@ -104,7 +105,8 @@ export function PreviewScreen({
           className="btn btn--sm"
           onClick={() => navigate(`/entry/${entryId}`)}
         >
-          → {t.back}
+          <Icon name="chevron" size={16} className="icon--back" />
+          {t.back}
         </button>
         <button
           type="button"
@@ -112,7 +114,14 @@ export function PreviewScreen({
           disabled={busy !== null}
           onClick={() => void downloadPdf()}
         >
-          {busy === 'pdf' ? t.generating : `⬇ ${t.exportPdf}`}
+          {busy === 'pdf' ? (
+            t.generating
+          ) : (
+            <>
+              <Icon name="download" size={17} />
+              {t.exportPdf}
+            </>
+          )}
         </button>
         <button
           type="button"
@@ -129,7 +138,14 @@ export function PreviewScreen({
             disabled={busy !== null}
             onClick={() => void share()}
           >
-            {busy === 'share' ? t.sharing : `↗ ${t.shareButton}`}
+            {busy === 'share' ? (
+              t.sharing
+            ) : (
+              <>
+                <Icon name="share" size={17} />
+                {t.shareButton}
+              </>
+            )}
           </button>
         )}
         <button
@@ -138,7 +154,8 @@ export function PreviewScreen({
           disabled={busy !== null}
           onClick={() => void print()}
         >
-          🖨 {t.print}
+          <Icon name="printer" size={17} />
+          {t.print}
         </button>
       </div>
 

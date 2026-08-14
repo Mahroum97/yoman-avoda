@@ -23,6 +23,7 @@ import { PhotoGrid } from '../components/PhotoGrid';
 import { canShareFiles } from '../lib/save';
 import { useUndoable } from '../hooks/useUndoable';
 import { useEditorActions } from '../hooks/editorActionsContext';
+import { Icon } from '../components/Icon';
 
 const AUTOSAVE_MS = 1200;
 
@@ -505,7 +506,14 @@ export function EntryEditor({
           disabled={exporting !== null}
           onClick={() => void doExport('pdf')}
         >
-          {exporting === 'pdf' ? t.generating : `⬇ ${t.exportPdf}`}
+          {exporting === 'pdf' ? (
+            t.generating
+          ) : (
+            <>
+              <Icon name="download" size={17} />
+              {t.exportPdf}
+            </>
+          )}
         </button>
         {canShare && (
           <button
@@ -514,7 +522,14 @@ export function EntryEditor({
             disabled={exporting !== null}
             onClick={() => void doShare()}
           >
-            {exporting === 'share' ? t.sharing : `↗ ${t.shareButton}`}
+            {exporting === 'share' ? (
+              t.sharing
+            ) : (
+              <>
+                <Icon name="share" size={17} />
+                {t.shareButton}
+              </>
+            )}
           </button>
         )}
         {/* A picture goes into WhatsApp as something already visible, where a
@@ -526,7 +541,14 @@ export function EntryEditor({
           disabled={exporting !== null}
           onClick={() => void doExport('image')}
         >
-          {exporting === 'image' ? t.generating : t.exportImage}
+          {exporting === 'image' ? (
+            t.generating
+          ) : (
+            <>
+              <Icon name="image" size={17} />
+              {t.exportImage}
+            </>
+          )}
         </button>
         <button
           type="button"

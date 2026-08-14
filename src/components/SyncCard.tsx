@@ -25,6 +25,7 @@ import {
 } from '../sync/client';
 import { autoSyncEnabled, setAutoSyncEnabled } from '../hooks/useAutoSync';
 import { Card, Field } from './ui';
+import { Icon } from './Icon';
 
 /* ------------------------------------------------------------------ the Mac */
 
@@ -234,7 +235,8 @@ function ClientPanel() {
       */}
       {failure && !busy && (
         <p className="sync-problem">
-          ⚠ {explainFailure(failure.reason, t)}
+          <Icon name="warning" size={16} />
+          {explainFailure(failure.reason, t)}
           {failure.reason === 'UNREACHABLE' && (
             <span className="sync-problem__hint">{t.syncAddressChanged}</span>
           )}

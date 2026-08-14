@@ -57,29 +57,29 @@ export function RowsEditor<T extends { id: string }>({
               <div className="row-item__actions">
                 <button
                   type="button"
-                  className="btn btn--sm btn--ghost"
+                  className="rowbtn"
                   aria-label={t.moveUp}
                   disabled={index === 0}
                   onClick={() => move(index, -1)}
                 >
-                  ↑
+                  <Icon name="arrowUp" size={17} />
                 </button>
                 <button
                   type="button"
-                  className="btn btn--sm btn--ghost"
+                  className="rowbtn"
                   aria-label={t.moveDown}
                   disabled={index === rows.length - 1}
                   onClick={() => move(index, 1)}
                 >
-                  ↓
+                  <Icon name="arrowDown" size={17} />
                 </button>
                 <button
                   type="button"
-                  className="btn btn--sm btn--danger"
+                  className="rowbtn rowbtn--danger"
                   aria-label={t.deleteRow}
                   onClick={() => remove(row.id)}
                 >
-                  <Icon name="close" size={16} />
+                  <Icon name="close" size={17} />
                 </button>
               </div>
             </div>
@@ -103,7 +103,8 @@ export function RowsEditor<T extends { id: string }>({
 
       <div>
         <button type="button" className="btn" onClick={add}>
-          ＋ {addLabel}
+          <Icon name="plus" size={16} />
+          {addLabel}
         </button>
       </div>
     </div>

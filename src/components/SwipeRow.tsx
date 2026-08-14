@@ -23,10 +23,11 @@
  */
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useLanguage } from '../i18n/useLanguage';
+import { Icon, type IconName } from './Icon';
 
 export interface SwipeAction {
   label: string;
-  icon: string;
+  icon: IconName;
   tone: 'pin' | 'danger';
   run: () => void;
 }
@@ -160,7 +161,9 @@ export function SwipeRow({
         style={{ inlineSize: size }}
         aria-hidden="true"
       >
-        <span className="swipe__icon">{action.icon}</span>
+        <span className="swipe__icon">
+          <Icon name={action.icon} size={22} strokeWidth={2} />
+        </span>
         <span className="swipe__label">{action.label}</span>
       </div>
     );

@@ -18,6 +18,7 @@ import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
 import { logger } from '../lib/log';
 import { EmptyState, StatusChip } from '../components/ui';
+import { Icon, type IconName } from '../components/Icon';
 import { EntryTile } from '../components/EntryTile';
 import { SwipeRow } from '../components/SwipeRow';
 import { ViewMenu } from '../components/ViewMenu';
@@ -146,14 +147,15 @@ export function EntriesScreen({ project }: { project: Project }) {
    * the month headings it is shown under every sort order.
    */
   const groups = useMemo(() => {
-    const out: { key: string; heading: string | null; list: DiaryEntry[] }[] = [];
+    const out: { key: string; heading: string | null; icon?: IconName; list: DiaryEntry[] }[] = [];
     const pinned = sorted.filter((entry) => entry.pinned);
     const loose = sorted.filter((entry) => !entry.pinned);
 
     if (pinned.length > 0) {
       out.push({
         key: '__pinned',
-        heading: `📌 ${t.pinnedHeading} · ${t.daysCount(pinned.length)}`,
+        heading: `${t.pinnedHeading} · ${t.daysCount(pinned.length)}`,
+        icon: 'pin',
         list: pinned,
       });
     }
@@ -375,10 +377,7 @@ export function EntriesScreen({ project }: { project: Project }) {
   return (
     <div className={selecting ? 'has-selectionbar' : undefined}>
       <div className="row row--wrap" style={{ marginBottom: 14 }}>
-        <div className="grow">
-          <h1>{t.diaryTitle}</h1>
-          <p className="muted small">{project.name}</p>
-        </div>
+        <h1 className="grow">{t.diaryTitle}</h1>
         {entries.length > 0 && (
           <ViewMenu
             open={menuOpen}
@@ -398,7 +397,8 @@ export function EntriesScreen({ project }: { project: Project }) {
       {!selecting && (
         <div className="btn-row" style={{ marginBottom: 16 }}>
           <button type="button" className="btn btn--primary" onClick={() => void openToday()}>
-            ＋ {t.newToday}
+            <Icon name="plus" size={17} />
+            {t.newToday}
           </button>
           {entries.length > 0 && !entries.some((e) => e.date === today) && (
             <button type="button" className="btn" onClick={() => void repeatLast()}>
@@ -430,12 +430,20 @@ export function EntriesScreen({ project }: { project: Project }) {
       {entries.length > 0 && filtered.length === 0 && <EmptyState icon="search" title={t.noMatches} />}
 
       {showHint && !selecting && mode === 'list' && filtered.length > 0 && (
-        <p className="swipe-hint">↔ {t.swipeHint}</p>
+        <p className="swipe-hint">
+          <Icon name="swipe" size={14} />
+          {t.swipeHint}
+        </p>
       )}
 
-      {groups.map(({ key, heading, list }) => (
+      {groups.map(({ key, heading, icon, list }) => (
         <div key={key}>
-          {heading && <h2 className="month-heading">{heading}</h2>}
+          {heading && (
+            <h2 className="month-heading">
+              {icon && <Icon name={icon} size={13} />}
+              {heading}
+            </h2>
+          )}
 
           {mode === 'grid' ? (
             <div className="tile-grid">
@@ -464,13 +472,13 @@ export function EntriesScreen({ project }: { project: Project }) {
                     disabled={selecting}
                     start={{
                       label: entry.pinned ? t.unpinAction : t.pinAction,
-                      icon: '📌',
+                      icon: 'pin',
                       tone: 'pin',
                       run: () => void togglePin(entry),
                     }}
                     end={{
                       label: t.deleteAction,
-                      icon: '🗑',
+                      icon: 'trash',
                       tone: 'danger',
                       run: () => void removeOne(entry),
                     }}
@@ -488,7 +496,7 @@ export function EntriesScreen({ project }: { project: Project }) {
                     >
                       {selecting && (
                         <span className={`entry__check${isOn ? ' entry__check--on' : ''}`} aria-hidden="true">
-                          {isOn ? '✓' : ''}
+                          {isOn && <Icon name="check" size={14} strokeWidth={2.6} />}
                         </span>
                       )}
                       <span className="entry__date">
@@ -499,35 +507,49 @@ export function EntriesScreen({ project }: { project: Project }) {
                         <span className="entry__title">
                           {entry.pinned && (
                             <span className="entry__pin" title={t.pinnedHeading}>
-                              📌
+                              <Icon name="pin" size={13} />
                             </span>
                           )}
                           {entry.workDescription.split('\n')[0] || t.noDescription}
                         </span>
                         <span className="entry__meta">
-                          {workers > 0 && <span>👷 {t.workersShort(workers)}</span>}
+                          <StatusChip status={entry.status} subtle />
+                          {workers > 0 && (
+                            <span>
+                              <Icon name="crew" size={14} />
+                              {t.workersShort(workers)}
+                            </span>
+                          )}
                           {entry.equipment.length > 0 && (
-                            <span>🚜 {t.toolsShort(entry.equipment.length)}</span>
+                            <span>
+                              <Icon name="equipment" size={14} />
+                              {t.toolsShort(entry.equipment.length)}
+                            </span>
                           )}
                           {entry.casting.concreteQty && (
                             <span>
-                              🧱 {entry.casting.concreteQty} {t.unitCubicMetres}
+                              <Icon name="concrete" size={14} />
+                              {entry.casting.concreteQty} {t.unitCubicMetres}
                             </span>
                           )}
-                          {entry.photos.length > 0 && <span>📷 {entry.photos.length}</span>}
+                          {entry.photos.length > 0 && (
+                            <span>
+                              <Icon name="image" size={14} />
+                              {entry.photos.length}
+                            </span>
+                          )}
                         </span>
                       </span>
                     </button>
-                    <StatusChip status={entry.status} />
                     {!selecting && (
                       <button
                         type="button"
-                        className="btn btn--sm btn--icon"
+                        className="entry__action"
                         aria-label={t.exportPdf}
                         title={t.exportPdf}
                         onClick={() => void quickExport(entry)}
                       >
-                        ⬇
+                        <Icon name="download" size={17} />
                       </button>
                     )}
                   </div>
@@ -555,7 +577,8 @@ export function EntriesScreen({ project }: { project: Project }) {
             disabled={busy || selected.size === 0}
             onClick={() => void pinSelected()}
           >
-            📌 {t.pinSelected}
+            <Icon name="pin" size={15} />
+            {t.pinSelected}
           </button>
           <button
             type="button"

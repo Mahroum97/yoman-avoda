@@ -121,7 +121,7 @@ export function ViewMenu({
               onClick={choose(() => onModeChange(id))}
             >
               <span className="viewmenu__tick" aria-hidden="true">
-                {mode === id ? '✓' : ''}
+                {mode === id && <Icon name="check" size={15} strokeWidth={2.4} />}
               </span>
               <span className="viewmenu__glyph" aria-hidden="true">
                 <Icon name={id === 'grid' ? 'grid' : 'list'} size={18} />
@@ -147,7 +147,7 @@ export function ViewMenu({
               )}
             >
               <span className="viewmenu__tick" aria-hidden="true">
-                {sort === id ? '✓' : ''}
+                {sort === id && <Icon name="check" size={15} strokeWidth={2.4} />}
               </span>
               <span className="viewmenu__glyph" aria-hidden="true">
                 {sort === id ? (descending ? '▾' : '▴') : ''}

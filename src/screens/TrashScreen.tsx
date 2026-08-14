@@ -20,6 +20,7 @@ import { navigate } from '../hooks/useRoute';
 import { useEscape } from '../hooks/useEscape';
 import { formatDdMmYyyy, formatLongDate } from '../lib/dates';
 import { EmptyState, StatusChip } from '../components/ui';
+import { Icon } from '../components/Icon';
 import { logger } from '../lib/log';
 
 const log = logger('trash');
@@ -98,6 +99,7 @@ export function TrashScreen({ project }: { project?: Project }) {
       <div className="row row--wrap" style={{ marginBottom: 8 }}>
         <h1 className="grow">{t.trashTitle}</h1>
         <button type="button" className="btn btn--sm" onClick={() => navigate('/')}>
+          <Icon name="chevron" size={15} className="icon--back" />
           {t.backToDiary}
         </button>
       </div>

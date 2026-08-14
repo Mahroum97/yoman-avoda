@@ -7,6 +7,7 @@ import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
 import { Card, EmptyState, Field, Modal } from '../components/ui';
+import { Icon } from '../components/Icon';
 
 const EMPTY = { name: '', address: '', company: '' };
 
@@ -60,7 +61,8 @@ export function ProjectsScreen({ activeId }: { activeId?: number }) {
       <div className="row row--wrap" style={{ marginBottom: 16 }}>
         <h1 className="grow">{t.projectsTitle}</h1>
         <button type="button" className="btn btn--primary" onClick={() => setDraft(EMPTY)}>
-          ＋ {t.newProject}
+          <Icon name="plus" size={17} />
+          {t.newProject}
         </button>
       </div>
 

@@ -48,6 +48,63 @@
   /* Height of the bottom tab bar, so anything floating above it can clear it. */
   --navh: 47px;
 
+  /*
+   * The type scale.
+   *
+   * Before this there were seventeen sizes in three units, most of them within
+   * half a pixel of each other — 0.85, 0.84, 0.82, 0.8 — which is what an
+   * interface looks like when each screen was sized by eye on the day it was
+   * written. Nothing lined up with anything, and no size *meant* anything.
+   *
+   * Nine steps, and a size is now a decision: 2xs and xs are labels above a
+   * field, sm and md are supporting text, base is what you read, lg and up are
+   * headings. Two adjacent steps are far enough apart to be seen as different,
+   * which is the only reason a scale works at all.
+   *
+   * The `.sheet__*` rules are deliberately NOT on this scale and stay in px:
+   * they are the PDF's own METRICS converted at 96dpi, and a preview that
+   * follows the interface's type scale is a preview that lies about the page.
+   */
+  --fs-2xs: 0.6875rem; /* 11px */
+  --fs-xs: 0.75rem; /* 12px */
+  --fs-sm: 0.8125rem; /* 13px */
+  --fs-md: 0.875rem; /* 14px */
+  --fs-base: 1rem; /* 16px — also the iOS no-zoom floor for inputs */
+  --fs-lg: 1.125rem; /* 18px */
+  --fs-xl: 1.375rem; /* 22px */
+  --fs-2xl: 1.75rem; /* 28px */
+  --fs-3xl: 2.25rem; /* 36px */
+
+  /* Tight for headings and numerals, snug for a line of two, normal for prose. */
+  --lh-tight: 1.2;
+  --lh-snug: 1.35;
+  --lh-normal: 1.5;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semi: 600;
+  --fw-bold: 700;
+
+  /* Small caps-ish labels need air between letters or they read as one word. */
+  --ls-label: 0.045em;
+  /* Large text set tight; at 22px and up the default tracking looks loose. */
+  --ls-tight: -0.011em;
+
+  /*
+   * Spacing, on a 4px grid. Same argument as the type scale: padding chosen per
+   * component gives a screen with 10px here and 11px there, which reads as
+   * untidy without anyone being able to say why.
+   */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+  --s8: 32px;
+  --s10: 40px;
+  --s12: 48px;
+
   /* The defaults only. src/fonts.ts overwrites both on <html> once a typeface
      has been chosen, which is how one setting reaches every rule — `--font` for
      the interface, `--doc-font` for the A4 preview and the documents. */
@@ -130,6 +187,19 @@
   box-sizing: border-box;
 }
 
+/*
+ * An icon sits on the text's baseline unless told otherwise, which is why a
+ * line like "18 עובדים" came out with the figure riding above the word. An SVG
+ * is a replaced inline element: its bottom edge lands on the baseline, so a
+ * 14px glyph next to 13px text sits a couple of pixels high, every time.
+ *
+ * One rule, at the root, rather than a fix per component — this is the kind of
+ * thing that gets fixed in four places and forgotten in the fifth.
+ */
+svg {
+  vertical-align: middle;
+}
+
 html,
 body,
 #root {
@@ -151,20 +221,25 @@ h1,
 h2,
 h3 {
   margin: 0;
-  line-height: 1.25;
-  font-weight: 700;
+  line-height: var(--lh-tight);
+  font-weight: var(--fw-bold);
+  /* Default tracking is drawn for text sizes; at heading sizes it reads loose. */
+  letter-spacing: var(--ls-tight);
 }
 
 h1 {
-  font-size: 1.35rem;
+  font-size: var(--fs-xl);
 }
 
 h2 {
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
 }
 
+/* Base rather than a step down from h2: an h3 in this app labels a block of
+   fields, and below the body size it stops reading as a heading at all. */
 h3 {
-  font-size: 0.95rem;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semi);
 }
 
 p {
@@ -200,7 +275,7 @@ p {
 }
 
 .topbar__title {
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -208,7 +283,7 @@ p {
 }
 
 .topbar__sub {
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   opacity: 0.85;
   white-space: nowrap;
   overflow: hidden;
@@ -230,7 +305,7 @@ p {
   border-radius: var(--radius-sm);
   background: var(--topbar-btn);
   color: inherit;
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   cursor: pointer;
 }
 
@@ -238,12 +313,25 @@ p {
   border-color: var(--accent);
 }
 
+/*
+ * A measure, not a window.
+ *
+ * This was 1080px, which on a Mac gave a settings form with text fields a
+ * thousand pixels wide and a diary row whose description ended a third of the
+ * way across. Nothing was broken and everything looked cheap — stretched
+ * content is the clearest signal that a layout was written for one width and
+ * left to fend for itself at every other.
+ *
+ * 860px because that is the widest thing the app has to show: an A4 sheet at
+ * 96dpi is 794px, and the preview has to fit inside the same column as
+ * everything else rather than being a special case with its own rules.
+ */
 .main {
   flex: 1;
   width: 100%;
-  max-width: 1080px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 16px 16px 96px;
+  padding: var(--s4) var(--s4) 96px;
 }
 
 .nav {
@@ -272,7 +360,7 @@ p {
   background: none;
   color: var(--muted);
   font: inherit;
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   cursor: pointer;
 }
 
@@ -315,7 +403,7 @@ p {
     flex-direction: row;
     gap: 8px;
     padding: 12px 18px;
-    font-size: 0.9rem;
+    font-size: var(--fs-md);
   }
 }
 
@@ -327,7 +415,7 @@ p {
  */
 @media (max-width: 420px) {
   .nav__item {
-    font-size: 0.64rem;
+    font-size: var(--fs-2xs);
     padding-inline: 2px;
     letter-spacing: -0.01em;
   }
@@ -340,7 +428,7 @@ p {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  margin-bottom: 18px;
+  margin-bottom: var(--s4);
   overflow: hidden;
 }
 
@@ -350,8 +438,10 @@ p {
 .card__head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 16px 18px 6px;
+  gap: var(--s2);
+  /* No bottom padding: the body owns the gap below the heading, so there is one
+     number deciding it rather than two adding up to whatever they add up to. */
+  padding: var(--s5) var(--s5) 0;
   background: transparent;
   border-bottom: 0;
 }
@@ -362,12 +452,23 @@ p {
 }
 
 .card__body {
-  padding: 18px;
+  padding: var(--s4) var(--s5) var(--s5);
 }
 
+/*
+ * The line under a card's heading that says what the card is for.
+ *
+ * It needs to sit close enough to the heading to read as part of it and far
+ * enough from the controls to stop reading as a label on the first one — which
+ * is what it did while every gap in the card was the same size.
+ */
 .card__note {
+  margin-bottom: var(--s4);
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-snug);
+  /* Explanatory text is read, not scanned; a line of it 800px wide is not. */
+  max-width: 62ch;
 }
 
 .section-badge {
@@ -379,7 +480,7 @@ p {
   border-radius: 50%;
   background: var(--brand);
   color: var(--brand-ink);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   flex: none;
 }
@@ -388,21 +489,37 @@ p {
 
 .field {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: var(--s4);
 }
 
+/*
+ * The label belongs to the field under it, so it sits close to it — closer than
+ * the gap between one field and the next. Before this the two distances were
+ * 6px and 14px, near enough alike that a label read as floating between two
+ * fields rather than belonging to either.
+ */
 .field__label {
   display: block;
-  margin-bottom: 6px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  margin-bottom: var(--s1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-label);
   color: var(--muted);
 }
 
+/*
+ * `display: block` is load-bearing. This renders as a <span>, and while the
+ * input filled the whole line the hint was pushed under it by having nowhere
+ * else to go. The moment fields got a maximum width the first word of every
+ * hint jumped up beside its field — the layout had been relying on an accident.
+ */
 .field__hint {
-  margin-top: 4px;
-  font-size: 0.78rem;
+  display: block;
+  margin-top: var(--s1);
+  font-size: var(--fs-xs);
   color: var(--muted);
+  line-height: var(--lh-snug);
+  max-width: 62ch;
 }
 
 input,
@@ -421,11 +538,36 @@ textarea,
 select {
   width: 100%;
   min-height: var(--tap);
-  padding: 11px 14px;
+  padding: 11px var(--s3);
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   outline-offset: 2px;
+  /*
+   * A field is as wide as what goes in it, not as wide as the window. A date, a
+   * temperature and an IP address in boxes eight hundred pixels across was the
+   * clearest sign on any screen here that nobody had looked at this at desk
+   * size. Anything that genuinely needs the full width — a description, a
+   * table cell — overrides this where it is defined.
+   */
+  max-width: 46ch;
+}
+
+/* Prose fields are the exception: they are read in paragraphs and want a
+   comfortable measure rather than a short one. */
+textarea {
+  max-width: 68ch;
+}
+
+/* And these hold a fixed number of characters, so they are sized to it. A date
+   picker stretched to forty-six characters looks like a mistake because it is
+   one — nothing that goes in it is ever longer than ten. */
+input[type='date'] {
+  max-width: 18ch;
+}
+
+input[type='number'] {
+  max-width: 12ch;
 }
 
 textarea {
@@ -469,17 +611,24 @@ select:focus {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   min-height: var(--tap);
-  padding: 0 20px;
+  padding: 0 var(--s5);
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-pill);
   background: var(--surface);
   color: var(--ink);
-  font-weight: 600;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-tight);
   cursor: pointer;
   text-decoration: none;
-  transition: transform 0.06s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.06s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--muted);
 }
 
 .btn:active {
@@ -491,11 +640,27 @@ select:focus {
   cursor: not-allowed;
 }
 
+/*
+ * No coloured glow under it.
+ *
+ * A blue halo around a blue button was a way of saying "this is the important
+ * one" that stopped being read that way about a decade ago; today it just makes
+ * the button look like it is hovering off the page. A filled button on a page
+ * where nothing else is filled is already the loudest thing on screen — the
+ * emphasis comes from being the only one, not from being lit from underneath.
+ */
 .btn--primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
-  box-shadow: 0 1px 2px rgb(0 122 255 / 24%), 0 6px 16px rgb(0 122 255 / 20%);
+}
+
+.btn--primary:hover:not(:disabled) {
+  /* Darkened rather than tinted, so it stays the same colour under the cursor
+     as it is at rest — a hover that changes hue reads as a different button. */
+  filter: brightness(0.93);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .btn--brand {
@@ -518,7 +683,7 @@ select:focus {
 .btn--sm {
   min-height: 36px;
   padding: 0 15px;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .btn--icon {
@@ -542,6 +707,47 @@ select:focus {
   justify-content: flex-end;
 }
 
+/*
+ * The controls on a table row: move up, move down, remove.
+ *
+ * One shape for all three. They appear on every row of every table in the
+ * editor, so whatever weight they carry is multiplied by twenty — which is why
+ * the destructive one in particular has to be quiet at rest. It still turns red
+ * under the cursor and still has a 46px target; what it no longer does is
+ * announce itself twenty times on a page where nobody is trying to delete
+ * anything.
+ */
+.rowbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tap);
+  block-size: 38px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.rowbtn:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.rowbtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.rowbtn--danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 /* -------------------------------------------------------------- chips */
 
 .chip {
@@ -550,11 +756,41 @@ select:focus {
   gap: 6px;
   padding: 3px 10px;
   border-radius: 999px;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   background: var(--surface-2);
   border: 1px solid var(--line);
   color: var(--muted);
+}
+
+/*
+ * The quiet form of the status, for a list. A dot carries "signed or not" at a
+ * glance without a filled shape competing with the row's own description; the
+ * word is still there for anyone who has not learned the colours, and for
+ * anyone who cannot see them.
+ */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-weight: var(--fw-medium);
+}
+
+.status__dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: currentColor;
+}
+
+.status--ok {
+  color: var(--ok);
+}
+
+.status--draft {
+  color: var(--amber);
 }
 
 .chip--ok {
@@ -597,7 +833,7 @@ select:focus {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   font-weight: 600;
 }
@@ -685,7 +921,7 @@ select:focus {
 }
 
 .swipe__icon {
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   transition: transform 120ms ease;
 }
 
@@ -708,9 +944,12 @@ select:focus {
 }
 
 .swipe-hint {
-  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 var(--s3);
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: var(--fs-xs);
 }
 
 /* Why the last sync did not happen — stated where somebody goes to ask. */
@@ -721,7 +960,7 @@ select:focus {
   border-radius: var(--radius-sm);
   background: var(--danger-soft);
   color: var(--danger);
-  font-size: 0.84rem;
+  font-size: var(--fs-sm);
   line-height: 1.45;
 }
 
@@ -735,9 +974,11 @@ select:focus {
 .entry {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--s3);
   width: 100%;
-  padding: 15px 17px;
+  /* Tighter than it was: the row carries two lines, and the padding it had put
+     four rows on a phone screen where six fit comfortably. */
+  padding: var(--s3) var(--s3) var(--s3) var(--s2);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -749,9 +990,44 @@ select:focus {
   box-shadow: var(--shadow-lift);
 }
 
+/*
+ * Export, on every row, in the quietest form that is still a real target.
+ *
+ * It was a bordered pill button, which made a secondary action the second most
+ * prominent thing in a row after the date — repeated thirty times down a page.
+ * A button that appears on every row cannot also be emphasised on every row;
+ * the emphasis means nothing and the noise is real. So: no border, no fill,
+ * muted ink, and it takes its colour only when reached for. It keeps the full
+ * 46px touch target, because this app is used outdoors with gloves on.
+ */
+.entry__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: var(--tap);
+  block-size: var(--tap);
+  flex: none;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.entry__action:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.entry__action:active {
+  background: var(--line);
+}
+
 .entry__pin {
   margin-inline-end: 5px;
-  font-size: 0.85em;
+  color: var(--accent);
 }
 
 /*
@@ -790,28 +1066,43 @@ select:focus {
   cursor: pointer;
 }
 
+/*
+ * The date, deliberately quiet.
+ *
+ * It used to be a filled navy block — the heaviest thing in the row, for the
+ * one piece of information the reader already has from the heading above it.
+ * What someone scanning the diary is looking for is *what happened that day*,
+ * and the description was losing that contest to a coloured square.
+ *
+ * So the fill goes and the numeral does the work: large, tight, in the ink
+ * colour, with the weekday under it in the muted tone. Same footprint, same
+ * alignment, a third of the visual weight.
+ */
 .entry__date {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 54px;
-  height: 54px;
+  width: 46px;
+  height: 46px;
   flex: none;
-  border-radius: 14px;
-  background: var(--brand);
-  color: var(--brand-ink);
-  line-height: 1.1;
+  line-height: var(--lh-tight);
 }
 
 .entry__day {
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--ls-tight);
+  /* Lining, tabular figures: 09 and 30 must occupy the same width or the
+     weekday under them wanders from row to row. */
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 .entry__month {
-  font-size: 0.68rem;
-  opacity: 0.85;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--muted);
+  letter-spacing: var(--ls-label);
 }
 
 .entry__body {
@@ -827,7 +1118,11 @@ select:focus {
    * painted straight over the status chip beside it.
    */
   display: block;
-  font-weight: 600;
+  /* The lead line of the row: a step up from the meta under it, so the eye
+     lands on what was done that day before anything else. */
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-tight);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -836,18 +1131,36 @@ select:focus {
 .entry__meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 12px;
-  margin-top: 4px;
-  font-size: 0.8rem;
+  gap: var(--s1) var(--s3);
+  margin-top: var(--s1);
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
+/* Each count is an icon and a figure travelling together — they must not be
+   allowed to wrap apart from one another when the row runs out of room. */
+.entry__meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.entry__meta svg {
+  opacity: 0.75;
+}
+
 .month-heading {
-  margin: 22px 0 10px;
-  font-size: 0.85rem;
-  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: var(--s6) 0 var(--s2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semi);
   color: var(--muted);
-  letter-spacing: 0.02em;
+  /* Tracked out, the way a divider label is set — it names the group below it
+     rather than being read as a line of text in its own right. */
+  letter-spacing: var(--ls-label);
 }
 
 .empty {
@@ -869,7 +1182,7 @@ select:focus {
 
 .empty__title {
   margin: 10px 0 6px;
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   color: var(--ink);
 }
@@ -887,13 +1200,13 @@ select:focus {
 }
 
 .sync-pair__label {
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   color: var(--muted);
   margin-bottom: 2px;
 }
 
 .sync-pair__value {
-  font-size: 1.05rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   /* An address is read out loud and typed on a phone: keep it unambiguous. */
@@ -934,7 +1247,7 @@ select:focus {
 }
 
 .doc-theme__name {
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -1027,7 +1340,7 @@ select:focus {
 }
 
 .segmented__hint {
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 400;
   color: var(--muted);
 }
@@ -1078,7 +1391,7 @@ select:focus {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  font-size: 0.82rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -1121,7 +1434,7 @@ select:focus {
 .photo__bar input {
   min-height: 34px;
   padding: 4px 8px;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 
 /* ------------------------------------------------------------ toast */
@@ -1721,7 +2034,7 @@ body {
 }
 
 .small {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .sr-only {
@@ -1753,7 +2066,7 @@ body {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--bg);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   line-height: 1.5;
   list-style: none;
 }
@@ -1840,7 +2153,7 @@ body {
   border: 1px dashed var(--line-strong);
   border-radius: 8px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .btn--disabled {
@@ -1963,7 +2276,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 .viewmenu__heading {
   padding: 6px 10px 2px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
 }
 
 .tile-grid {
@@ -2036,7 +2349,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 }
 
 .tile__day {
-  font-size: 2rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: var(--muted);
 }
@@ -2054,7 +2367,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
   border-radius: 50%;
   background: rgb(0 0 0 / 35%);
   color: #fff;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .tile__check--on {
@@ -2070,7 +2383,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
   border-radius: 999px;
   background: rgb(0 0 0 / 55%);
   color: #fff;
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
 }
 
 /* Opposite corner to the checkbox, so selecting a pinned tile hides neither. */
@@ -2081,7 +2394,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
   padding: 3px 6px;
   border-radius: 999px;
   background: rgb(0 0 0 / 55%);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   line-height: 1;
 }
 
@@ -2093,7 +2406,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 .tile__title {
   display: block;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
 }
 
 .tile__sub {
@@ -2101,7 +2414,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
   overflow: hidden;
   margin-top: 2px;
   color: var(--muted);
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   -webkit-line-clamp: 2;
   line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -2129,7 +2442,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
   border: 2px solid var(--line-strong);
   border-radius: 50%;
   color: #fff;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
 }
 
 .entry__check--on {
@@ -2163,7 +2476,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 .selectionbar__count {
   flex: 1;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   text-align: center;
 }
 
@@ -2262,7 +2575,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
   border-radius: 999px;
   background: var(--brand);
   color: var(--brand-ink);
-  font-size: 0.78rem;
+  font-size: var(--fs-xs);
   font-weight: 700;
   /* The number is Latin in a Hebrew page and has nothing around it to be
      reordered against, but stating the direction keeps it out of the run. */
@@ -2274,7 +2587,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
   display: block;
   margin-bottom: 4px;
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
 }
 
@@ -2287,6 +2600,11 @@ input[type='date']::-webkit-calendar-picker-indicator {
  */
 .ctable__cell .ctable__input {
   width: 100%;
+  /* The cell decides how wide this is, not the field's own measure. A column in
+     a table is already constrained by the column; capping it again leaves the
+     name field short of the cell edge while its neighbours fill theirs, which
+     is the sort of half-alignment that reads as broken rather than as narrow. */
+  max-width: none;
   min-height: var(--tap);
   padding: 10px 12px;
   background: var(--surface);
@@ -2326,7 +2644,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
   color: var(--muted);
   text-decoration: none;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: var(--fs-md);
 }
 
 .icon-btn:hover {
@@ -2367,7 +2685,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
     position: relative;
     background: var(--surface-2);
     border-bottom: 1px solid var(--line-strong);
-    font-size: 0.78rem;
+    font-size: var(--fs-xs);
     font-weight: 700;
     color: var(--muted);
   }
@@ -2524,7 +2842,7 @@ label.btn {
   border-radius: 999px;
   background: var(--accent);
   color: #fff;
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   text-align: center;
 }
@@ -2559,7 +2877,7 @@ label.btn {
 .fonts__sample {
   flex: 1;
   min-width: 0;
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   font-weight: 600;
   overflow: hidden;
   white-space: nowrap;
@@ -2571,13 +2889,13 @@ label.btn {
   flex-direction: column;
   align-items: flex-end;
   flex: none;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
 .fonts__note {
   color: var(--muted);
-  font-size: 0.72rem;
+  font-size: var(--fs-2xs);
   font-weight: 400;
 }
 
@@ -2597,7 +2915,7 @@ label.btn {
   border-radius: var(--radius-sm);
   background: var(--ok-soft);
   color: var(--ok);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
 }
 
@@ -2631,4 +2949,25 @@ label.btn {
   border-radius: 50%;
   background: var(--amber);
   box-shadow: 0 0 0 2px var(--topbar);
+}
+
+/*
+ * A chevron points the way the text runs, and the text runs both ways here.
+ *
+ * The app flips between Hebrew/Arabic and English, so "onwards" is leftwards on
+ * two of its three languages. The glyph is drawn pointing right — the LTR
+ * "next" — and the direction is decided here rather than by every caller
+ * remembering which arrow to reach for. `icon--back` is simply its opposite,
+ * whichever way round that happens to be.
+ */
+[dir='rtl'] .icon--chevron {
+  transform: scaleX(-1);
+}
+
+.icon--chevron.icon--back {
+  transform: scaleX(-1);
+}
+
+[dir='rtl'] .icon--chevron.icon--back {
+  transform: none;
 }

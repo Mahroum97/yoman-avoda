@@ -26,6 +26,7 @@ import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
 import { EmptyState } from '../components/ui';
 import { canShareFiles } from '../lib/save';
+import { Icon } from '../components/Icon';
 
 /**
  * How many days are drawn.
@@ -105,7 +106,8 @@ export function ReportPreviewScreen({
     <div>
       <div className="preview-toolbar">
         <button type="button" className="btn btn--sm" onClick={() => navigate('/reports')}>
-          → {t.backToReports}
+          <Icon name="chevron" size={16} className="icon--back" />
+          {t.backToReports}
         </button>
         <button
           type="button"
@@ -113,7 +115,14 @@ export function ReportPreviewScreen({
           disabled={busy !== null || entries.length === 0}
           onClick={() => void build('save')}
         >
-          {busy === 'pdf' ? t.generating : `⬇ ${t.exportPdf}`}
+          {busy === 'pdf' ? (
+            t.generating
+          ) : (
+            <>
+              <Icon name="download" size={17} />
+              {t.exportPdf}
+            </>
+          )}
         </button>
         {canShare && (
           <button
@@ -122,7 +131,14 @@ export function ReportPreviewScreen({
             disabled={busy !== null || entries.length === 0}
             onClick={() => void build('share')}
           >
-            {busy === 'share' ? t.sharing : `↗ ${t.shareButton}`}
+            {busy === 'share' ? (
+              t.sharing
+            ) : (
+              <>
+                <Icon name="share" size={17} />
+                {t.shareButton}
+              </>
+            )}
           </button>
         )}
       </div>

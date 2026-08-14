@@ -83,8 +83,8 @@ function Shell() {
         <header className="topbar">
           <Logo size={30} />
           <div className="topbar__grow">
-            <div className="topbar__title">{t.appName}</div>
-            {project && <div className="topbar__sub">{project.name}</div>}
+            <div className="topbar__title">{project ? project.name : t.appName}</div>
+            {project?.address && <div className="topbar__sub">{project.address}</div>}
           </div>
           <UndoButtons />
           <BackupButton />

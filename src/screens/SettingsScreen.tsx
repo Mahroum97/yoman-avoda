@@ -33,7 +33,7 @@ import { SignaturesCard } from '../components/SignaturesCard';
 import { SyncCard } from '../components/SyncCard';
 import { DocThemePicker } from '../components/DocThemePicker';
 import { fontsFor, readFont, setFont } from '../fonts';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import { setDocThemeId, useDocThemeId } from '../hooks/useDocTheme';
 
 
@@ -64,11 +64,11 @@ export function SettingsScreen() {
     concreteType: t.presetConcrete,
   };
 
-  const themeOptions: { value: ThemePreference; label: string; hint: string }[] = [
-    { value: 'light', label: t.themeLight, hint: t.themeLightHint },
-    { value: 'dark', label: t.themeDark, hint: t.themeDarkHint },
-    { value: 'black', label: t.themeBlack, hint: t.themeBlackHint },
-    { value: 'auto', label: t.themeAuto, hint: t.themeAutoHint },
+  const themeOptions: { value: ThemePreference; label: string; hint: string; icon: IconName }[] = [
+    { value: 'light', label: t.themeLight, hint: t.themeLightHint, icon: 'sun' },
+    { value: 'dark', label: t.themeDark, hint: t.themeDarkHint, icon: 'moon' },
+    { value: 'black', label: t.themeBlack, hint: t.themeBlackHint, icon: 'black' },
+    { value: 'auto', label: t.themeAuto, hint: t.themeAutoHint, icon: 'auto' },
   ];
   const companyLogo = useCompanyLogo();
   const docThemeId = useDocThemeId();
@@ -190,6 +190,7 @@ export function SettingsScreen() {
               aria-pressed={preference === option.value}
               onClick={() => setPreference(option.value)}
             >
+              <Icon name={option.icon} size={19} />
               <span>{option.label}</span>
               <span className="segmented__hint">{option.hint}</span>
             </button>
@@ -298,7 +299,8 @@ export function SettingsScreen() {
             disabled={busy}
             onClick={() => void backup()}
           >
-            ⬇ {t.downloadBackup}
+            <Icon name="download" size={17} />
+            {t.downloadBackup}
           </button>
           <button
             type="button"
@@ -309,10 +311,11 @@ export function SettingsScreen() {
           >
             {exportAll
               ? t.exportAllWorking(exportAll.done, exportAll.total)
-              : `🗂 ${t.exportAll}`}
+              : t.exportAll}
           </button>
           <label className="btn">
-            ⬆ {t.restoreBackup}
+            <Icon name="upload" size={17} />
+            {t.restoreBackup}
             <input
               type="file"
               accept="application/json,.json"

@@ -297,7 +297,8 @@ export function ContactsScreen() {
             aria-label={t.searchContacts}
           />
           <button type="button" className="btn btn--primary" onClick={() => void add()}>
-            ＋ {t.newContact}
+            <Icon name="plus" size={17} />
+            {t.newContact}
           </button>
         </div>
 
@@ -338,7 +339,8 @@ export function ContactsScreen() {
             {t.noContactsBody}
           </p>
           <button type="button" className="btn btn--primary" onClick={() => void add()}>
-            ＋ {t.newContact}
+            <Icon name="plus" size={17} />
+            {t.newContact}
           </button>
         </EmptyState>
       ) : shown.length === 0 ? (

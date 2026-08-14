@@ -24,6 +24,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLanguage } from '../i18n/useLanguage';
 import { logger } from '../lib/log';
+import { Icon } from './Icon';
 
 const log = logger('sign');
 
@@ -346,7 +347,8 @@ export function SignaturePad({
               setEditing(false);
             }}
           >
-            ✓ {t.signatureUseSaved}
+            <Icon name="check" size={16} strokeWidth={2.4} />
+            {t.signatureUseSaved}
           </button>
         )}
         <button type="button" className="btn btn--sm" onClick={clear}>
