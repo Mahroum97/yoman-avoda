@@ -31,6 +31,12 @@ export interface Strings {
   navSettings: string;
   navNew: string;
 
+  /* storage health */
+  dbStuckTitle: string;
+  dbStuckBody: string;
+  dbFailedBody: string;
+  dbRetry: string;
+
   /* generic actions */
   save: string;
   cancel: string;
@@ -223,6 +229,13 @@ export interface Strings {
   callContact: (name: string) => string;
   deleteContact: string;
   unnamedContact: string;
+  contactsPrint: string;
+  contactsExport: string;
+  contactsImport: string;
+  contactsImported: (added: number, updated: number) => string;
+  contactsImportEmpty: string;
+  contactsImportFailed: string;
+  contactsNothingToExport: string;
 
   /* reports */
   reportsTitle: string;
@@ -454,6 +467,13 @@ const he: Strings = {
   navSettings: 'הגדרות',
   navNew: 'חדש',
 
+  dbStuckTitle: 'היומן לא נפתח',
+  dbStuckBody:
+    'ככל הנראה היומן כבר פתוח בחלון או בעותק אחר של האפליקציה, ורק אחד יכול לקרוא את הנתונים. סגור את החלון השני ונסה שוב.',
+  dbFailedBody:
+    'לא הצלחתי לפתוח את אחסון הנתונים במכשיר הזה. הנתונים לא נמחקו — נסה שוב, ואם זה חוזר שלח את יומן האירועים מההגדרות.',
+  dbRetry: 'נסה שוב',
+
   save: 'שמור',
   cancel: 'ביטול',
   update: 'עדכן',
@@ -641,6 +661,16 @@ const he: Strings = {
   callContact: (name) => `התקשר אל ${name}`,
   deleteContact: 'מחיקת השורה',
   unnamedContact: 'ללא שם',
+  contactsPrint: 'הדפסה / PDF',
+  contactsExport: 'ייצוא לקובץ',
+  contactsImport: 'ייבוא מקובץ',
+  contactsImported: (added, updated) =>
+    updated === 0
+      ? `יובאו ${added} רשומות`
+      : `יובאו ${added} רשומות, ${updated} עודכנו`,
+  contactsImportEmpty: 'לא נמצאו רשומות בקובץ',
+  contactsImportFailed: 'לא הצלחתי לקרוא את הקובץ',
+  contactsNothingToExport: 'אין עדיין מה לייצא',
 
   reportsTitle: 'דוח מרוכז',
   period: 'תקופה',
@@ -890,6 +920,13 @@ const ar: Strings = {
   navSettings: 'الإعدادات',
   navNew: 'جديد',
 
+  dbStuckTitle: 'السجل لم يُفتح',
+  dbStuckBody:
+    'على الأرجح أن السجل مفتوح في نافذة أو نسخة أخرى من التطبيق، ولا يمكن إلا لواحدة قراءة البيانات. أغلق النافذة الأخرى وحاول مرة أخرى.',
+  dbFailedBody:
+    'تعذّر فتح مخزن البيانات على هذا الجهاز. البيانات لم تُحذف — حاول مرة أخرى، وإذا تكرر ذلك أرسل سجل الأحداث من الإعدادات.',
+  dbRetry: 'حاول مرة أخرى',
+
   save: 'حفظ',
   cancel: 'إلغاء',
   update: 'تحديث',
@@ -1077,6 +1114,16 @@ const ar: Strings = {
   callContact: (name) => `الاتصال بـ ${name}`,
   deleteContact: 'حذف الصف',
   unnamedContact: 'بدون اسم',
+  contactsPrint: 'طباعة / PDF',
+  contactsExport: 'تصدير إلى ملف',
+  contactsImport: 'استيراد من ملف',
+  contactsImported: (added, updated) =>
+    updated === 0
+      ? `تم استيراد ${added} سجلات`
+      : `تم استيراد ${added} سجلات وتحديث ${updated}`,
+  contactsImportEmpty: 'لم يتم العثور على سجلات في الملف',
+  contactsImportFailed: 'تعذّرت قراءة الملف',
+  contactsNothingToExport: 'لا يوجد ما يُصدَّر بعد',
 
   reportsTitle: 'تقرير مجمّع',
   period: 'الفترة',
@@ -1326,6 +1373,13 @@ const en: Strings = {
   navSettings: 'Settings',
   navNew: 'New',
 
+  dbStuckTitle: 'The diary did not open',
+  dbStuckBody:
+    'It is most likely already open in another window or copy of the app, and only one of them can read the data. Close the other window and try again.',
+  dbFailedBody:
+    'The storage on this device could not be opened. Nothing has been deleted — try again, and if it keeps happening send the activity log from Settings.',
+  dbRetry: 'Try again',
+
   save: 'Save',
   cancel: 'Cancel',
   update: 'Update',
@@ -1515,6 +1569,16 @@ const en: Strings = {
   callContact: (name) => `Call ${name}`,
   deleteContact: 'Delete row',
   unnamedContact: 'Unnamed',
+  contactsPrint: 'Print / PDF',
+  contactsExport: 'Export to a file',
+  contactsImport: 'Import from a file',
+  contactsImported: (added, updated) =>
+    updated === 0
+      ? `Imported ${added} records`
+      : `Imported ${added} records, updated ${updated}`,
+  contactsImportEmpty: 'No records found in that file',
+  contactsImportFailed: 'That file could not be read',
+  contactsNothingToExport: 'Nothing to export yet',
 
   reportsTitle: 'Combined report',
   period: 'Period',

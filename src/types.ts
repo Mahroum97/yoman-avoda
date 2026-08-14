@@ -160,6 +160,11 @@ export interface Contact {
   updatedAt: number;
 }
 
+/** The fields a line can arrive with from a file — everything else is minted. */
+export type ContactDraft = Partial<
+  Pick<Contact, 'name' | 'trade' | 'phone' | 'projects' | 'notes'>
+>;
+
 /**
  * Remembered values that feed the dropdowns. Entries learn from themselves:
  * saving a diary page upserts every value it used, ranked by `uses`.

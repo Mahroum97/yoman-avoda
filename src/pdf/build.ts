@@ -7,7 +7,7 @@
  */
 import { PDFDocument, type PDFImage, type PDFPage } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import type { DiaryEntry, Project } from '../types';
+import type { Contact, DiaryEntry, Project } from '../types';
 import type { Strings } from '../i18n/strings';
 import { currentStrings } from '../i18n/useLanguage';
 import { formatDdMmYyyy, formatLongDate } from '../lib/dates';
@@ -21,6 +21,7 @@ import {
   type EntryImages,
   type PageChrome,
 } from './entryPage';
+import { drawContactsDocument } from './contactsPage';
 import { CONTENT_W, METRICS, PAGE, TYPE, paletteFor } from './theme';
 import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
 
@@ -223,6 +224,23 @@ export async function buildEntryPdf(
     });
   }
 
+  return doc.save();
+}
+
+/* --------------------------------------------------------- ספקים וקבלנים */
+
+export async function buildContactsPdf(
+  contacts: Contact[],
+  options: BuildOptions & { owner?: string } = {},
+): Promise<Uint8Array> {
+  const { doc, fonts, t, colors } = await prepare(options);
+  drawContactsDocument(doc, fonts, contacts, {
+    t,
+    colors,
+    logo: await embedDataUrl(doc, options.logoDataUrl),
+    generatedAt: new Date(),
+    owner: options.owner,
+  });
   return doc.save();
 }
 

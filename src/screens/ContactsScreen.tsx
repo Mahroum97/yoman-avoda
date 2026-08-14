@@ -15,13 +15,18 @@ import type { Contact } from '../types';
 import {
   blankContact,
   deleteContact,
+  importContacts,
   restoreContact,
   saveContact,
 } from '../db';
-import { useContacts, usePresets } from '../hooks/useData';
+import { useActiveProject, useContacts, usePresets } from '../hooks/useData';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
+import { saveBlob } from '../lib/save';
+import { logger } from '../lib/log';
 import { EmptyState } from '../components/ui';
+
+const log = logger('contacts');
 
 /** Long enough that typing a word is one write, short enough to feel saved. */
 const SAVE_AFTER_MS = 500;
@@ -40,6 +45,8 @@ export function ContactsScreen() {
    * knows them — asking for them again here would be asking twice.
    */
   const presets = usePresets();
+  // Only for the company name printed under the title of the exported list.
+  const { project } = useActiveProject();
   const toast = useToast();
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
@@ -141,6 +148,71 @@ export function ContactsScreen() {
     requestAnimationFrame(focus);
   };
 
+  /*
+   * The three file actions.
+   *
+   * All of them flush first: an edit still sitting in the debounce is not in the
+   * database yet, and a list exported without the line you just typed is worse
+   * than one that took half a second longer.
+   */
+  const printList = async () => {
+    flushAll();
+    if (rows.length === 0) {
+      toast.error(t.contactsNothingToExport);
+      return;
+    }
+    try {
+      const { exportContactsPdf } = await import('../pdf/export');
+      const name = await exportContactsPdf(rows, { owner: project?.company || project?.name });
+      if (name) toast.show(t.fileCreated(name));
+    } catch (error) {
+      log.error('contacts pdf failed', error);
+      toast.error(t.pdfFailed);
+    }
+  };
+
+  const exportList = async () => {
+    flushAll();
+    if (rows.length === 0) {
+      toast.error(t.contactsNothingToExport);
+      return;
+    }
+    try {
+      const { contactsToCsv } = await import('../lib/contactsCsv');
+      const csv = contactsToCsv(rows, {
+        no: t.contactNo,
+        name: t.labelContactName,
+        trade: t.labelContactTrade,
+        phone: t.labelContactPhone,
+        projects: t.labelContactProjects,
+        notes: t.labelContactNotes,
+      });
+      const name = `${t.contactsTitle}.csv`;
+      // text/csv with a charset, so a mail client does not decide it is Latin-1.
+      const saved = await saveBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), name);
+      if (saved) toast.show(t.fileCreated(name));
+    } catch (error) {
+      log.error('contacts csv failed', error);
+      toast.error(t.contactsImportFailed);
+    }
+  };
+
+  const importList = async (file: File) => {
+    try {
+      const { csvToContacts } = await import('../lib/contactsCsv');
+      const parsed = csvToContacts(await file.text());
+      if (parsed.length === 0) {
+        toast.error(t.contactsImportEmpty);
+        return;
+      }
+      const { added, updated } = await importContacts(parsed);
+      toast.show(t.contactsImported(added, updated));
+    } catch (error) {
+      log.error('contacts import failed', error);
+      toast.error(t.contactsImportFailed);
+    }
+  };
+
   const remove = async (row: Contact) => {
     if (row.id === undefined) return;
 
@@ -226,6 +298,33 @@ export function ContactsScreen() {
           <button type="button" className="btn btn--primary" onClick={() => void add()}>
             ＋ {t.newContact}
           </button>
+        </div>
+
+        <div className="btn-row contacts__files">
+          <button type="button" className="btn btn--sm" onClick={() => void printList()}>
+            🖨️ {t.contactsPrint}
+          </button>
+          <button type="button" className="btn btn--sm" onClick={() => void exportList()}>
+            ⬇️ {t.contactsExport}
+          </button>
+          {/* A label rather than a button: the file picker has to be opened by
+              the input itself, and a styled label is the one way to do that
+              without an invisible control jumping about the layout. */}
+          <label className="btn btn--sm">
+            ⬆️ {t.contactsImport}
+            <input
+              type="file"
+              accept=".csv,text/csv,text/plain"
+              className="visually-hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // Cleared straight away, so choosing the same file twice in a
+                // row still fires a change event the second time.
+                e.target.value = '';
+                if (file) void importList(file);
+              }}
+            />
+          </label>
         </div>
       </div>
 

@@ -11,7 +11,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
 import { Packer } from 'docx';
 import { buildEntryDoc, buildRangeDoc } from '../src/docx/build';
-import { buildEntryPdf, buildRangePdf } from '../src/pdf/build';
+import { buildContactsPdf, buildEntryPdf, buildRangePdf } from '../src/pdf/build';
 import { buildRangeWorkbook } from '../src/xlsx/export';
 import { LANGUAGES, STRINGS } from '../src/i18n/strings';
 import type { DiaryEntry, Project } from '../src/types';
@@ -252,6 +252,43 @@ async function main(): Promise<void> {
     }),
   );
 
+  // ספקים וקבלנים. Two rows carry values long enough to wrap, because the row
+  // height is computed from the wrapped cells and a fixed-height table would
+  // look right here and clip on real data.
+  const contacts = [
+    ['אחמד סלים', 'טיח וגבס', '052-4471203', 'מגדלי הכרמל', 'עובד נקי, מגיע בזמן'],
+    ['בטון הצפון בע"מ', 'משאבת בטון', '04-8123456', 'רמת ישי · מגדלי הכרמל', 'הזמנה יום מראש'],
+    ['יוסי אלקטריק', 'חשמל', '054-9902288', 'שכונת רקפות', 'תעריף שעה 180 ₪'],
+    [
+      'חברת אלומיניום ומסגרות הצפון בע"מ',
+      'מסגרות, אלומיניום וזכוכית',
+      '077-2223344',
+      'מגדלי הכרמל · רמת ישי · שכונת רקפות · פרויקט הדסה',
+      'מחיר לפי מטר רץ, כולל התקנה והובלה. זמינות שבועיים מראש. שאל את דני.',
+    ],
+  ].map(([name, trade, phone, projects, notes], i) => ({
+    uid: `c${i}`,
+    name,
+    trade,
+    phone,
+    projects,
+    notes,
+    createdAt: 0,
+    updatedAt: 0,
+  }));
+
+  for (const lang of ['he', 'en'] as const) {
+    await writeFile(
+      `tmp/sample-contacts-${lang}.pdf`,
+      await buildContactsPdf(contacts, {
+        fontBytes,
+        logoDataUrl,
+        strings: STRINGS[lang],
+        owner: 'מהרום בנייה בע"מ',
+      }),
+    );
+  }
+
   // The spreadsheet, in both writing directions: the RTL flag changes the sheet
   // XML, so an LTR-only check would miss a broken Hebrew workbook.
   for (const lang of ['he', 'en'] as const) {
@@ -260,7 +297,8 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    'נוצרו: tmp/sample-entry.{docx,pdf}, tmp/sample-range.{docx,pdf,xlsx} ' +
+    'נוצרו: tmp/sample-entry.{docx,pdf}, tmp/sample-range.{docx,pdf,xlsx}, ' +
+      'tmp/sample-contacts-{he,en}.pdf ' +
       `ובנוסף דף לכל שפה: ${LANGUAGES.map((l) => `sample-entry-${l}`).join(', ')}`,
   );
 }

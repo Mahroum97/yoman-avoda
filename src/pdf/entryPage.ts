@@ -115,7 +115,18 @@ export function drawHeaderBand(
 
 /* ------------------------------------------------------------ footer band */
 
-export function drawFooter(p: Painter, project: Project, chrome: PageChrome): void {
+/**
+ * The strip along the bottom of every page.
+ *
+ * Takes the two fields it actually prints rather than a whole `Project`, so the
+ * contacts list — which belongs to no single site — can use the same footer as
+ * the diary pages. A `Project` satisfies this shape as it stands.
+ */
+export function drawFooter(
+  p: Painter,
+  project: { company?: string; name?: string },
+  chrome: PageChrome,
+): void {
   const top = PAGE.height - PAGE.margin - METRICS.footerBand;
   p.line(LEFT, top, RIGHT, top, { color: p.colors.line, width: METRICS.hairline });
 
@@ -125,7 +136,7 @@ export function drawFooter(p: Painter, project: Project, chrome: PageChrome): vo
   const a = axisOf(p);
   const small = { size: TYPE.footer, color: p.colors.muted };
 
-  p.textStart(project.company || project.name, a.startX, top + 5, small);
+  p.textStart(project.company || project.name || '', a.startX, top + 5, small);
   p.textCenter(`${chrome.t.docGeneratedBy} · ${stamp}`, LEFT + CONTENT_W / 2, top + 5, small);
   if (a.dir === 'rtl') p.text(chrome.t.docPage(chrome.pageNumber, chrome.pageCount), LEFT, top + 5, small);
   else p.textRight(chrome.t.docPage(chrome.pageNumber, chrome.pageCount), RIGHT, top + 5, small);

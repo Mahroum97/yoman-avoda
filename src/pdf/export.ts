@@ -1,8 +1,8 @@
 /** Saves the generated PDFs, through the native dialog when running as an app. */
 import { saveAs } from 'file-saver';
-import type { DiaryEntry, Project } from '../types';
+import type { Contact, DiaryEntry, Project } from '../types';
 import { entryFileName, rangeFileName } from '../docx/build';
-import { buildEntryPdf, buildRangePdf, type BuildOptions } from './build';
+import { buildContactsPdf, buildEntryPdf, buildRangePdf, type BuildOptions } from './build';
 import { deliverBinary, type Deliver, type ExportResult } from '../lib/save';
 import { currentStrings } from '../i18n/useLanguage';
 import { currentDocThemeId } from '../hooks/useDocTheme';
@@ -36,6 +36,36 @@ export async function exportEntryPdf(
   } catch (error) {
     done('failed');
     log.error('entry pdf failed', error);
+    throw error;
+  }
+}
+
+/**
+ * The supplier list as a document — the "print" button, in practice.
+ *
+ * A generated PDF rather than `window.print()`, for the reason the whole
+ * document layer exists: a browser print puts its own header, its own URL and
+ * its own page breaks on the paper, and on iOS it does nothing at all. The
+ * share sheet this lands in has Print in it.
+ */
+export async function exportContactsPdf(
+  contacts: Contact[],
+  options: BuildOptions & { owner?: string; deliver?: Deliver } = {},
+): Promise<ExportResult> {
+  const t = options.strings ?? currentStrings();
+  const themeId = options.themeId ?? (await currentDocThemeId());
+  const done = log.time('build contacts pdf');
+  log.debug('building contacts pdf', { rows: contacts.length, lang: t.locale, theme: themeId });
+
+  try {
+    const bytes = await buildContactsPdf(contacts, { ...options, strings: t, themeId });
+    done();
+    const name = `${t.contactsTitle}.pdf`;
+    log.info('contacts pdf ready', { kind: fileKind(name), bytes: bytes.length });
+    return (await deliverBinary(bytes, name, 'application/pdf', options.deliver)) ? name : null;
+  } catch (error) {
+    done('failed');
+    log.error('contacts pdf failed', error);
     throw error;
   }
 }

@@ -1,5 +1,6 @@
 /** Shell, routing and the "no project yet" onboarding path. */
 import { useEffect, useMemo, useState } from 'react';
+import { dbHealth, onDbHealth, type DbHealth } from './db';
 import { useActiveProject, useProjects } from './hooks/useData';
 import { useRoute, navigate } from './hooks/useRoute';
 import { ToastProvider } from './components/ToastProvider';
@@ -226,8 +227,32 @@ function Screen({
   return <EntriesScreen project={project} />;
 }
 
+/**
+ * "Loading" — until it becomes clear that it is not loading at all.
+ *
+ * A diary held open by another copy of the app never resolves and never fails,
+ * so this line used to sit on screen indefinitely. After that it says what is
+ * actually wrong and what to do about it, which is the whole difference between
+ * a bug report of "it doesn't work" and one that can be acted on.
+ */
 function Loading() {
   const { t } = useLanguage();
+  const [health, setHealth] = useState<DbHealth>(dbHealth);
+  useEffect(() => onDbHealth(setHealth), []);
+
+  if (health === 'stuck' || health === 'failed') {
+    return (
+      <EmptyState icon="⚠️" title={t.dbStuckTitle}>
+        <p className="muted" style={{ marginBottom: 16 }}>
+          {health === 'stuck' ? t.dbStuckBody : t.dbFailedBody}
+        </p>
+        <button type="button" className="btn btn--primary" onClick={() => location.reload()}>
+          {t.dbRetry}
+        </button>
+      </EmptyState>
+    );
+  }
+
   return <p className="muted">{t.loading}</p>;
 }
 

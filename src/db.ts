@@ -6,6 +6,7 @@
 import Dexie, { type Table } from 'dexie';
 import type {
   Contact,
+  ContactDraft,
   DiaryEntry,
   Preset,
   PresetKind,
@@ -169,15 +170,71 @@ const log = logger('db');
  * failure is recorded at startup, next to the `started` line, instead of
  * surfacing later as a screen that is merely empty.
  */
+/**
+ * Whether the diary's storage is actually usable, for the screens to read.
+ *
+ * `stuck` is the one that had to be added: a second copy of the app holding the
+ * same profile makes `open()` hang *silently* — no error, no `blocked` event,
+ * no event of any kind, ever. Every screen then renders its "loading" line
+ * forever and the app looks broken with nothing to point at, which is precisely
+ * the complaint this state exists to answer.
+ */
+export type DbHealth = 'opening' | 'open' | 'stuck' | 'failed';
+
+let health: DbHealth = 'opening';
+const healthWatchers = new Set<(state: DbHealth) => void>();
+
+export const dbHealth = (): DbHealth => health;
+
+/** Subscribes to storage health; returns the unsubscribe. */
+export function onDbHealth(watcher: (state: DbHealth) => void): () => void {
+  healthWatchers.add(watcher);
+  watcher(health);
+  return () => healthWatchers.delete(watcher);
+}
+
+function setHealth(next: DbHealth): void {
+  if (health === next) return;
+  health = next;
+  for (const watcher of healthWatchers) {
+    try {
+      watcher(next);
+    } catch {
+      // A screen that throws while re-rendering must not take the others down.
+    }
+  }
+}
+
+/** Long enough that a slow phone opening a big diary is never called stuck. */
+const OPEN_TIMEOUT_MS = 8000;
+
 if (typeof indexedDB !== 'undefined') {
+  const stuckTimer = setTimeout(() => {
+    if (health === 'opening') {
+      setHealth('stuck');
+      log.error('database has not opened — another copy of the app is probably holding it');
+    }
+  }, OPEN_TIMEOUT_MS);
+
   void db
     .open()
-    .then(() => log.info('database open', { version: db.verno }))
-    .catch((error: unknown) => log.error('database did not open', error));
+    .then(() => {
+      clearTimeout(stuckTimer);
+      setHealth('open');
+      log.info('database open', { version: db.verno });
+    })
+    .catch((error: unknown) => {
+      clearTimeout(stuckTimer);
+      setHealth('failed');
+      log.error('database did not open', error);
+    });
 
   // Another window or app instance holds an older version open, so the upgrade
   // cannot run. The diary is unreadable until that one is closed.
-  db.on('blocked', () => log.error('database blocked by another window'));
+  db.on('blocked', () => {
+    setHealth('stuck');
+    log.error('database blocked by another window');
+  });
 }
 
 /* ------------------------------------------------------------------ settings */
@@ -434,6 +491,81 @@ export async function deleteContact(id: number): Promise<void> {
   // A count, never a name or a number: this list is somebody's contacts, and
   // the log file gets sent to other people.
   log.info('contact deleted', { contacts: await db.contacts.count() });
+}
+
+export interface ImportContactsResult {
+  added: number;
+  updated: number;
+}
+
+/**
+ * Merges a list read from a file into the address book.
+ *
+ * Importing the same file twice must not double the list — which is exactly
+ * what happens when the same supplier is added again under a new uid, and the
+ * list a person actually has is the one they exported, edited a little, and
+ * sent back. A line is therefore matched to an existing one by **name plus
+ * phone**, or by name alone where one of the two has no number yet; anything
+ * that matches is filled in rather than duplicated, and an existing value is
+ * never overwritten with an empty one.
+ */
+export async function importContacts(rows: ContactDraft[]): Promise<ImportContactsResult> {
+  const result: ImportContactsResult = { added: 0, updated: 0 };
+  const digits = (phone: string) => phone.replace(/\D/g, '');
+  const key = (name: string) => name.trim().toLowerCase();
+
+  await db.transaction('rw', db.contacts, async () => {
+    const existing = await db.contacts.toArray();
+
+    for (const row of rows) {
+      const name = (row.name ?? '').trim();
+      const phone = (row.phone ?? '').trim();
+      if (!name && !phone) continue;
+
+      const match = existing.find((contact) => {
+        if (key(contact.name) !== key(name)) return false;
+        const a = digits(contact.phone);
+        const b = digits(phone);
+        // Same name and same number, or same name and one side has no number.
+        return a === b || a === '' || b === '';
+      });
+
+      if (match?.id !== undefined) {
+        const merged: Contact = {
+          ...match,
+          // `||` and not `??`: a blank cell in the file means "nothing to say
+          // about this", not "erase what is here".
+          name: name || match.name,
+          trade: (row.trade ?? '').trim() || match.trade,
+          phone: phone || match.phone,
+          projects: (row.projects ?? '').trim() || match.projects,
+          notes: (row.notes ?? '').trim() || match.notes,
+          updatedAt: Date.now(),
+        };
+        await db.contacts.put(merged);
+        Object.assign(match, merged);
+        result.updated += 1;
+      } else {
+        const fresh: Contact = {
+          ...blankContact(),
+          name,
+          trade: (row.trade ?? '').trim(),
+          phone,
+          projects: (row.projects ?? '').trim(),
+          notes: (row.notes ?? '').trim(),
+        };
+        await db.contacts.add(fresh);
+        // Kept in the same list, so two identical lines inside one file collapse
+        // into one record instead of racing each other in.
+        existing.push(fresh);
+        result.added += 1;
+      }
+    }
+  });
+
+  // Counts only — an imported list is somebody's contacts.
+  log.info('contacts imported', { ...result, rows: rows.length });
+  return result;
 }
 
 /** Puts a deleted line back, for the undo offered instead of a confirmation. */

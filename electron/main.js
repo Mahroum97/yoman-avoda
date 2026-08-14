@@ -231,15 +231,46 @@ function buildMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
-app.whenReady().then(() => {
-  buildMenu();
-  createWindow();
-  startSyncServer(askRenderer);
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+/*
+ * One copy of the app, ever.
+ *
+ * Chromium allows a single process per user-data directory, and the diary lives
+ * in that directory's IndexedDB. A second copy therefore cannot open the diary
+ * *at all*: the open request never resolves — not an error, not "blocked", no
+ * event of any kind — so the window sits on "loading" for as long as you leave
+ * it, while the first copy carries on working perfectly. Two instances left
+ * running is exactly how this app came to "not open and not say why", and the
+ * second copy is invisible unless you go looking in the process list for it.
+ *
+ * The lock is taken before anything else: a copy that cannot have the diary
+ * should not draw a window, start a sync server, or touch the profile.
+ */
+if (!app.requestSingleInstanceLock()) {
+  console.error('another copy of the diary is already running; quitting this one');
+  app.quit();
+} else {
+  // Launching it again — from the Dock, or by double-clicking — raises the
+  // window that already has the diary instead of doing nothing visible.
+  app.on('second-instance', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) {
+      createWindow();
+      return;
+    }
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
   });
-});
+
+  app.whenReady().then(() => {
+    buildMenu();
+    createWindow();
+    startSyncServer(askRenderer);
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
+  });
+}
 
 // The diary lives in this window's storage, so closing it ends the session.
 app.on('window-all-closed', () => {
