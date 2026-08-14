@@ -42,6 +42,23 @@
           if (lang !== 'he' && lang !== 'ar' && lang !== 'en') lang = 'he';
           root.lang = lang;
           root.dir = lang === 'en' ? 'ltr' : 'rtl';
+
+          // The chosen typeface, before anything is drawn — otherwise the app
+          // paints once in the system font and reflows into the real one.
+          // Must match FONTS in src/fonts.ts.
+          var sys =
+            "system-ui, -apple-system, 'SF Hebrew', 'Arial Hebrew', 'Segoe UI', Arial, sans-serif";
+          var stacks = {
+            heebo: "'Heebo', " + sys,
+            assistant: "'Assistant', " + sys,
+            rubik: "'Rubik', " + sys,
+            frank: "'Frank Ruhl Libre', " + sys,
+            cousine: "'Cousine', ui-monospace, 'SF Mono', Menlo, monospace",
+            cairo: "'Cairo', " + sys,
+            tajawal: "'Tajawal', " + sys,
+          };
+          var font = stacks[localStorage.getItem('yoman-font-' + lang)];
+          if (font) root.style.setProperty('--font', font);
         } catch (e) {
           root.dataset.theme = 'light';
         }

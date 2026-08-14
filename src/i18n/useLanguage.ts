@@ -33,6 +33,16 @@ export function applyLanguage(language: Language): void {
   const { dir } = STRINGS[language];
   document.documentElement.lang = language;
   document.documentElement.dir = dir;
+  /*
+   * The typeface is chosen per language, so switching language switches it too
+   * — a Hebrew face has nothing to say about how Arabic should look, and a
+   * stack left behind from the previous language would simply fall through to
+   * the system font without ever saying why.
+   *
+   * A dynamic import so `fonts.ts` never has to load under Node, where the
+   * document builders run and there is no `document` to write to.
+   */
+  void import('../fonts').then(({ applyFont }) => applyFont(language));
 }
 
 /** Read the current strings outside React — used by the export helpers. */

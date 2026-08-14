@@ -1,3 +1,5 @@
+@import './fonts.css';
+
 /*
  * Design system for a tool used outdoors, on a phone, in daylight:
  * high contrast, large touch targets, no thin grey-on-grey text.
@@ -46,6 +48,8 @@
   /* Height of the bottom tab bar, so anything floating above it can clear it. */
   --navh: 47px;
 
+  /* The default only. src/fonts.ts overwrites this property on <html> when a
+     typeface has been chosen, which is how one setting reaches every rule. */
   --font: system-ui, -apple-system, 'SF Hebrew', 'Arial Hebrew', 'Segoe UI',
     Arial, sans-serif;
 
@@ -2519,4 +2523,56 @@ label.btn {
   font-size: 0.72rem;
   font-weight: 700;
   text-align: center;
+}
+
+/* ------------------------------------------------------------ typeface */
+
+.fonts {
+  display: grid;
+  gap: 10px;
+}
+
+.fonts__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.fonts__item[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* The sample is the point of the row, so it gets the room. */
+.fonts__sample {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fonts__name {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.fonts__note {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 400;
 }

@@ -31,6 +31,12 @@ export interface Strings {
   navSettings: string;
   navNew: string;
 
+  /* typeface */
+  fontTitle: string;
+  fontHint: string;
+  fontSample: string;
+  fontNote: (kind: string) => string;
+
   /* storage health */
   dbStuckTitle: string;
   dbStuckBody: string;
@@ -485,6 +491,18 @@ const he: Strings = {
   navSettings: 'הגדרות',
   navNew: 'חדש',
 
+  fontTitle: 'גופן',
+  fontHint: 'משנה את הגופן בכל האפליקציה. הבחירה נשמרת בנפרד לכל שפה ובמכשיר הזה בלבד.',
+  fontSample: 'יומן עבודה 12/08',
+  fontNote: (kind) =>
+    ({
+      system: 'של המכשיר',
+      default: 'ברירת מחדל',
+      friendly: 'נעים לקריאה',
+      rounded: 'עגול',
+      serif: 'קלאסי',
+      mono: 'רוחב קבוע',
+    })[kind] ?? '',
   dbStuckTitle: 'היומן לא נפתח',
   dbStuckBody:
     'ככל הנראה היומן כבר פתוח בחלון או בעותק אחר של האפליקציה, ורק אחד יכול לקרוא את הנתונים. סגור את החלון השני ונסה שוב.',
@@ -957,6 +975,18 @@ const ar: Strings = {
   navSettings: 'الإعدادات',
   navNew: 'جديد',
 
+  fontTitle: 'الخط',
+  fontHint: 'يغيّر الخط في كل التطبيق. يُحفظ الاختيار لكل لغة على حدة وعلى هذا الجهاز فقط.',
+  fontSample: 'سجل العمل ١٢/٠٨',
+  fontNote: (kind) =>
+    ({
+      system: 'خط الجهاز',
+      default: 'الافتراضي',
+      friendly: 'مريح للقراءة',
+      rounded: 'دائري',
+      serif: 'كلاسيكي',
+      mono: 'عرض ثابت',
+    })[kind] ?? '',
   dbStuckTitle: 'السجل لم يُفتح',
   dbStuckBody:
     'على الأرجح أن السجل مفتوح في نافذة أو نسخة أخرى من التطبيق، ولا يمكن إلا لواحدة قراءة البيانات. أغلق النافذة الأخرى وحاول مرة أخرى.',
@@ -1429,6 +1459,18 @@ const en: Strings = {
   navSettings: 'Settings',
   navNew: 'New',
 
+  fontTitle: 'Typeface',
+  fontHint: 'Changes the font everywhere in the app. Kept per language, and on this device only.',
+  fontSample: 'Work Diary 12/08',
+  fontNote: (kind) =>
+    ({
+      system: "the device's own",
+      default: 'default',
+      friendly: 'easy to read',
+      rounded: 'rounded',
+      serif: 'classic',
+      mono: 'fixed width',
+    })[kind] ?? '',
   dbStuckTitle: 'The diary did not open',
   dbStuckBody:
     'It is most likely already open in another window or copy of the app, and only one of them can read the data. Close the other window and try again.',

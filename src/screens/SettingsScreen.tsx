@@ -30,6 +30,7 @@ import { LogCard } from '../components/LogCard';
 import { SignaturesCard } from '../components/SignaturesCard';
 import { SyncCard } from '../components/SyncCard';
 import { DocThemePicker } from '../components/DocThemePicker';
+import { fontsFor, readFont, setFont } from '../fonts';
 import { Icon } from '../components/Icon';
 import { setDocThemeId, useDocThemeId } from '../hooks/useDocTheme';
 
@@ -49,6 +50,8 @@ export function SettingsScreen() {
   const presets = usePresetRows();
   const { preference, setPreference } = useTheme();
   const { language, setLanguage, t } = useLanguage();
+  // Re-read on every language change: the choice is stored per language.
+  const [font, setFontState] = useState(() => readFont(language));
 
   const presetLabels: Record<PresetKind, string> = {
     staff: t.presetStaff,
@@ -67,6 +70,8 @@ export function SettingsScreen() {
   ];
   const companyLogo = useCompanyLogo();
   const docThemeId = useDocThemeId();
+  useEffect(() => setFontState(readFont(language)), [language]);
+
   const [usage, setUsage] = useState<{ used: number; quota: number } | null>(null);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [newValue, setNewValue] = useState<Record<string, string>>({});
@@ -175,6 +180,34 @@ export function SettingsScreen() {
             >
               <span>{option.label}</span>
               <span className="segmented__hint">{option.hint}</span>
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      <Card title={t.fontTitle} note={t.fontHint}>
+        <div className="fonts">
+          {fontsFor(language).map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              className="fonts__item"
+              aria-pressed={font === option.id}
+              onClick={() => {
+                setFont(language, option.id);
+                setFontState(option.id);
+              }}
+            >
+              {/* Set in the face it offers, so the list is its own preview —
+                  a name in the current font tells you nothing about the one
+                  you are about to choose. */}
+              <span className="fonts__sample" style={{ fontFamily: option.stack }}>
+                {t.fontSample}
+              </span>
+              <span className="fonts__name">
+                {option.name}
+                <span className="fonts__note">{t.fontNote(option.note)}</span>
+              </span>
             </button>
           ))}
         </div>
