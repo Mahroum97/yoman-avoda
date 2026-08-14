@@ -41,9 +41,29 @@ async function loadRenderer() {
     import('pdfjs-dist'),
     import('pdfjs-dist/build/pdf.worker.min.mjs?url').then((m) => m.default),
   ]);
-  // Without this pdf.js reaches for a worker on a CDN, which would break the
-  // one promise this app makes: that it works with no network at all.
-  pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+
+  /*
+   * The worker is started here rather than through `workerSrc`, and the reason
+   * is a failure that hides itself.
+   *
+   * pdf.js ships its worker as an ES module — it uses `import.meta` — but given
+   * only a `workerSrc` it starts it as a *classic* script, which dies on the
+   * first line with "Cannot use 'import.meta' outside a module". pdf.js then
+   * logs `Setting up fake worker` at warning level and runs the entire parser
+   * and rasteriser **on the main thread**. Everything still works, which is
+   * exactly why this went unnoticed: the only symptom is the interface freezing
+   * for as long as the export takes, and on a thirty-page range report on a
+   * phone that is the difference between a progress bar and a dead app.
+   *
+   * `workerPort` hands pdf.js a worker we started ourselves, with the one
+   * option that makes it load: `type: 'module'`.
+   *
+   * A *fresh* one every time, deliberately. `doc.destroy()` below terminates
+   * whatever port it was given, so a worker kept in a module variable would be
+   * dead by the second export — and a dead port does not fall back to anything,
+   * it simply never answers. Starting one costs about 150ms, on a button press.
+   */
+  pdfjs.GlobalWorkerOptions.workerPort = new Worker(workerUrl, { type: 'module' });
   return pdfjs;
 }
 
