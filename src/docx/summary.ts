@@ -27,19 +27,25 @@ export interface Tally {
   days: number;
 }
 
-function tally(rows: { label: string; value: number }[]): Tally[] {
-  const map = new Map<string, Tally>();
-  for (const { label, value } of rows) {
+/**
+ * `day` is which diary page the row came from, and it is what the column headed
+ * ימים counts. Counting rows instead — which is what this did — turned a trade
+ * written on two lines of one page, two crews of electricians on one morning,
+ * into two days of electricians.
+ */
+function tally(rows: { label: string; value: number; day: number }[]): Tally[] {
+  const map = new Map<string, { label: string; total: number; days: Set<number> }>();
+  for (const { label, value, day } of rows) {
     const key = label.trim();
     if (!key) continue;
-    const existing = map.get(key) ?? { label: key, total: 0, days: 0 };
+    const existing = map.get(key) ?? { label: key, total: 0, days: new Set<number>() };
     existing.total += value;
-    existing.days += 1;
+    existing.days.add(day);
     map.set(key, existing);
   }
-  return [...map.values()].sort(
-    (a, b) => b.total - a.total || a.label.localeCompare(b.label, 'he'),
-  );
+  return [...map.values()]
+    .map(({ label, total, days }) => ({ label, total, days: days.size }))
+    .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'he'));
 }
 
 export interface RangeSummary {
@@ -56,9 +62,10 @@ export interface RangeSummary {
 }
 
 export function summarise(entries: DiaryEntry[]): RangeSummary {
-  const tradeRows: { label: string; value: number }[] = [];
-  const equipmentRows: { label: string; value: number }[] = [];
-  const concreteRows: { label: string; value: number }[] = [];
+  type Row = { label: string; value: number; day: number };
+  const tradeRows: Row[] = [];
+  const equipmentRows: Row[] = [];
+  const concreteRows: Row[] = [];
   let castingDays = 0;
   let photos = 0;
   let signedDays = 0;
@@ -73,19 +80,19 @@ export function summarise(entries: DiaryEntry[]): RangeSummary {
   const text = (value: string | undefined | null): string =>
     typeof value === 'string' ? value.trim() : '';
 
-  for (const entry of entries) {
+  for (const [day, entry] of entries.entries()) {
     for (const row of entry.contractors ?? []) {
-      tradeRows.push({ label: text(row.trade), value: parseNum(row.workers) });
+      tradeRows.push({ label: text(row.trade), value: parseNum(row.workers), day });
     }
     for (const row of entry.equipment ?? []) {
-      equipmentRows.push({ label: text(row.kind), value: parseNum(row.hours) });
+      equipmentRows.push({ label: text(row.kind), value: parseNum(row.hours), day });
     }
 
     const casting = entry.casting ?? {};
     const qty = parseNum(casting.concreteQty);
     const type = text(casting.concreteType);
     if (qty > 0 || type) {
-      concreteRows.push({ label: type || 'ללא ציון סוג', value: qty });
+      concreteRows.push({ label: type || 'ללא ציון סוג', value: qty, day });
     }
     if (qty > 0 || type || text(casting.description)) castingDays += 1;
     if ((entry.management?.length ?? 0) > 0 || (entry.contractors?.length ?? 0) > 0) {
@@ -93,7 +100,12 @@ export function summarise(entries: DiaryEntry[]): RangeSummary {
     }
 
     photos += entry.photos?.length ?? 0;
-    if (entry.status === 'signed') signedDays += 1;
+    // The same rule as `statusFor` in src/db.ts: a page carrying a מנ"ע
+    // signature is signed whatever its stored status says. Reading the stored
+    // value alone under-counted pages that arrived from a device old enough to
+    // predate that rule — the cover's "יומנים חתומים" is the one figure in the
+    // report a reader checks against the pages behind it.
+    if (entry.status === 'signed' || text(entry.managerSignature)) signedDays += 1;
   }
 
   const concrete = tally(concreteRows);
@@ -110,7 +122,12 @@ export function summarise(entries: DiaryEntry[]): RangeSummary {
   };
 }
 
-/** Trims trailing zeros: 12.50 -> `12.5`, 12.00 -> `12`. */
+/**
+ * Trims trailing zeros: 12.50 -> `12.5`, 12.00 -> `12`.
+ *
+ * Through `Number`, because stripping the zeros as text left the dot behind:
+ * 12.001 rounded to "12.00" and came out of the report as `12.`
+ */
 export function formatNum(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0+$/, '');
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
