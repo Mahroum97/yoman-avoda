@@ -89,7 +89,7 @@ const photoPng = makePng(640, 480, (x, y) => {
   return band ? [86, 98, 112] : [104, 117, 132];
 });
 
-const photoBlob = new Blob([photoPng], { type: 'image/png' });
+const photoBytes = new Uint8Array(photoPng);
 
 /** The same scene stood on its end: a phone photograph is usually portrait. */
 const photoTallPng = makePng(480, 640, (x, y) => {
@@ -98,7 +98,7 @@ const photoTallPng = makePng(480, 640, (x, y) => {
   const band = Math.floor((x + y) / 60) % 2 === 0;
   return band ? [86, 98, 112] : [104, 117, 132];
 });
-const photoTallBlob = new Blob([photoTallPng], { type: 'image/png' });
+const photoTallBytes = new Uint8Array(photoTallPng);
 
 /**
  * Fifteen photos, which is more than one appendix page holds.
@@ -112,7 +112,7 @@ function samplePhotos(index: number): DiaryEntry['photos'] {
   return Array.from({ length: 15 }, (_, i) => ({
     id: `p${index}-${i + 1}`,
     caption: i === 0 ? 'תקרת קומה 3 לפני היציקה' : i === 1 ? 'משאבת הבטון בעמדת העבודה' : '',
-    blob: i % 3 === 0 ? photoTallBlob : photoBlob,
+    bytes: i % 3 === 0 ? photoTallBytes : photoBytes,
     width: i % 3 === 0 ? 480 : 640,
     height: i % 3 === 0 ? 640 : 480,
     takenAt: Date.now(),

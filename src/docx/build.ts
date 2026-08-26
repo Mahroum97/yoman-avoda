@@ -22,7 +22,7 @@ import type { Strings } from '../i18n/strings';
 import { currentStrings } from '../i18n/useLanguage';
 import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
 import { formatDdMmYyyy } from '../lib/dates';
-import { blobToUint8 } from '../lib/images';
+import { photoBytes } from '../lib/photoData';
 import { logger } from '../lib/log';
 import { CELL_MARGIN, bar, labelledLine } from './blocks';
 import { entryPage, photoAppendix } from './entryPage';
@@ -84,7 +84,9 @@ async function loadPhotos(entries: DiaryEntry[]): Promise<Map<string, Uint8Array
     entries.flatMap((entry) =>
       entry.photos.map(async (photo) => {
         try {
-          images.set(photo.id, await blobToUint8(photo.blob));
+          const bytes = await photoBytes(photo);
+          if (bytes) images.set(photo.id, bytes);
+          else log.warn('a photo has no readable bytes for the Word file');
         } catch (error) {
           log.warn('a photo could not be read for the Word file', error);
         }

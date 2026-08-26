@@ -166,39 +166,10 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/**
- * Decodes a data URL without going through `fetch`.
- *
- * `fetch(dataUrl)` works and reads well, but it pushes every photo through the
- * network stack, and sync decodes photos in a loop — on a phone that was one of
- * the slowest parts of a merge. `atob` is synchronous and stays in memory.
- */
-export async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
-  const comma = dataUrl.indexOf(',');
-  if (comma === -1) return new Blob([]);
-
-  const header = dataUrl.slice(0, comma);
-  const body = dataUrl.slice(comma + 1);
-  const mime = header.match(/^data:([^;,]+)/)?.[1] ?? 'application/octet-stream';
-
-  if (!header.includes(';base64')) {
-    return new Blob([decodeURIComponent(body)], { type: mime });
-  }
-
-  const binary = atob(body);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return new Blob([bytes], { type: mime });
-}
-
 /** `data:image/png;base64,AAA` -> `AAA`, as docx's ImageRun expects. */
 export function dataUrlToBase64(dataUrl: string): string {
   const comma = dataUrl.indexOf(',');
   return comma === -1 ? dataUrl : dataUrl.slice(comma + 1);
-}
-
-export async function blobToUint8(blob: Blob): Promise<Uint8Array> {
-  return new Uint8Array(await blob.arrayBuffer());
 }
 
 /** Human readable size, e.g. `1.4 MB`. Device quotas reach gigabytes. */

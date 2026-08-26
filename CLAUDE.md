@@ -207,6 +207,26 @@ renderer of the three, so what is on screen is what comes out.
 
 The heaviest thing the diary holds, and the easiest to lose.
 
+- **A photograph is stored as bytes, never as a `Blob`.** This is the one rule here that
+  cost a day's work to learn. A Blob in IndexedDB is not kept in the record: the browser
+  writes the body to a file beside the database and stores a reference. On iOS that
+  reference does not survive **installing a new build of the app** — the entries come
+  back with their captions, their sizes and their dimensions, and every picture in them
+  is gone. The page then exports as a diary page with ten empty slots in it. A
+  `Uint8Array` is structured-cloned into the record itself and travels with it through a
+  reinstall, a backup, and the sync. `src/lib/photoData.ts` is the only place that reads
+  or writes them; records written before the change still carry `blob`, so both are read
+  and only `bytes` is written.
+- **The conversion runs once, over the whole diary** (`rewritePhotosAsBytes`, scheduled
+  in `main.tsx`). Converting on save alone leaves every page nobody opens still holding
+  Blobs, and those are exactly the ones the next install breaks. It walks a page at a
+  time, never throws, and **leaves `updatedAt` alone**: the bytes are the same photograph
+  in a different wrapper, and stamping every page would push the whole diary over the
+  next sync and win every conflict on the other device.
+- **The sync never replaces a photo it can read with one it cannot.** Last write wins is
+  right for a page and wrong for the picture inside it: a device whose photographs had
+  been damaged would otherwise carry the damage across and overwrite the only good copy
+  left, with a newer stamp making it look deliberate (`keepReadablePhotos`).
 - **They are written the moment they are picked**, not on the editor's 1.2 second
   debounce. Everything else on the page can be typed again; a photograph taken in a
   stairwell at ten past seven cannot, and iOS can end the app inside that second and a
@@ -248,8 +268,9 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
 
 - `entries` has a compound index `[projectId+date]` — **one page per project per day**.
   The editor checks for a clash before saving rather than creating a duplicate.
-- Photos are `Blob`s inside the entry record, downscaled to 1600px JPEG by
-  `src/lib/images.ts` *before* saving. The company logo is a PNG data URL in `settings`.
+- Photos are **bytes** (`Uint8Array`) inside the entry record, downscaled to 1600px JPEG
+  by `src/lib/images.ts` *before* saving — see the Photos section for why they are not
+  `Blob`s. The company logo is a PNG data URL in `settings`.
 - Saving an entry runs `learnPresets`, which feeds the comboboxes.
 - **The schema is at v6, and every version restates every store.** The comment above
   each says what it changed and why: v2's `uid`s and tombstones, v4's `[uid+updatedAt]`

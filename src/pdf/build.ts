@@ -7,7 +7,7 @@
  */
 import { PDFDocument, type PDFImage, type PDFPage } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import type { Contact, DiaryEntry, Project } from '../types';
+import type { Contact, DiaryEntry, Photo, Project } from '../types';
 import type { Strings } from '../i18n/strings';
 import { currentStrings } from '../i18n/useLanguage';
 import { formatDdMmYyyy, formatLongDate } from '../lib/dates';
@@ -25,6 +25,7 @@ import { drawContactsDocument } from './contactsPage';
 import { CONTENT_W, METRICS, PAGE, TYPE, axisFor, paletteFor } from './theme';
 import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
 import { PHOTOS_PER_PAGE, photoPageCount } from '../lib/photoPages';
+import { photoBytes } from '../lib/photoData';
 import { docFontId } from '../fonts';
 
 import heeboRegularUrl from '../assets/fonts/heebo-regular.ttf?url';
@@ -144,10 +145,21 @@ async function embedDataUrl(
   }
 }
 
-async function embedBlob(doc: PDFDocument, blob: Blob): Promise<PDFImage | undefined> {
+/**
+ * A stored photograph, embedded.
+ *
+ * Undefined when its bytes cannot be read — the appendix then draws the slot
+ * with a line saying so, rather than a hole where a photograph should be.
+ * The signature is read by its own bytes: a JPEG starts `FF D8`, and a PNG
+ * `89 50`, which is more reliable than a stored MIME type that may be missing
+ * on a record restored from an older backup.
+ */
+async function embedPhoto(doc: PDFDocument, photo: Photo): Promise<PDFImage | undefined> {
   try {
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    return blob.type.includes('png') ? doc.embedPng(bytes) : doc.embedJpg(bytes);
+    const bytes = await photoBytes(photo);
+    if (!bytes || bytes.byteLength === 0) return undefined;
+    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50;
+    return isPng ? doc.embedPng(bytes) : doc.embedJpg(bytes);
   } catch {
     return undefined;
   }
@@ -242,7 +254,7 @@ async function drawPhotoPages(
         lineWidth: METRICS.hairline,
       });
 
-      const image = await embedBlob(doc, photo.blob);
+      const image = await embedPhoto(doc, photo);
       if (image) {
         const scale = Math.min((colW - 12) / image.width, (PHOTO.slotH - 12) / image.height);
         const w = image.width * scale;

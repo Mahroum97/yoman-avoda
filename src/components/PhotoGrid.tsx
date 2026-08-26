@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import type { Photo } from '../types';
 import { formatBytes, prepareImage } from '../lib/images';
+import { photoSize } from '../lib/photoData';
 import { uid } from '../lib/id';
 import { usePhotoUrls } from '../hooks/usePhotoUrls';
 import { useLanguage } from '../i18n/useLanguage';
@@ -44,7 +45,8 @@ export function PhotoGrid({
           added.push({
             id: uid(),
             caption: '',
-            blob,
+            // Bytes from the first moment, never a Blob — see photoData.ts.
+            bytes: new Uint8Array(await blob.arrayBuffer()),
             width,
             height,
             takenAt: file instanceof File ? file.lastModified : Date.now(),
@@ -60,7 +62,7 @@ export function PhotoGrid({
     }
   };
 
-  const totalBytes = photos.reduce((sum, photo) => sum + photo.blob.size, 0);
+  const totalBytes = photos.reduce((sum, photo) => sum + photoSize(photo), 0);
 
   return (
     <div className="stack">

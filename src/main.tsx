@@ -15,6 +15,17 @@ installGlobalLogHandlers();
 // After the handlers, so a failure in it is recorded like any other.
 void import('./lib/autoBackup').then(({ scheduleAutoBackup }) => scheduleAutoBackup());
 
+/*
+ * Photographs stored as Blobs are converted to bytes once, a few seconds in.
+ *
+ * After the first render, and before the automatic backup, so the copy that
+ * gets written is the converted one. See src/lib/photoData.ts for what it is
+ * protecting the diary from.
+ */
+window.setTimeout(() => {
+  void import('./lib/photoData').then(({ rewritePhotosAsBytes }) => rewritePhotosAsBytes());
+}, 2500);
+
 const log = logger('app');
 log.info('started', {
   shell: isDesktop() ? 'mac' : isNativeApp() ? 'ios-app' : isIos() ? 'ios-web' : 'web',

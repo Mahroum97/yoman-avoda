@@ -34,8 +34,10 @@ Four things that made it slow, all fixed and all easy to reintroduce:
   commits the moment it awaits a non-Dexie promise, so decoding inside it would end the
   transaction underneath the writes; it also used to run every read and write as its own
   transaction, hundreds per sync.
-- **`dataUrlToBlob` uses `atob`, not `fetch`.** `fetch(dataUrl)` pushes every photo
-  through the network stack, in a loop, on a phone.
+- **`dataUrlToBytes` uses `atob`, not `fetch`.** `fetch(dataUrl)` pushes every photo
+  through the network stack, in a loop, on a phone. Photos are carried as bytes on both
+  sides — never as Blobs, for the reason `src/lib/photoData.ts` gives — so decoding is
+  now synchronous and there is nothing to await inside the loop at all.
 
 `post()` carries an `AbortController` — `fetch` has no timeout of its own, and without
 one a sleeping Mac left the phone spinning for as long as the platform felt like waiting.
@@ -66,7 +68,10 @@ Rules that are easy to get wrong, and are load-bearing:
   sides' tombstones; a record whose incoming `updatedAt` is newer than the
   tombstone does return, which is last-write-wins applied to deletes.
 - Conflicts are resolved by `updatedAt`, last write wins — correct for one
-  person with two devices, which is what this is for.
+  person with two devices, which is what this is for. **The exception is the
+  photographs inside a page**: `keepReadablePhotos` refuses to replace one whose
+  bytes are here with one that arrived empty, so a device whose pictures were
+  damaged cannot carry that across and overwrite the last good copy.
 - **`SYNCED_SETTINGS` is a closed list**: the company logo, the document theme and the two
   signatures. Everything else in `settings` stays on the device it was set on. The test is
   whether the value describes the diary or the device holding it.

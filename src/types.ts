@@ -75,7 +75,17 @@ export interface CastingDetails {
 export interface Photo {
   id: string;
   caption: string;
-  blob: Blob;
+  /**
+   * The JPEG itself.
+   *
+   * Bytes rather than a `Blob`, and that is not a detail: a Blob in IndexedDB
+   * lives in a file beside the database, and on iOS installing a new build of
+   * the app breaks the reference to it — the record survives and the picture
+   * does not. See `src/lib/photoData.ts`.
+   */
+  bytes?: Uint8Array;
+  /** How photos were stored before that. Still read; never written. */
+  blob?: Blob;
   /** Pixel dimensions after downscaling, used to lay the photo out in Word. */
   width: number;
   height: number;

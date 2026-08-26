@@ -4,7 +4,7 @@
  */
 import type { Contact, DiaryEntry, Project, TombstoneTable } from '../types';
 import { db, getSetting } from '../db';
-import { blobToDataUrl, dataUrlToBlob } from '../lib/images';
+import { bytesToDataUrl, dataUrlToBytes, photoBytes } from '../lib/photoData';
 import { uid as newUid } from '../lib/id';
 import {
   SYNCED_SETTINGS,
@@ -181,14 +181,21 @@ async function toWireEntry(entry: DiaryEntry): Promise<WireEntry> {
     supervisorSignature: entry.supervisorSignature,
     managerSignature: entry.managerSignature,
     photos: await Promise.all(
-      entry.photos.map(async (photo) => ({
-        id: photo.id,
-        caption: photo.caption,
-        width: photo.width,
-        height: photo.height,
-        takenAt: photo.takenAt,
-        dataUrl: await blobToDataUrl(photo.blob),
-      })),
+      entry.photos.map(async (photo) => {
+        // A photo whose bytes cannot be read travels as an empty one rather
+        // than failing the sync: one damaged picture must not stop a fortnight
+        // of pages reaching the other device. `applyPayload` on the far side
+        // refuses to overwrite a photo it can read with an empty one.
+        const bytes = await photoBytes(photo);
+        return {
+          id: photo.id,
+          caption: photo.caption,
+          width: photo.width,
+          height: photo.height,
+          takenAt: photo.takenAt,
+          dataUrl: bytes ? bytesToDataUrl(bytes) : '',
+        };
+      }),
     ),
     status: entry.status,
     pinned: entry.pinned ?? false,
@@ -231,16 +238,14 @@ export async function applyPayload(payload: SyncPayload): Promise<ApplyResult> {
   for (const wire of payload.entries) {
     decoded.set(
       wire.uid,
-      await Promise.all(
-        wire.photos.map(async (photo) => ({
-          id: photo.id || newUid(),
-          caption: photo.caption,
-          width: photo.width,
-          height: photo.height,
-          takenAt: photo.takenAt,
-          blob: await dataUrlToBlob(photo.dataUrl),
-        })),
-      ),
+      wire.photos.map((photo) => ({
+        id: photo.id || newUid(),
+        caption: photo.caption,
+        width: photo.width,
+        height: photo.height,
+        takenAt: photo.takenAt,
+        bytes: dataUrlToBytes(photo.dataUrl),
+      })),
     );
   }
 
@@ -249,6 +254,32 @@ export async function applyPayload(payload: SyncPayload): Promise<ApplyResult> {
     [db.projects, db.entries, db.contacts, db.presets, db.settings, db.tombstones],
     () => mergeInTransaction(payload, decoded),
   );
+}
+
+/**
+ * An incoming photo never replaces one we can still read with one we cannot.
+ *
+ * Last write wins is right for a page: one person, two devices, the later edit
+ * is the one they meant. It is wrong for the picture inside it. A device whose
+ * stored photographs have been damaged — which is what an app reinstall used to
+ * do on iOS — would otherwise carry that damage across on its next sync and
+ * overwrite the only good copy left, and the newer stamp would make it look
+ * deliberate. The caption and the position still come from the newer page; only
+ * the bytes are kept.
+ */
+function keepReadablePhotos(
+  incoming: DiaryEntry['photos'],
+  existing: DiaryEntry['photos'] | undefined,
+): DiaryEntry['photos'] {
+  if (!existing?.length) return incoming;
+  const mine = new Map(existing.map((photo) => [photo.id, photo]));
+  return incoming.map((photo) => {
+    if (photo.bytes && photo.bytes.byteLength > 0) return photo;
+    const held = mine.get(photo.id);
+    if (!held) return photo;
+    if (held.bytes && held.bytes.byteLength > 0) return { ...photo, bytes: held.bytes };
+    return held.blob ? { ...photo, blob: held.blob } : photo;
+  });
 }
 
 async function mergeInTransaction(
@@ -360,7 +391,7 @@ async function mergeInTransaction(
       receivedToday: wire.receivedToday ?? '',
       supervisorSignature: wire.supervisorSignature,
       managerSignature: wire.managerSignature,
-      photos: decoded.get(wire.uid) ?? [],
+      photos: keepReadablePhotos(decoded.get(wire.uid) ?? [], existing?.photos),
       status: wire.status,
       pinned: wire.pinned ?? false,
       createdAt: wire.createdAt,

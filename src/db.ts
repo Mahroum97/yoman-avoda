@@ -21,7 +21,12 @@ import { emptyCasting } from './types';
 // wrote yesterday is gone" unanswerable from the log.
 import { logger, type LogEntry } from './lib/log';
 import { uid as newUid } from './lib/id';
-import { blobToDataUrl, dataUrlToBlob } from './lib/images';
+import {
+  bytesToDataUrl,
+  dataUrlToBytes,
+  photoBytes,
+  storablePhotos,
+} from './lib/photoData';
 import { isoDate } from './lib/dates';
 
 /** Small key/value bag for app state that must outlive a reload. */
@@ -376,6 +381,10 @@ export function statusFor(entry: DiaryEntry): DiaryEntry['status'] {
 export async function saveEntry(entry: DiaryEntry): Promise<number> {
   const toSave: DiaryEntry = {
     ...entry,
+    // Photographs are written as bytes, never as Blobs — a page saved on a
+    // device that can still read its old Blobs migrates itself here. See
+    // src/lib/photoData.ts for what that fixes.
+    photos: await storablePhotos(entry.photos),
     status: statusFor(entry),
     updatedAt: Date.now(),
   };
@@ -757,10 +766,16 @@ export async function backupToJson(): Promise<string> {
     entries.map(async (entry) => ({
       ...entry,
       photos: await Promise.all(
-        entry.photos.map(async ({ blob, ...rest }) => ({
-          ...rest,
-          dataUrl: await blobToDataUrl(blob),
-        })),
+        entry.photos.map(async (photo) => {
+          const { blob, bytes, ...rest } = photo;
+          void blob;
+          void bytes;
+          const data = await photoBytes(photo);
+          // A photo whose bytes cannot be read still goes into the backup, as
+          // an empty one: the caption and the date are what is left of it, and
+          // dropping the record would lose those too.
+          return { ...rest, dataUrl: data ? bytesToDataUrl(data) : '' };
+        }),
       ),
     })),
   );
@@ -884,12 +899,10 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
   const entries: DiaryEntry[] = await Promise.all(
     parsed.entries.map(async (entry) => ({
       ...entry,
-      photos: await Promise.all(
-        entry.photos.map(async ({ dataUrl, ...rest }) => ({
-          ...rest,
-          blob: await dataUrlToBlob(dataUrl),
-        })),
-      ),
+      photos: entry.photos.map(({ dataUrl, ...rest }) => ({
+        ...rest,
+        bytes: dataUrlToBytes(dataUrl),
+      })),
     })),
   );
 
