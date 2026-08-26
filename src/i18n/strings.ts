@@ -345,6 +345,10 @@ export interface Strings {
   backupDownloaded: string;
   backupFailed: string;
   confirmRestore: string;
+  /** The same question, asked with the two numbers that decide the answer. */
+  confirmRestoreCounts: (file: { entries: number; photos: number; to: string }, device: { entries: number }) => string;
+  /** A file with nothing in it, offered against a diary that has something. */
+  confirmRestoreEmpty: (deviceEntries: number) => string;
   restored: (projects: number, entries: number) => string;
   restoreFailed: string;
   savedLists: string;
@@ -844,6 +848,13 @@ const he: Strings = {
   backupFailed: 'יצירת הגיבוי נכשלה',
   confirmRestore:
     'שחזור גיבוי ימחק את כל הנתונים הקיימים במכשיר ויחליף אותם בתוכן הקובץ. להמשיך?',
+  confirmRestoreCounts: (file, device) =>
+    `בקובץ הגיבוי יש ${file.entries} רישומים ו-${file.photos} תמונות` +
+    (file.to ? ` (עד ${file.to})` : '') +
+    `.\n\nבמכשיר יש עכשיו ${device.entries} רישומים, והם יימחקו ויוחלפו במה שבקובץ.\n\n` +
+    'לפני השחזור תישמר עותק של המצב הנוכחי בתיקיית הגיבויים. להמשיך?',
+  confirmRestoreEmpty: (deviceEntries) =>
+    `הקובץ הזה ריק — אין בו אף רישום.\n\nשחזור ממנו ימחק את ${deviceEntries} הרישומים שבמכשיר ולא ישאיר כלום.\n\nבטוח להמשיך?`,
   restored: (projects, entries) => `שוחזרו ${projects} פרויקטים ו-${entries} רישומים`,
   restoreFailed: 'השחזור נכשל',
   savedLists: 'רשימות שמורות',
@@ -1367,6 +1378,13 @@ const ar: Strings = {
   backupFailed: 'فشل إنشاء النسخة الاحتياطية',
   confirmRestore:
     'الاستعادة ستحذف كل البيانات الموجودة على الجهاز وتستبدلها بمحتوى الملف. هل تريد المتابعة؟',
+  confirmRestoreCounts: (file, device) =>
+    `في ملف النسخة الاحتياطية ${file.entries} سجلات و${file.photos} صور` +
+    (file.to ? ` (حتى ${file.to})` : '') +
+    `.\n\nعلى الجهاز الآن ${device.entries} سجلات، وستُحذف ويحل محلها ما في الملف.\n\n` +
+    'قبل الاستعادة تُحفظ نسخة من الوضع الحالي في مجلد النسخ الاحتياطية. هل تتابع؟',
+  confirmRestoreEmpty: (deviceEntries) =>
+    `هذا الملف فارغ — لا يحتوي أي سجل.\n\nالاستعادة منه ستحذف ${deviceEntries} سجلات على الجهاز ولن تُبقي شيئًا.\n\nهل أنت متأكد؟`,
   restored: (projects, entries) => `تمت استعادة ${projects} مشاريع و${entries} سجلات`,
   restoreFailed: 'فشلت الاستعادة',
   savedLists: 'القوائم المحفوظة',
@@ -1906,6 +1924,13 @@ const en: Strings = {
   backupFailed: 'Creating the backup failed',
   confirmRestore:
     'Restoring will delete everything on this device and replace it with the file contents. Continue?',
+  confirmRestoreCounts: (file, device) =>
+    `The backup holds ${file.entries} entries and ${file.photos} photos` +
+    (file.to ? ` (up to ${file.to})` : '') +
+    `.\n\nThis device has ${device.entries} entries now, and they will be deleted and replaced by what is in the file.\n\n` +
+    'A copy of the current state is saved to the backups folder first. Continue?',
+  confirmRestoreEmpty: (deviceEntries) =>
+    `This file is empty — it holds no entries at all.\n\nRestoring from it will delete the ${deviceEntries} entries on this device and leave nothing.\n\nAre you sure?`,
   restored: (projects, entries) => `Restored ${projects} projects and ${entries} entries`,
   restoreFailed: 'Restore failed',
   savedLists: 'Saved lists',

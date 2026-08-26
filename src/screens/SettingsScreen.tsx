@@ -14,7 +14,10 @@ import {
   backupToJson,
   deletePreset,
   estimateUsage,
+  diaryCounts,
+  inspectBackup,
   restoreFromJson,
+  type BackupSummary,
 } from '../db';
 import { formatBytes } from '../lib/images';
 import { backupTarget, backupNow, lastBackupAt, STALE_MS } from '../lib/autoBackup';
@@ -139,15 +142,37 @@ export function SettingsScreen() {
     }
   };
 
+  /**
+   * Restoring replaces the diary, so the question is asked with the numbers.
+   *
+   * The file is read and counted first: how many pages and photographs it
+   * holds, up to what date, against how many pages are on the device now. A
+   * backups folder is a list of near-identical names, and one of them is
+   * usually a copy taken while the diary was empty — the old warning said the
+   * same words for that file as for the right one.
+   */
   const restore = async (file: File) => {
-    if (
-      !window.confirm(t.confirmRestore)
-    ) {
+    let json: string;
+    let summary: BackupSummary;
+    let device: { projects: number; entries: number };
+    try {
+      json = await file.text();
+      summary = inspectBackup(json);
+      device = await diaryCounts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t.restoreFailed);
       return;
     }
+
+    // An empty file against a diary that has something in it is asked twice.
+    if (summary.entries === 0 && device.entries > 0) {
+      if (!window.confirm(t.confirmRestoreEmpty(device.entries))) return;
+    }
+    if (!window.confirm(t.confirmRestoreCounts(summary, device))) return;
+
     setBusy(true);
     try {
-      const result = await restoreFromJson(await file.text());
+      const result = await restoreFromJson(json);
       toast.show(t.restored(result.projects, result.entries));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.restoreFailed);

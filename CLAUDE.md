@@ -283,6 +283,31 @@ import of `logger`, which is safe because `log.ts` reaches back only through a d
 only — never a project name, since export file names are built from it and `fileKind`
 already redacts those.
 
+## Nothing may be lost
+
+The diary is the only copy of a day that has already happened, so the rules that
+keep it are worth more than any feature in this file.
+
+- **The two operations that destroy data take a copy of it first.** Restoring a
+  backup clears every table, and deleting a project hard-deletes its pages —
+  tombstoned, so the other device deletes them too and there is nowhere left to
+  go back to. Both call `backupNow({ force: true })` before they begin, which
+  writes the current state to the Mac's backups folder or the phone's Documents.
+  Neither is blocked by a device that cannot write one; a browser says so in the
+  log and carries on with what the user asked for.
+- **A restore is asked with numbers, not adjectives.** `inspectBackup` reads the
+  file without touching anything — pages, photographs, the last date in it —
+  and the question names them against what is on the device. A backups folder is
+  a list of near-identical names, and one of them is usually a copy taken while
+  the diary was empty: 137 bytes, and the warning used to read exactly the same
+  for it as for the right file. A file with no pages at all, offered against a
+  diary that has some, is asked twice.
+- **Photographs are written the moment they are picked**, rather than on the
+  editor's debounce — see the Photos section above.
+- **The status only ever rises and the trash is a soft delete**, both covered
+  under Storage; the point they share is that no ordinary action in the app is
+  allowed to end with less diary than it started with.
+
 ## The editor
 
 `EntryEditor` holds the day's page in `useUndoable` (`src/hooks/useUndoable.ts`), which is

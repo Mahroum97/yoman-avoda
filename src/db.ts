@@ -272,6 +272,25 @@ export async function createProject(
 
 /** Deletes a project and every diary page under it. */
 export async function deleteProject(id: number): Promise<void> {
+  /*
+   * A copy first, whenever there is something to lose.
+   *
+   * Deleting a project is the one action here that destroys diary pages
+   * outright — they do not go to the trash, and the tombstones take the
+   * deletion to the other device as well, so there is no second copy anywhere
+   * to go back to. The screen says how many pages will go with it; this is what
+   * makes the answer survivable if the wrong project was tapped.
+   */
+  if ((await db.entries.where('projectId').equals(id).count()) > 0) {
+    try {
+      const { backupNow } = await import('./lib/autoBackup');
+      const where = await backupNow({ force: true });
+      log.warn(where ? 'safety copy written before deleting a project' : 'no safety copy could be written');
+    } catch (error) {
+      log.warn('safety copy before deleting a project failed', error);
+    }
+  }
+
   let removed = 0;
   await db.transaction('rw', db.projects, db.entries, db.settings, db.tombstones, async () => {
     const project = await db.projects.get(id);
@@ -771,6 +790,56 @@ export interface RestoreResult {
   entries: number;
 }
 
+/** What a backup file holds, and what it would be replacing. */
+export interface BackupSummary {
+  projects: number;
+  entries: number;
+  contacts: number;
+  photos: number;
+  /** Earliest and latest diary date in the file, or '' when it holds none. */
+  from: string;
+  to: string;
+}
+
+/**
+ * Reads a backup file without touching anything.
+ *
+ * A restore replaces the whole diary, and the only thing standing between a
+ * month of work and an empty screen was a warning that said the same words
+ * whatever the file held. One of the automatic backups in this user's own
+ * folder is 137 bytes — a copy taken while the diary was empty — and restoring
+ * it would have been indistinguishable, right up to the moment it finished.
+ * The screen asks with these numbers in the question now.
+ *
+ * Throws exactly what `restoreFromJson` throws for a file it will not take, so
+ * a bad file is refused before anything is cleared rather than after.
+ */
+export function inspectBackup(json: string): BackupSummary {
+  const parsed = JSON.parse(json) as BackupFile;
+  if (parsed.format !== BACKUP_FORMAT) {
+    throw new Error('הקובץ אינו קובץ גיבוי של יומן עבודה');
+  }
+  if (parsed.version > BACKUP_VERSION) {
+    throw new Error('הגיבוי נוצר בגרסה חדשה יותר של האפליקציה');
+  }
+  const entries = parsed.entries ?? [];
+  const dates = entries.map((entry) => entry.date).filter(Boolean).sort();
+  return {
+    projects: (parsed.projects ?? []).length,
+    entries: entries.length,
+    contacts: (parsed.contacts ?? []).length,
+    photos: entries.reduce((sum, entry) => sum + (entry.photos?.length ?? 0), 0),
+    from: dates[0] ?? '',
+    to: dates[dates.length - 1] ?? '',
+  };
+}
+
+/** What is on this device now, for the same question. */
+export async function diaryCounts(): Promise<{ projects: number; entries: number }> {
+  const [projects, entries] = await Promise.all([db.projects.count(), db.entries.count()]);
+  return { projects, entries };
+}
+
 /** Replaces all local data with the contents of a backup file. */
 export async function restoreFromJson(json: string): Promise<RestoreResult> {
   // Recorded before anything is touched, because the next line may throw and
@@ -792,6 +861,24 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
       supported: BACKUP_VERSION,
     });
     throw new Error('הגיבוי נוצר בגרסה חדשה יותר של האפליקציה');
+  }
+
+  /*
+   * A copy of what is about to be replaced, written to disk first.
+   *
+   * This is the one operation in the app that destroys data outright, and it is
+   * driven by picking a file out of a list of similarly named ones. The copy
+   * costs a second and turns "I restored the wrong backup" from the end of the
+   * diary into a second restore. It never blocks the restore the user asked
+   * for: a device with nowhere to write one — a plain browser — says so in the
+   * log and carries on.
+   */
+  try {
+    const { backupNow } = await import('./lib/autoBackup');
+    const where = await backupNow({ force: true });
+    log.warn(where ? 'safety copy written before restoring' : 'no safety copy could be written');
+  } catch (error) {
+    log.warn('safety copy before restoring failed', error);
   }
 
   const entries: DiaryEntry[] = await Promise.all(
