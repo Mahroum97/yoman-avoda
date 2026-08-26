@@ -14,9 +14,61 @@ export interface PreparedImage {
   height: number;
 }
 
+interface Decoded {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  release: () => void;
+}
+
+/**
+ * A picked file, decoded, whatever it took.
+ *
+ * `createImageBitmap` is the fast path and the right one, but it refuses
+ * formats the browser itself can display — an iPhone photograph kept as HEIC is
+ * the one that matters here, and on a phone set to "Keep Original" that is
+ * every photograph. It used to throw, and the photo was simply not added.
+ * Safari will decode anything the system can through an `<img>`, so that is the
+ * second attempt.
+ */
+async function decodeImage(file: File | Blob): Promise<Decoded> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      release: () => bitmap.close(),
+    };
+  } catch {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    try {
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('לא ניתן לפענח את התמונה'));
+        img.src = url;
+      });
+    } catch (error) {
+      URL.revokeObjectURL(url);
+      throw error;
+    }
+    if (!img.naturalWidth || !img.naturalHeight) {
+      URL.revokeObjectURL(url);
+      throw new Error('לא ניתן לפענח את התמונה');
+    }
+    return {
+      source: img,
+      width: img.naturalWidth,
+      height: img.naturalHeight,
+      release: () => URL.revokeObjectURL(url),
+    };
+  }
+}
+
 /** Downscale + re-encode a picked file to a bounded JPEG. */
 export async function prepareImage(file: File | Blob): Promise<PreparedImage> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await decodeImage(file);
   const scale = Math.min(1, MAX_EDGE / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
@@ -26,8 +78,8 @@ export async function prepareImage(file: File | Blob): Promise<PreparedImage> {
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('לא ניתן לעבד את התמונה');
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
+  ctx.drawImage(bitmap.source, 0, 0, width, height);
+  bitmap.release();
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
@@ -41,7 +93,7 @@ export async function prepareImage(file: File | Blob): Promise<PreparedImage> {
  * bounded to a size that stays crisp in print without bloating every export.
  */
 export async function prepareLogo(file: File | Blob): Promise<PreparedImage> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await decodeImage(file);
   const scale = Math.min(1, 320 / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
@@ -51,8 +103,8 @@ export async function prepareLogo(file: File | Blob): Promise<PreparedImage> {
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('לא ניתן לעבד את הלוגו');
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
+  ctx.drawImage(bitmap.source, 0, 0, width, height);
+  bitmap.release();
 
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, 'image/png'),
@@ -73,7 +125,7 @@ export async function prepareLogo(file: File | Blob): Promise<PreparedImage> {
 const PAPER_THRESHOLD = 210;
 
 export async function prepareSignature(file: File | Blob): Promise<PreparedImage> {
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await decodeImage(file);
   const scale = Math.min(1, 600 / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
@@ -83,8 +135,8 @@ export async function prepareSignature(file: File | Blob): Promise<PreparedImage
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('לא ניתן לעבד את החתימה');
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close();
+  ctx.drawImage(bitmap.source, 0, 0, width, height);
+  bitmap.release();
 
   const image = ctx.getImageData(0, 0, width, height);
   const { data } = image;

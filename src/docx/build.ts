@@ -23,6 +23,7 @@ import { currentStrings } from '../i18n/useLanguage';
 import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
 import { formatDdMmYyyy } from '../lib/dates';
 import { blobToUint8 } from '../lib/images';
+import { logger } from '../lib/log';
 import { CELL_MARGIN, bar, labelledLine } from './blocks';
 import { entryPage, photoAppendix } from './entryPage';
 import { summarise, formatNum, type Tally } from './summary';
@@ -66,13 +67,27 @@ const pageProperties: ISectionOptions['properties'] = {
   },
 };
 
-/** Photo blobs must be read before the (synchronous) document build. */
+const log = logger('docx');
+
+/**
+ * Photo blobs must be read before the (synchronous) document build.
+ *
+ * A photo that cannot be read is left out rather than taken as a reason to
+ * produce nothing: one `Promise.all` rejection here meant a whole month's
+ * report failed with "could not create the file" over a single unreadable
+ * picture, and the appendix in the Word file leaves an empty slot where the PDF
+ * says so in words.
+ */
 async function loadPhotos(entries: DiaryEntry[]): Promise<Map<string, Uint8Array>> {
   const images = new Map<string, Uint8Array>();
   await Promise.all(
     entries.flatMap((entry) =>
       entry.photos.map(async (photo) => {
-        images.set(photo.id, await blobToUint8(photo.blob));
+        try {
+          images.set(photo.id, await blobToUint8(photo.blob));
+        } catch (error) {
+          log.warn('a photo could not be read for the Word file', error);
+        }
       }),
     ),
   );
