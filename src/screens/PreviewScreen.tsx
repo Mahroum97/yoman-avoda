@@ -13,6 +13,7 @@ import { useEscape } from '../hooks/useEscape';
 import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
 import { canShareFiles, needsShareToPrint } from '../lib/save';
+import { photoPageCount } from '../lib/photoPages';
 import { useDocThemeId } from '../hooks/useDocTheme';
 import { Icon } from '../components/Icon';
 
@@ -36,7 +37,7 @@ export function PreviewScreen({
   useEscape(() => navigate(`/entry/${entryId}`));
   if (!entry) return <p className="muted">{t.loading}</p>;
 
-  const pages = entry.photos.length > 0 ? 2 : 1;
+  const pages = 1 + photoPageCount(entry.photos.length);
 
   const downloadPdf = async () => {
     setBusy('pdf');

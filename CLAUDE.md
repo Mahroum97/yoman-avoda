@@ -20,7 +20,7 @@ npm run dev          # dev server on :5173 (the Mac app in dev mode expects :519
 npm run build        # tsc -b && vite build, plus the service worker
 npm run typecheck    # types only
 npm run lint         # oxlint
-npm run sample       # writes tmp/sample-*.{pdf,docx}, including one page per language
+npm run sample       # writes tmp/sample-*.{pdf,docx,xlsx}, including one page per language
 npm run fonts        # re-downloads the embedded Hebrew/Arabic TTFs
 npm run icons        # rasterises public/favicon.svg into PWA icons + build/icon.icns
 npm run app:dev      # Electron against a running dev server
@@ -60,9 +60,11 @@ pdftoppm -r 150 -png -f 1 -l 1 tmp/sample-entry-he.pdf tmp/preview   # then open
 ```
 
 Check the page is one sheet, the Hebrew reads correctly, and **digits are not reversed**.
-It also writes `tmp/sample-range-{he,en}.xlsx`. `scripts/bundle.mjs` is what lets browser
-modules run under Node for this: esbuild bundles the entry point and stubs Vite’s `?url`
-asset imports, since the Node path passes the font bytes in explicitly.
+It also writes `tmp/sample-range-{he,en}.xlsx` and `tmp/sample-contacts-{he,en}.pdf` —
+every document the app can produce except the picture, which needs a browser to
+rasterise. `scripts/bundle.mjs` is what lets browser modules run under Node for this:
+esbuild bundles the entry point and stubs Vite’s `?url` asset imports, since the Node
+path passes the font bytes in explicitly.
 
 ## The form is the spec
 
@@ -82,6 +84,13 @@ signature boxes side by side underneath it to make room. That block's total heig
 allows. When a field arrives this way it is **optional** in `DiaryEntry` and read with
 `?? ''`, because pages written by an older build, restored from an older backup, or
 synced from a device that has not been updated simply do not have it.
+
+**The crew table is the one block on the page that grows.** The form draws six ruled
+rows and the page budget was built for them; there is room for eight before the blocks
+underneath — the description, the notes, what was delivered, the two signatures — are
+pushed off the bottom edge, which is what a day with fourteen trades on it did, silently,
+printing a page with no signatures on it. `src/lib/crewLayout.ts` divides the room the
+rows are allowed instead, and both the PDF and the preview read it.
 
 **Three renderers draw that one page, and they must move together:**
 
@@ -119,6 +128,23 @@ white text on them. The choice lives in the `settings` table, not localStorage, 
 - Heights in `METRICS` are tuned so a full day fits **one sheet**. The original complaint
   about this app was a browser-printed PDF that spilled onto a second page with the
   browser's own header stamped on it; the generated PDF exists to make that impossible.
+- **Nothing may be drawn past the bottom of the page, and nothing says when it is.**
+  pdf-lib will put a tile at y=980 on an 842pt page without complaint; it is simply not
+  there afterwards. Three blocks grow with the data and each has to answer for itself:
+  the photo appendix breaks at `PHOTOS_PER_PAGE`, the cover's tallies break through
+  `planSummary`, and the crew table tightens rather than breaking
+  (`src/lib/crewLayout.ts`). All three were found the same way — a real day's export
+  with the last of it missing.
+- **A block that grows must be planned before the first page is drawn.** `דף N מתוך M`
+  is printed in every header, so M has to be known before page one exists. `planSummary`
+  therefore measures the tables into pages and returns them, and the appendix's page
+  count comes from the same constant its drawing loop uses. When those two were separate
+  numbers the count said four pages and the document had two.
+- **A string is bounded by the box it is in.** `TextOptions.maxWidth` shrinks it and, in
+  the last resort, cuts it with an ellipsis; `textCellBox` wraps it onto two lines first,
+  which is what a table row has the height for. Without it `אינסטלטור צוות ספרינקלרים`
+  printed straight across the rule and into the column beside it. Every fixed box passes
+  one: the crew cells, the panel values, the header band, the summary tables.
 
 ## Word rules
 
@@ -127,6 +153,84 @@ Word silently rescales the table (`entryPage.ts` throws at import if it doesn't)
 set `visuallyRightToLeft: isRtl()`, so the first cell of a row is the start edge. Direction
 is module state in `src/docx/theme.ts`, set by `setDocDirection()` at the top of a build —
 a build is synchronous, so this is safe.
+
+## A page as a picture
+
+`src/pdf/toImage.ts`. A PDF arrives in WhatsApp as a file to download and open; a picture
+arrives as something already on screen, which on a site is the whole difference. A day and
+a range report can both be exported as JPEG, through the one route in `exportImage`:
+**one page becomes a `.jpg`, several become a `.zip`** of `…-01.jpg`, padded so ten pages
+sort as 01..10 rather than 1, 10, 2.
+
+- **The picture is the PDF, rasterised — not a fourth renderer.** The exported bytes are
+  handed to pdf.js, so every embedded font, column width and wrapped line is whatever the
+  document has. Drawing the page again would be a fourth thing to keep in step with
+  `METRICS`, and the first person to notice it had drifted would be the supervisor holding
+  both files.
+- **pdf.js loads at the click**, like `pdf-lib` and `docx`. It is the largest thing in the
+  tree and most days end with a PDF or with nothing.
+- **`workerPort`, never `workerSrc`, and a fresh worker per export.** pdf.js ships its
+  worker as an ES module; given only a `workerSrc` it starts it as a *classic* script,
+  which dies on `import.meta` — and pdf.js then logs `Setting up fake worker` at warning
+  level and runs the parser and rasteriser **on the main thread**. Everything still works,
+  which is why this hid: the only symptom is the interface frozen for the length of the
+  export, and on a thirty-page report that is the difference between a progress bar and a
+  dead app. The fix is `new Worker(url, { type: 'module' })` passed as `workerPort`, built
+  again for each export — `doc.destroy()` terminates whatever port it was given, and a
+  dead port does not fall back to anything, it simply never answers.
+- Canvases are released page by page (`canvas.width = 0`, `page.cleanup()`): thirty
+  full-size canvases held at once is how a tab gets killed on a phone. Rasterising every
+  page is the slowest thing the app does.
+
+## The previews
+
+Two screens show the document before it exists — `PreviewScreen` for a day,
+`ReportPreviewScreen` for a range. They are the only users of `SheetPreview`, the HTML
+renderer of the three, so what is on screen is what comes out.
+
+- **The range preview stops short of the summary cover page.** That page belongs to the
+  PDF builder, and an HTML copy of it would be the fourth renderer this project spends its
+  effort avoiding. The preview also draws at most `MAX_SHEETS` (12) days — a quarter's
+  report is ninety A4 sheets of live DOM — and says how many of the days are shown. The
+  report itself is never truncated.
+- **`SheetScaler` uses `zoom`, not `transform: scale()`.** Sheets are drawn at their real
+  794px (210mm at 96dpi) so the preview cannot lie about the printed page; `zoom` shrinks
+  the layout box itself, so the surrounding page height comes out right and nothing has to
+  be re-centred in a container that may be RTL or LTR. It measures the clipping frame's
+  `clientWidth` — the one measurement the oversized sheet inside cannot feed back into —
+  and `@media print` resets the zoom to 1, because paper gets the real size.
+- **Printing on the phone means exporting.** A web view has no print dialog, so
+  `needsShareToPrint()` sends the print button to the PDF and the iOS share sheet, where
+  Print sits beside Save to Files.
+
+## Photos
+
+The heaviest thing the diary holds, and the easiest to lose.
+
+- **They are written the moment they are picked**, not on the editor's 1.2 second
+  debounce. Everything else on the page can be typed again; a photograph taken in a
+  stairwell at ten past seven cannot, and iOS can end the app inside that second and a
+  bit. `persistPhotos` in `EntryEditor` is that write.
+- **`usePhotoUrls` mints the URLs, and `URL.createObjectURL(photo.blob)` must not be
+  called directly.** A Blob read back from IndexedDB is backed by a file, and on iOS the
+  URL minted for one after the app has been closed and reopened often will not load in an
+  `<img>`: the day comes back as a grid of broken squares while the same photos still
+  export into the PDF, because building a document reads the bytes instead. The hook
+  reads the bytes up front where the fault lives and repairs the rest on `onError`; it
+  also keys URLs by photo id, because an effect keyed on the photos array revoked and
+  re-minted every one of them on each keystroke of a caption.
+- **One unreadable file must not throw out the batch.** Fifteen photos prepared in a
+  single `try` meant one the phone could not decode — a video picked by accident, a
+  format the web view will not read — discarded the other fourteen and showed an error
+  naming none of them. Each file is prepared on its own and `photosSkipped` says how many
+  did not make it.
+- **There is no limit on how many a day can hold.** What limits the picker on an iPhone
+  is iOS: an app given access to *selected photos* rather than the whole library can only
+  offer what was selected. Adding more is a second trip through the picker; the app
+  appends.
+- **The appendix is `PHOTOS_PER_PAGE` photos to a page** — the count, the PDF and the
+  preview all read it from `src/lib/photoPages.ts`, and `src/pdf/build.ts` throws at
+  import if the geometry no longer agrees with it.
 
 ## Languages
 
@@ -147,6 +251,9 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
 - Photos are `Blob`s inside the entry record, downscaled to 1600px JPEG by
   `src/lib/images.ts` *before* saving. The company logo is a PNG data URL in `settings`.
 - Saving an entry runs `learnPresets`, which feeds the comboboxes.
+- **The schema is at v6, and every version restates every store.** The comment above
+  each says what it changed and why: v2's `uid`s and tombstones, v4's `[uid+updatedAt]`
+  indexes (so sync can build a manifest without deserialising photos), v6's `contacts`.
 - **The status is derived, and only ever rises.** `statusFor` reads a page carrying a
   מנ"ע signature as `signed`, whatever the stored value says; without a signature the
   stored value is left alone, so marking a page by hand still works for the days that
@@ -309,6 +416,18 @@ a number takes a moment while the man is still standing there.
   fed by every contractor row ever saved, and the trades on a site are the same handful
   over and over — asking for them again here would be asking twice. A `<datalist>`, so a
   trade the diary has not seen is still typeable.
+- **The list goes out as CSV and comes back as CSV** (`src/lib/contactsCsv.ts`), because
+  the answer to "send me your supplier list" is a file the other person can open. Two
+  details are the whole round trip: a **UTF-8 BOM**, without which Excel reads the file in
+  the local codepage and every Hebrew name arrives as mojibake, and **columns matched by
+  their heading** in any of the three languages, with position only as the fallback — so a
+  list exported in Hebrew imports into an app running in English, and a hand-made file
+  carrying just a name and a number works too.
+- **The printed list is the app's other document.** `src/pdf/contactsPage.ts` borrows the
+  header band, the footer and the palette from the diary pages, so a company's paperwork
+  looks like one set. It measures every row before drawing any: a note wraps to three
+  lines and is clipped there, so neither the row heights nor the page count printed in
+  each header is known until the whole list has been wrapped. Measure, paginate, draw.
 - Deleting offers an undo, and `restoreContact` drops the tombstone with it — the
   same rule, for the same reason, as `restoreEntry`.
 - **Contacts are in the backup and in the sync, and neither version moved.**
@@ -532,6 +651,13 @@ because its absence was what made the app look homemade.
   during render and revoking in a cleanup breaks under StrictMode's double-invoked effects.
 - Exports go through `src/lib/save.ts`, which uses the Electron bridge when present
   (native save dialog) and falls back to a browser download.
+- **Save or share is the caller's choice, and share falls back to save.** `deliverBlob`
+  takes `'save' | 'share'`; when no sheet can be opened the file still lands where "save"
+  would have put it, so an export is never simply lost.
+- **Escape closes the innermost layer.** `useEscape` keeps a stack rather than letting
+  every open layer hear the key, so a modal over a preview closes the modal and leaves the
+  preview for the second press. Pass `null` to stand down without unmounting — which is
+  how selection mode registers only while something is selected.
 - **An export says whether the file actually reached the user.** `saveBlob` returns a
   boolean and every exporter returns `ExportResult` — the file name, or `null` for a
   cancelled dialog or a device with nowhere to put it. Cancelling is not a failure, so

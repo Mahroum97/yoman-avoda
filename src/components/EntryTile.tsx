@@ -6,32 +6,13 @@
  * Days without photos fall back to the day number on a ruled sheet, so the grid
  * stays even instead of collapsing into empty boxes.
  */
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import type { DiaryEntry } from '../types';
 import { weekdayShort } from '../lib/dates';
+import { usePhotoUrls } from '../hooks/usePhotoUrls';
 import { useLanguage } from '../i18n/useLanguage';
 import { StatusChip } from './ui';
 import { Icon } from './Icon';
-
-function usePhotoUrl(blob: Blob | undefined): string | undefined {
-  const [url, setUrl] = useState<string>();
-
-  // Minted and revoked in the same effect, deliberately. Creating the URL while
-  // rendering and revoking it in a cleanup breaks under StrictMode's
-  // double-invoked effects: the second mount revokes the first mount's URL and
-  // the image goes blank.
-  useEffect(() => {
-    if (!blob) {
-      setUrl(undefined);
-      return;
-    }
-    const made = URL.createObjectURL(blob);
-    setUrl(made);
-    return () => URL.revokeObjectURL(made);
-  }, [blob]);
-
-  return url;
-}
 
 export function EntryTile({
   entry,
@@ -47,7 +28,12 @@ export function EntryTile({
   onToggle: () => void;
 }) {
   const { t } = useLanguage();
-  const photo = usePhotoUrl(entry.photos[0]?.blob);
+  // Only the first photo is shown, so only the first is read: a month of tiles
+  // holding every photograph of every day would be the whole diary in memory.
+  const first = useMemo(() => entry.photos.slice(0, 1), [entry.photos]);
+  const { urls, retry } = usePhotoUrls(first);
+  const cover = first[0];
+  const photo = cover ? urls[cover.id] : undefined;
 
   return (
     <button
@@ -58,7 +44,12 @@ export function EntryTile({
     >
       <span className="tile__preview">
         {photo ? (
-          <img src={photo} alt="" loading="lazy" />
+          <img
+            src={photo}
+            alt=""
+            loading="lazy"
+            onError={() => cover && retry(cover.id)}
+          />
         ) : (
           <span className="tile__sheet" aria-hidden="true">
             <span className="tile__day">{entry.date.slice(8)}</span>

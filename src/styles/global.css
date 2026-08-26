@@ -1743,7 +1743,9 @@ select:focus {
   border-bottom: 1px solid var(--s-soft);
   padding: 3px 5px;
   text-align: center;
-  height: 29px; /* METRICS.crewRow 21.5pt */
+  /* METRICS.crewRow 21.5pt, until a day has more trades than the page has
+     room for — then SheetPreview sets it to whatever the PDF is using. */
+  height: var(--crew-row, 29px);
 }
 
 .sheet__grid tr:nth-child(2n + 1) td {
@@ -1760,6 +1762,16 @@ select:focus {
   font-weight: 700;
   color: var(--s-navy);
   background: var(--s-tint-group) !important;
+}
+
+/* The table's two heading rows have their own heights in METRICS, and unlike
+   the rows beneath them they do not tighten when a day has many trades. */
+.sheet__group-row td {
+  height: 23px; /* METRICS.groupRow 17pt */
+}
+
+.sheet__col-row td {
+  height: 20px; /* METRICS.columnRow 15pt */
 }
 
 .sheet__col-row td {
@@ -1799,7 +1811,9 @@ select:focus {
 
 .sheet__rule {
   border-bottom: 1px solid var(--s-soft);
-  min-height: 21px; /* METRICS.descriptionLine 15.5pt */
+  /* METRICS.descriptionLine 15.5pt, until there is more writing than rules —
+     then the block tightens exactly as the PDF's does. See ruledFit. */
+  min-height: var(--rule-h, 21px);
   padding: 1px 2px;
 }
 
@@ -1910,33 +1924,44 @@ select:focus {
   color: var(--s-muted);
 }
 
-.sheet--photos {
-  min-height: auto;
-}
-
+/*
+ * The appendix sheet is a page like any other, and its tiles are the PDF's
+ * fixed slots: 146pt of picture with an 18pt caption under it, converted at
+ * 96dpi. It used to grow to whatever the photos needed — one sheet as long as
+ * the day was, which is not a thing a printer can produce, and hid that the
+ * document was drawing the overflow past the bottom edge of a real page.
+ */
 .sheet__photos {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 8px 0 16px;
+  align-content: start;
+  gap: 13px; /* METRICS gap 10pt */
+  margin: 0;
 }
 
 .sheet__photo {
+  display: flex;
+  flex-direction: column;
+  height: 219px; /* 164pt: slot + caption */
   margin: 0;
-  padding: 6px;
+  padding: 8px;
   background: var(--s-panel);
   border: 1px solid var(--s-line);
 }
 
 .sheet__photo img {
+  flex: 1;
+  min-height: 0;
   width: 100%;
   display: block;
+  object-fit: contain;
 }
 
 .sheet__photo figcaption {
+  height: 24px; /* 18pt */
   font-size: 9px;
   text-align: center;
-  margin-top: 5px;
+  padding-top: 5px;
   color: var(--s-muted);
 }
 

@@ -1,11 +1,12 @@
 /**
- * Site photos for one diary page. Object URLs are created per photo and revoked
- * when the set changes, so a long editing session does not leak blobs.
+ * Site photos for one diary page. The URLs behind the thumbnails come from
+ * `usePhotoUrls`, which is where the rules about them live.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Photo } from '../types';
 import { formatBytes, prepareImage } from '../lib/images';
 import { uid } from '../lib/id';
+import { usePhotoUrls } from '../hooks/usePhotoUrls';
 import { useLanguage } from '../i18n/useLanguage';
 import { Icon } from './Icon';
 
@@ -20,38 +21,40 @@ export function PhotoGrid({
 }) {
   const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
-  const [urls, setUrls] = useState<Record<string, string>>({});
+  const { urls, retry } = usePhotoUrls(photos);
 
-  // Create and revoke inside the same effect: a URL made in a render-phase memo
-  // can outlive the cleanup that revokes it, leaving broken <img> elements.
-  useEffect(() => {
-    const map: Record<string, string> = {};
-    for (const photo of photos) map[photo.id] = URL.createObjectURL(photo.blob);
-    setUrls(map);
-    return () => {
-      for (const url of Object.values(map)) URL.revokeObjectURL(url);
-    };
-  }, [photos]);
-
+  /**
+   * Each picked file is prepared on its own.
+   *
+   * One loop in one `try` meant one file the phone could not decode — a video
+   * picked by accident, a format the web view does not read — threw out every
+   * other photo picked with it. Fifteen chosen, an error shown, nothing added,
+   * and no way to tell which one it was. Now what worked is kept, and the
+   * message says how many did not.
+   */
   const add = async (files: FileList | null) => {
     if (!files?.length) return;
     setBusy(true);
     try {
       const added: Photo[] = [];
+      let failed = 0;
       for (const file of Array.from(files)) {
-        const { blob, width, height } = await prepareImage(file);
-        added.push({
-          id: uid(),
-          caption: '',
-          blob,
-          width,
-          height,
-          takenAt: file instanceof File ? file.lastModified : Date.now(),
-        });
+        try {
+          const { blob, width, height } = await prepareImage(file);
+          added.push({
+            id: uid(),
+            caption: '',
+            blob,
+            width,
+            height,
+            takenAt: file instanceof File ? file.lastModified : Date.now(),
+          });
+        } catch {
+          failed += 1;
+        }
       }
-      onChange([...photos, ...added]);
-    } catch {
-      onError(t.photoLoadFailed);
+      if (added.length > 0) onChange([...photos, ...added]);
+      if (failed > 0) onError(t.photosSkipped(failed));
     } finally {
       setBusy(false);
     }
@@ -108,7 +111,11 @@ export function PhotoGrid({
         <div className="photos">
           {photos.map((photo, index) => (
             <figure className="photo" key={photo.id} style={{ margin: 0 }}>
-              <img src={urls[photo.id]} alt={photo.caption || t.photoNumber(index + 1)} />
+              <img
+                src={urls[photo.id]}
+                alt={photo.caption || t.photoNumber(index + 1)}
+                onError={() => retry(photo.id)}
+              />
               <div className="photo__bar">
                 <input
                   type="text"

@@ -30,6 +30,7 @@ import {
   axisFor,
   type Axis,
 } from './theme';
+import { CREW_BODY, crewRowHeight, crewTextSize } from '../lib/crewLayout';
 
 const LEFT = PAGE.margin;
 const RIGHT = PAGE.margin + CONTENT_W;
@@ -46,6 +47,36 @@ export interface PageChrome {
 }
 
 const axisOf = (p: Painter): Axis => axisFor(p.dir);
+
+/*
+ * What the page spends before the crew rows get any of it: the margins, the
+ * band, the panels, the two section bars, the table's own two heading rows, the
+ * description block, the block of notes and signatures, and the gaps between
+ * them. Whatever is left is `CREW_BODY`, and the rows divide it.
+ */
+const PAGE_WITHOUT_CREW_ROWS =
+  PAGE.margin +
+  METRICS.headerBand +
+  METRICS.gap +
+  METRICS.infoPanel +
+  METRICS.gap +
+  METRICS.sectionBar +
+  METRICS.groupRow +
+  METRICS.columnRow +
+  METRICS.gap +
+  METRICS.sectionBar +
+  (METRICS.descriptionLines * METRICS.descriptionLine + 10) +
+  METRICS.gap +
+  (METRICS.signatureBox * 2 + 7);
+
+const CREW_BODY_ACTUAL =
+  PAGE.height - PAGE.margin - METRICS.footerBand - 8 - PAGE_WITHOUT_CREW_ROWS;
+
+if (Math.abs(CREW_BODY_ACTUAL - CREW_BODY) > 1) {
+  throw new Error(
+    `the crew rows have ${CREW_BODY_ACTUAL.toFixed(1)}pt of page, CREW_BODY says ${CREW_BODY}`,
+  );
+}
 
 /* ------------------------------------------------------------- header band */
 
@@ -76,14 +107,19 @@ export function drawHeaderBand(
   }
 
   const titleStart = a.dir === 'rtl' ? markX - 9 : markX + markSize + 9;
+  // Half the band, so a long project name stops before the date and the logo
+  // at the other end rather than printing over them.
+  const headWidth = CONTENT_W / 2 - pad;
   p.textStart(title, titleStart, top + 12, {
     size: TYPE.title,
     bold: true,
     color: p.colors.white,
+    maxWidth: headWidth,
   });
   p.textStart(subtitle, titleStart, top + 34, {
     size: TYPE.subtitle,
     color: p.colors.tintGroup,
+    maxWidth: headWidth,
   });
 
   // Far end of the band: the date, the page number and the company logo.
@@ -136,7 +172,12 @@ export function drawFooter(
   const a = axisOf(p);
   const small = { size: TYPE.footer, color: p.colors.muted };
 
-  p.textStart(project.company || project.name || '', a.startX, top + 5, small);
+  p.textStart(project.company || project.name || '', a.startX, top + 5, {
+    ...small,
+    // A third of the strip: the stamp sits in the middle of it and the page
+    // number at the far end, and a long company name reached both.
+    maxWidth: CONTENT_W / 3,
+  });
   p.textCenter(`${chrome.t.docGeneratedBy} · ${stamp}`, LEFT + CONTENT_W / 2, top + 5, small);
   if (a.dir === 'rtl') p.text(chrome.t.docPage(chrome.pageNumber, chrome.pageCount), LEFT, top + 5, small);
   else p.textRight(chrome.t.docPage(chrome.pageNumber, chrome.pageCount), RIGHT, top + 5, small);
@@ -188,7 +229,13 @@ function labelledLines(
     });
     const labelWidth = p.width(labelText, { size: TYPE.label, bold: true });
     const valueStart = a.dir === 'rtl' ? start - labelWidth - 6 : start + labelWidth + 6;
-    p.textStart(value, valueStart, y - 0.5, { size: TYPE.value, color: p.colors.ink });
+    p.textStart(value, valueStart, y - 0.5, {
+      size: TYPE.value,
+      color: p.colors.ink,
+      // What is left of the panel once the label has taken its share: a long
+      // company name has nowhere to go but out of the panel otherwise.
+      maxWidth: panelWidth - inset * 2 - labelWidth - 6,
+    });
     const [x1, x2] = a.dir === 'rtl' ? [far, valueStart] : [valueStart, far];
     p.line(x1, y + 11, x2, y + 11, { color: p.colors.lineSoft, width: METRICS.hairline });
     y += 17;
@@ -300,6 +347,7 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
       size: i === 3 ? TYPE.tiny : TYPE.column,
       bold: true,
       color: p.colors.navy,
+      maxWidth: CREW_COLUMNS[i] - 4,
     });
   });
   y += METRICS.columnRow;
@@ -311,9 +359,15 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
     entry.equipment.length,
   );
 
+  // The rows share what the page leaves them: nothing changes for a normal day,
+  // and a day with a dozen trades tightens rather than pushing the signatures
+  // off the bottom of the sheet.
+  const rowH = crewRowHeight(rowCount);
+  const cellSize = crewTextSize(rowH, TYPE.cell);
+
   const bodyTop = y;
   for (let i = 0; i < rowCount; i += 1) {
-    if (i % 2 === 1) p.rect(LEFT, y, CONTENT_W, METRICS.crewRow, { fill: p.colors.tintRow });
+    if (i % 2 === 1) p.rect(LEFT, y, CONTENT_W, rowH, { fill: p.colors.tintRow });
     const staff = entry.management[i];
     const contractor = entry.contractors[i];
     const equipment = entry.equipment[i];
@@ -327,9 +381,13 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
       equipment?.hours ?? '',
     ];
     values.forEach((value, col) => {
-      p.textCentreBox(value, centreOf(col), y, METRICS.crewRow, { size: TYPE.cell });
+      // Bounded by its own column: a trade typed longer than the box is what
+      // used to print across the rule and into the column beside it.
+      p.textCellBox(value, centreOf(col), y, rowH, CREW_COLUMNS[col] - 6, {
+        size: cellSize,
+      });
     });
-    y += METRICS.crewRow;
+    y += rowH;
     p.line(LEFT, y, RIGHT, y, { color: p.colors.lineSoft, width: METRICS.hairline });
   }
 
@@ -352,6 +410,75 @@ function crewTable(p: Painter, entry: DiaryEntry, t: Strings, top: number): numb
   p.rect(LEFT, top, CONTENT_W, y - top, { stroke: p.colors.line, lineWidth: METRICS.border });
 
   return y;
+}
+
+/* ------------------------------------------------------ ruled writing areas */
+
+/** Smaller than this and the writing stops being writing. */
+const RULED_MIN_SIZE = 5.5;
+
+/**
+ * The user's text into one of the form's ruled areas, all of it.
+ *
+ * The rules are drawn by the caller and never move — they are the form. What
+ * moves is the text: if it wraps to more lines than there are rules it is set
+ * smaller and tighter until the whole of it fits between the first rule and the
+ * last. Before this the loop simply stopped at the last rule, so a long day's
+ * description printed as much as fitted and **silently dropped the rest** —
+ * the one thing a diary must not do to the sentence someone wrote in it.
+ *
+ * Text that fits is left exactly where it was: sitting on the rules, at the
+ * size the form is set in.
+ */
+function ruledText(
+  p: Painter,
+  text: string,
+  options: {
+    /** The edge the language starts at. */
+    start: number;
+    top: number;
+    width: number;
+    /** How many rules the area has, and how far apart they are. */
+    rules: number;
+    pitch: number;
+    size: number;
+  },
+): void {
+  if (!text.trim()) return;
+  const { start, top, width, rules, pitch, size } = options;
+  const room = rules * pitch;
+
+  let lines = p.wrap(text, width, { size: TYPE.note });
+  let fontSize = size;
+  let step = pitch;
+
+  if (lines.length > rules) {
+    // Down in quarter points: the first size whose wrapped text fits the same
+    // height, and failing that the smallest one, with what is left of the text
+    // marked as cut rather than quietly absent.
+    for (let trial = size - 0.25; trial >= RULED_MIN_SIZE; trial -= 0.25) {
+      const wrapped = p.wrap(text, width, { size: trial });
+      if (wrapped.length * (trial + 2.2) <= room) {
+        lines = wrapped;
+        fontSize = trial;
+        break;
+      }
+      lines = wrapped;
+      fontSize = trial;
+    }
+    const fits = Math.max(1, Math.floor(room / (fontSize + 2.2)));
+    if (lines.length > fits) {
+      lines = lines.slice(0, fits);
+      lines[fits - 1] = `${lines[fits - 1]}…`;
+    }
+    step = room / lines.length;
+  }
+
+  let y = top;
+  for (const line of lines) {
+    p.textStart(line, start, y, { size: fontSize });
+    y += step;
+  }
 }
 
 /* --------------------------------------------- description + casting box */
@@ -430,7 +557,10 @@ function castingBox(
         const sw = p.width(subText, { size: TYPE.tiny, bold: true }) + 4;
         cursor = a.dir === 'rtl' ? cursor - sw : cursor + sw;
       }
-      p.textStart(value, cursor, ly, { size: TYPE.cell });
+      // What is left of the box from here to its far edge. The casting box is
+      // 152pt wide and `משאבה 42 מ׳ — 4 שעות` is most of that already.
+      const room = a.dir === 'rtl' ? cursor - (x + 5) : x + w - 5 - cursor;
+      p.textStart(value, cursor, ly, { size: TYPE.cell, maxWidth: room });
       ly += 11;
     }
     y += rowH;
@@ -454,6 +584,7 @@ function castingBox(
     const lw = p.width(labelText, { size: TYPE.tiny, bold: true }) + 4;
     p.textStart(value, a.dir === 'rtl' ? noteStart - lw : noteStart + lw, ny - 0.5, {
       size: TYPE.tiny,
+      maxWidth: w - 12 - lw,
     });
     ny += 10;
   }
@@ -470,7 +601,6 @@ function descriptionBlock(p: Painter, entry: DiaryEntry, t: Strings, top: number
   p.rect(x, top, textW, h, { stroke: p.colors.line, lineWidth: METRICS.border });
 
   const pad = 9;
-  const lines = p.wrap(entry.workDescription, textW - pad * 2, { size: TYPE.note });
   const textStart = a.dir === 'rtl' ? x + textW - pad : x + pad;
   let y = top + 6;
   for (let i = 0; i < METRICS.descriptionLines; i += 1) {
@@ -479,9 +609,16 @@ function descriptionBlock(p: Painter, entry: DiaryEntry, t: Strings, top: number
       color: p.colors.lineSoft,
       width: METRICS.hairline,
     });
-    if (lines[i]) p.textStart(lines[i], textStart, y + 1.5, { size: TYPE.note });
     y += METRICS.descriptionLine;
   }
+  ruledText(p, entry.workDescription, {
+    start: textStart,
+    top: top + 7.5,
+    width: textW - pad * 2,
+    rules: METRICS.descriptionLines,
+    pitch: METRICS.descriptionLine,
+    size: TYPE.note,
+  });
 
   castingBox(p, entry, t, textW + gap, castingW, top, h);
   return top + h;
@@ -519,7 +656,6 @@ function footerBlock(
   });
 
   const pad = 9;
-  const noteLines = p.wrap(entry.supervisorNotes, notesW - pad * 2, { size: TYPE.note });
   const textStart = a.dir === 'rtl' ? notesX + notesW - pad : notesX + pad;
   let y = top + 20;
   for (let i = 0; i < METRICS.supervisorLines; i += 1) {
@@ -528,9 +664,16 @@ function footerBlock(
       color: p.colors.lineSoft,
       width: METRICS.hairline,
     });
-    if (noteLines[i]) p.textStart(noteLines[i], textStart, y + 1, { size: TYPE.note });
     y += 14;
   }
+  ruledText(p, entry.supervisorNotes, {
+    start: textStart,
+    top: top + 21,
+    width: notesW - pad * 2,
+    rules: METRICS.supervisorLines,
+    pitch: 14,
+    size: TYPE.note,
+  });
 
   /* התקבל היום — the deliveries box, above the signatures. */
   const sideX = a.boxX(notesW + gap, sideW);
@@ -546,7 +689,6 @@ function footerBlock(
     pad: 9,
   });
 
-  const received = p.wrap(entry.receivedToday ?? '', sideW - pad * 2, { size: TYPE.note });
   const receivedStart = a.dir === 'rtl' ? sideX + sideW - pad : sideX + pad;
   // Three ruled lines in the 46pt left under the heading bar, at 13pt each so
   // the last rule keeps clear of the frame instead of sitting on it.
@@ -557,9 +699,16 @@ function footerBlock(
       color: p.colors.lineSoft,
       width: METRICS.hairline,
     });
-    if (received[i]) p.textStart(received[i], receivedStart, ry + 0.5, { size: TYPE.note });
     ry += 13;
   }
+  ruledText(p, entry.receivedToday ?? '', {
+    start: receivedStart,
+    top: top + 18.5,
+    width: sideW - pad * 2,
+    rules: METRICS.receivedLines,
+    pitch: 13,
+    size: TYPE.note,
+  });
 
   /* The two signatures, sharing the row beneath it as the form now draws them. */
   const signTop = top + METRICS.signatureBox + gap;

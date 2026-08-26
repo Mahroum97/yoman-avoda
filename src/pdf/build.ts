@@ -22,8 +22,9 @@ import {
   type PageChrome,
 } from './entryPage';
 import { drawContactsDocument } from './contactsPage';
-import { CONTENT_W, METRICS, PAGE, TYPE, paletteFor } from './theme';
+import { CONTENT_W, METRICS, PAGE, TYPE, axisFor, paletteFor } from './theme';
 import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
+import { PHOTOS_PER_PAGE, photoPageCount } from '../lib/photoPages';
 import { docFontId } from '../fonts';
 
 import heeboRegularUrl from '../assets/fonts/heebo-regular.ttf?url';
@@ -156,60 +157,117 @@ const newPage = (doc: PDFDocument): PDFPage => doc.addPage([PAGE.width, PAGE.hei
 
 /* ---------------------------------------------------------- photo appendix */
 
-async function drawPhotoPage(
+/**
+ * The appendix grid, in points.
+ *
+ * A tile is a fixed slot with the caption under it, two to a row. The slot
+ * height is chosen so four rows clear the footer: the pagination and the page
+ * count both come from that, rather than from a number written down twice.
+ */
+const PHOTO = {
+  gap: 10,
+  slotH: 146,
+  captionH: 18,
+  columns: 2,
+} as const;
+
+const PHOTO_ROW_H = PHOTO.slotH + PHOTO.captionH;
+const PHOTO_TOP = PAGE.margin + METRICS.headerBand + METRICS.gap;
+/** Clear of the footer rule — a tile drawn across it is a tile half off the page. */
+const PHOTO_BOTTOM = PAGE.height - PAGE.margin - METRICS.footerBand - 8;
+
+const PHOTO_ROWS = Math.max(
+  1,
+  Math.floor((PHOTO_BOTTOM - PHOTO_TOP + PHOTO.gap) / (PHOTO_ROW_H + PHOTO.gap)),
+);
+
+/*
+ * The preview cannot import this module — it would pull pdf-lib into the app's
+ * first load — so the capacity lives in `src/lib/photoPages.ts` and is checked
+ * against the real geometry here. Change a height above and this throws until
+ * the shared constant is changed with it, which is the whole point: a preview
+ * that paginates differently from the document is a preview that lies.
+ */
+if (PHOTO_ROWS * PHOTO.columns !== PHOTOS_PER_PAGE) {
+  throw new Error(
+    `photo appendix fits ${PHOTO_ROWS * PHOTO.columns} per page, PHOTOS_PER_PAGE says ${PHOTOS_PER_PAGE}`,
+  );
+}
+
+/**
+ * The appendix for one day, as however many pages its photos need.
+ *
+ * Returns the number of pages drawn, so the caller can carry on numbering.
+ * A photo whose bytes cannot be read leaves its slot in place with a line
+ * saying so: dropping it silently would renumber everything after it and hide
+ * the fault, and a hole in a grid is easier to ask about than a missing page.
+ */
+async function drawPhotoPages(
   doc: PDFDocument,
   fonts: Fonts,
   entry: DiaryEntry,
   project: Project,
   chrome: PageChrome,
-): Promise<void> {
-  const page = newPage(doc);
-  const p = new Painter(page, fonts, chrome.t.dir, chrome.colors);
+): Promise<number> {
+  const pages = photoPageCount(entry.photos.length);
+  const axis = axisFor(chrome.t.dir);
+  const colW = (CONTENT_W - PHOTO.gap) / PHOTO.columns;
 
-  let y: number = PAGE.margin;
-  y = drawHeaderBand(
-    p,
-    chrome.t.docPhotoAppendix,
-    project.name,
-    formatLongDate(entry.date, chrome.t),
-    chrome,
-    y,
-  );
-  y += METRICS.gap;
+  for (let pageIndex = 0; pageIndex < pages; pageIndex += 1) {
+    const page = newPage(doc);
+    const here: PageChrome = { ...chrome, pageNumber: chrome.pageNumber + pageIndex };
+    const p = new Painter(page, fonts, here.t.dir, here.colors);
 
-  const gap = 10;
-  const colW = (CONTENT_W - gap) / 2;
-  const slotH = 150;
-  let col = 0;
+    drawHeaderBand(
+      p,
+      here.t.docPhotoAppendix,
+      project.name,
+      formatLongDate(entry.date, here.t),
+      here,
+      PAGE.margin,
+    );
 
-  for (const [index, photo] of entry.photos.entries()) {
-    const image = await embedBlob(doc, photo.blob);
-    if (!image) continue;
+    const first = pageIndex * PHOTOS_PER_PAGE;
+    const slice = entry.photos.slice(first, first + PHOTOS_PER_PAGE);
 
-    const x = col === 0 ? RIGHT - colW : LEFT;
-    p.rect(x, y, colW, slotH + 18, {
-      fill: p.colors.panel,
-      stroke: p.colors.line,
-      lineWidth: METRICS.hairline,
-    });
+    for (const [slot, photo] of slice.entries()) {
+      const col = slot % PHOTO.columns;
+      const row = Math.floor(slot / PHOTO.columns);
+      const x = axis.boxX(col * (colW + PHOTO.gap), colW);
+      const y = PHOTO_TOP + row * (PHOTO_ROW_H + PHOTO.gap);
 
-    const scale = Math.min((colW - 12) / image.width, slotH / image.height);
-    const w = image.width * scale;
-    const h = image.height * scale;
-    p.image(image, x + (colW - w) / 2, y + 6, w, h);
-    p.textCentreBox(photo.caption || chrome.t.photoNumber(index + 1), x + colW / 2, y + slotH + 6, 12, {
-      size: TYPE.tiny,
-      color: p.colors.muted,
-    });
+      p.rect(x, y, colW, PHOTO_ROW_H, {
+        fill: p.colors.panel,
+        stroke: p.colors.line,
+        lineWidth: METRICS.hairline,
+      });
 
-    col += 1;
-    if (col === 2) {
-      col = 0;
-      y += slotH + 18 + gap;
+      const image = await embedBlob(doc, photo.blob);
+      if (image) {
+        const scale = Math.min((colW - 12) / image.width, (PHOTO.slotH - 12) / image.height);
+        const w = image.width * scale;
+        const h = image.height * scale;
+        p.image(image, x + (colW - w) / 2, y + 6 + (PHOTO.slotH - 12 - h) / 2, w, h);
+      } else {
+        p.textCentreBox(here.t.photoUnreadable, x + colW / 2, y, PHOTO.slotH, {
+          size: TYPE.tiny,
+          color: p.colors.muted,
+        });
+      }
+
+      p.textCentreBox(
+        photo.caption || here.t.photoNumber(first + slot + 1),
+        x + colW / 2,
+        y + PHOTO.slotH,
+        PHOTO.captionH,
+        { size: TYPE.tiny, color: p.colors.muted, maxWidth: colW - 10 },
+      );
     }
+
+    drawFooter(p, project, here);
   }
 
-  drawFooter(p, project, chrome);
+  return pages;
 }
 
 /* -------------------------------------------------------------- single day */
@@ -221,7 +279,7 @@ export async function buildEntryPdf(
 ): Promise<Uint8Array> {
   const { doc, fonts, t, dir, colors } = await prepare(options);
   const includePhotos = (options.includePhotos ?? true) && entry.photos.length > 0;
-  const photoPages = includePhotos ? Math.ceil(entry.photos.length / 4) : 0;
+  const photoPages = includePhotos ? photoPageCount(entry.photos.length) : 0;
   const pageCount = 1 + photoPages;
   const generatedAt = new Date();
 
@@ -241,7 +299,7 @@ export async function buildEntryPdf(
   });
 
   if (includePhotos) {
-    await drawPhotoPage(doc, fonts, entry, project, {
+    await drawPhotoPages(doc, fonts, entry, project, {
       pageNumber: 2,
       pageCount,
       generatedAt,
@@ -273,51 +331,119 @@ export async function buildContactsPdf(
 
 /* ------------------------------------------------------------ range report */
 
-function summaryTable(
-  p: Painter,
-  title: string,
-  unit: string,
-  rows: Tally[],
-  t: Strings,
-  top: number,
-): number {
-  if (rows.length === 0) return top;
+/** One of the three tallies printed under the figures on the cover. */
+interface SummaryTable {
+  title: string;
+  unit: string;
+  rows: Tally[];
+}
 
-  let y = sectionBar(p, title, top);
+const SUMMARY_ROW = 16;
+/** Where the tables begin on the cover: under the band, figures and details. */
+const COVER_TABLES_TOP =
+  PAGE.margin + METRICS.headerBand + METRICS.gap + 46 + METRICS.gap + (20 + 3 * 15) + METRICS.gap;
+/** Where they begin on a page that carries nothing but a band. */
+const SUMMARY_TOP = PAGE.margin + METRICS.headerBand + METRICS.gap;
+const SUMMARY_BOTTOM = PAGE.height - PAGE.margin - METRICS.footerBand - 8;
+
+/** As much of one table as fits on one page. */
+interface SummaryChunk {
+  table: SummaryTable;
+  from: number;
+  to: number;
+  /** Whether the totals row belongs to this chunk. */
+  total: boolean;
+}
+
+/**
+ * Splits the summary tables into pages before anything is drawn.
+ *
+ * A month of work brings fifteen trades and the three tables fit under the
+ * figures; a quarter brings forty, and the rows ran off the bottom of the cover
+ * and were simply not in the report. Planning first is also what lets the page
+ * count in every header be right: it is known before the first page is drawn.
+ *
+ * A table is never left with its totals row alone on a page — the split takes
+ * fewer rows instead — and never starts one with fewer than two rows under its
+ * heading.
+ */
+function planSummary(tables: SummaryTable[]): SummaryChunk[][] {
+  const pages: SummaryChunk[][] = [[]];
+  let y = COVER_TABLES_TOP;
+
+  const breakPage = () => {
+    pages.push([]);
+    y = SUMMARY_TOP;
+  };
+
+  for (const table of tables) {
+    if (table.rows.length === 0) continue;
+    const head = METRICS.sectionBar + SUMMARY_ROW;
+    let index = 0;
+
+    while (index < table.rows.length) {
+      if (y + head + SUMMARY_ROW * 2 > SUMMARY_BOTTOM) breakPage();
+
+      const room = Math.floor((SUMMARY_BOTTOM - y - head) / SUMMARY_ROW);
+      const left = table.rows.length - index;
+      const total = left + 1 <= room;
+      const take = total ? left : room;
+
+      pages[pages.length - 1].push({ table, from: index, to: index + take, total });
+      y += head + SUMMARY_ROW * (take + (total ? 1 : 0)) + METRICS.gap;
+      index += take;
+    }
+  }
+
+  return pages;
+}
+
+/** Draws one chunk, and returns where the next one starts. */
+function drawSummaryChunk(p: Painter, chunk: SummaryChunk, t: Strings, top: number): number {
+  const { table } = chunk;
+  let y = sectionBar(p, table.title, top);
   const cols = [CONTENT_W * 0.5, CONTENT_W * 0.25, CONTENT_W * 0.25];
   const edges = [RIGHT, RIGHT - cols[0], RIGHT - cols[0] - cols[1]];
-  const rowH = 16;
 
-  p.rect(LEFT, y, CONTENT_W, rowH, { fill: p.colors.tintHead });
-  [t.detail, unit, t.unitDays].forEach((label, i) => {
-    p.textCentreBox(label, edges[i] - cols[i] / 2, y, rowH, {
+  p.rect(LEFT, y, CONTENT_W, SUMMARY_ROW, { fill: p.colors.tintHead });
+  [t.detail, table.unit, t.unitDays].forEach((label, i) => {
+    p.textCentreBox(label, edges[i] - cols[i] / 2, y, SUMMARY_ROW, {
       size: TYPE.column,
       bold: true,
       color: p.colors.navy,
+      maxWidth: cols[i] - 8,
     });
   });
-  y += rowH;
+  y += SUMMARY_ROW;
 
-  rows.forEach((row, index) => {
-    if (index % 2 === 1) p.rect(LEFT, y, CONTENT_W, rowH, { fill: p.colors.tintRow });
-    const values = [row.label, formatNum(row.total), String(row.days)];
-    values.forEach((value, i) => {
-      p.textCentreBox(value, edges[i] - cols[i] / 2, y, rowH, { size: TYPE.cell });
+  for (let index = chunk.from; index < chunk.to; index += 1) {
+    const row = table.rows[index];
+    // Striped by its place in the whole table, so the banding carries on
+    // across a break instead of restarting.
+    if (index % 2 === 1) p.rect(LEFT, y, CONTENT_W, SUMMARY_ROW, { fill: p.colors.tintRow });
+    [row.label, formatNum(row.total), String(row.days)].forEach((value, i) => {
+      p.textCentreBox(value, edges[i] - cols[i] / 2, y, SUMMARY_ROW, {
+        size: TYPE.cell,
+        maxWidth: cols[i] - 8,
+      });
     });
-    y += rowH;
+    y += SUMMARY_ROW;
     p.line(LEFT, y, RIGHT, y, { color: p.colors.lineSoft, width: METRICS.hairline });
-  });
+  }
 
-  const total = rows.reduce((sum, row) => sum + row.total, 0);
-  p.rect(LEFT, y, CONTENT_W, rowH, { fill: p.colors.tintGroup });
-  [t.total, formatNum(total), ''].forEach((value, i) => {
-    p.textCentreBox(value, edges[i] - cols[i] / 2, y, rowH, {
-      size: TYPE.cell,
-      bold: true,
-      color: p.colors.navy,
+  if (chunk.total) {
+    const total = table.rows.reduce((sum, row) => sum + row.total, 0);
+    p.rect(LEFT, y, CONTENT_W, SUMMARY_ROW, { fill: p.colors.tintGroup });
+    [t.total, formatNum(total), ''].forEach((value, i) => {
+      p.textCentreBox(value, edges[i] - cols[i] / 2, y, SUMMARY_ROW, {
+        size: TYPE.cell,
+        bold: true,
+        color: p.colors.navy,
+        maxWidth: cols[i] - 8,
+      });
     });
-  });
-  y += rowH;
+    y += SUMMARY_ROW;
+  }
 
   p.rect(LEFT, top + METRICS.sectionBar, CONTENT_W, y - top - METRICS.sectionBar, {
     stroke: p.colors.line,
@@ -326,16 +452,20 @@ function summaryTable(
   return y + METRICS.gap;
 }
 
-function coverPage(
+/**
+ * The cover's top half: the band, the five figures and the three details.
+ *
+ * Returns where the tables start, which is the constant the plan was made with.
+ */
+function coverHead(
   p: Painter,
   project: Project,
-  entries: DiaryEntry[],
+  stats: ReturnType<typeof summarise>,
   from: string,
   to: string,
   chrome: PageChrome,
-): void {
+): number {
   const t = chrome.t;
-  const stats = summarise(entries);
   let y: number = PAGE.margin;
   y = drawHeaderBand(
     p,
@@ -374,6 +504,7 @@ function coverPage(
     p.textCentreBox(label, x + cardW / 2, y + 28, 12, {
       size: TYPE.label,
       color: p.colors.muted,
+      maxWidth: cardW - 6,
     });
   });
   y += cardH + METRICS.gap;
@@ -396,14 +527,14 @@ function coverPage(
       color: p.colors.navySoft,
     });
     const lw = p.width(`${label}:`, { size: TYPE.label, bold: true });
-    p.textRight(value, RIGHT - 14 - lw, dy - 0.5, { size: TYPE.value });
+    p.textRight(value, RIGHT - 14 - lw, dy - 0.5, {
+      size: TYPE.value,
+      maxWidth: CONTENT_W - 24 - lw,
+    });
     dy += 15;
   }
-  y += 20 + details.length * 15 + METRICS.gap;
 
-  y = summaryTable(p, t.summaryTrades, t.unitWorkers, stats.trades, t, y);
-  y = summaryTable(p, t.summaryEquipment, t.unitHours, stats.equipment, t, y);
-  summaryTable(p, t.summaryConcrete, t.unitCubicMetres, stats.concrete, t, y);
+  return COVER_TABLES_TOP;
 }
 
 export async function buildRangePdf(
@@ -420,23 +551,42 @@ export async function buildRangePdf(
   const logo = await embedDataUrl(doc, options.logoDataUrl);
 
   const photoPages = includePhotos
-    ? entries.reduce((sum, e) => sum + (e.photos.length ? Math.ceil(e.photos.length / 4) : 0), 0)
+    ? entries.reduce((sum, e) => sum + photoPageCount(e.photos.length), 0)
     : 0;
-  const pageCount = (includeSummary ? 1 : 0) + entries.length + photoPages || 1;
+
+  const stats = summarise(entries);
+  const plan = includeSummary
+    ? planSummary([
+        { title: t.summaryTrades, unit: t.unitWorkers, rows: stats.trades },
+        { title: t.summaryEquipment, unit: t.unitHours, rows: stats.equipment },
+        { title: t.summaryConcrete, unit: t.unitCubicMetres, rows: stats.concrete },
+      ])
+    : [];
+
+  const pageCount = plan.length + entries.length + photoPages || 1;
   let pageNumber = 1;
 
-  if (includeSummary) {
+  plan.forEach((chunks, index) => {
     const page = newPage(doc);
-    coverPage(new Painter(page, fonts, dir, colors), project, entries, from, to, {
-      pageNumber,
-      pageCount,
-      generatedAt,
-      logo,
-      t,
-      colors,
-    });
+    const p = new Painter(page, fonts, dir, colors);
+    const chrome: PageChrome = { pageNumber, pageCount, generatedAt, logo, t, colors };
+
+    let y =
+      index === 0
+        ? coverHead(p, project, stats, from, to, chrome)
+        : drawHeaderBand(
+            p,
+            t.docCombinedReport,
+            project.name,
+            `${formatDdMmYyyy(from)} — ${formatDdMmYyyy(to)}`,
+            chrome,
+            PAGE.margin,
+          ) + METRICS.gap;
+
+    for (const chunk of chunks) y = drawSummaryChunk(p, chunk, t, y);
+    drawFooter(p, project, chrome);
     pageNumber += 1;
-  }
+  });
 
   for (const entry of entries) {
     const images: EntryImages = {
@@ -455,7 +605,7 @@ export async function buildRangePdf(
     pageNumber += 1;
 
     if (includePhotos && entry.photos.length > 0) {
-      await drawPhotoPage(doc, fonts, entry, project, {
+      pageNumber += await drawPhotoPages(doc, fonts, entry, project, {
         pageNumber,
         pageCount,
         generatedAt,
@@ -463,7 +613,6 @@ export async function buildRangePdf(
         t,
         colors,
       });
-      pageNumber += 1;
     }
   }
 

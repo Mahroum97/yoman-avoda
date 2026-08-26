@@ -90,6 +90,34 @@ const photoPng = makePng(640, 480, (x, y) => {
 });
 
 const photoBlob = new Blob([photoPng], { type: 'image/png' });
+
+/** The same scene stood on its end: a phone photograph is usually portrait. */
+const photoTallPng = makePng(480, 640, (x, y) => {
+  if (y < 260) return [176 + Math.round(y / 12), 205, 230];
+  if (y > 560) return [214, 118, 6];
+  const band = Math.floor((x + y) / 60) % 2 === 0;
+  return band ? [86, 98, 112] : [104, 117, 132];
+});
+const photoTallBlob = new Blob([photoTallPng], { type: 'image/png' });
+
+/**
+ * Fifteen photos, which is more than one appendix page holds.
+ *
+ * The count is the point of the fixture: with eight to a page this is two
+ * pages and a part-filled third, so the sample catches an appendix that draws
+ * every photo on one page — which it did, printing the overflow past the
+ * bottom edge — and a page count that disagrees with the pages produced.
+ */
+function samplePhotos(index: number): DiaryEntry['photos'] {
+  return Array.from({ length: 15 }, (_, i) => ({
+    id: `p${index}-${i + 1}`,
+    caption: i === 0 ? 'תקרת קומה 3 לפני היציקה' : i === 1 ? 'משאבת הבטון בעמדת העבודה' : '',
+    blob: i % 3 === 0 ? photoTallBlob : photoBlob,
+    width: i % 3 === 0 ? 480 : 640,
+    height: i % 3 === 0 ? 640 : 480,
+    takenAt: Date.now(),
+  }));
+}
 const signatureDataUrl = `data:image/png;base64,${signaturePng.toString('base64')}`;
 
 /** Company logo fixture — an amber block with a navy notch. */
@@ -126,6 +154,9 @@ function sampleEntry(date: string, index: number): DiaryEntry {
       { id: 'c1', trade: 'טפסנות', workers: '8' },
       { id: 'c2', trade: 'ברזלנות', workers: '6' },
       { id: 'c3', trade: 'אינסטלציה', workers: '2' },
+      // Deliberately wider than the column: printed unbounded it ran across
+      // the rule and into the column beside it.
+      { id: 'c4', trade: 'אינסטלטור צוות ספרינקלרים', workers: '3' },
     ],
     equipment: [
       { id: 'e1', kind: 'מנוף צריח', qty: '1', hours: '9' },
@@ -152,24 +183,7 @@ function sampleEntry(date: string, index: number): DiaryEntry {
     receivedToday: '20 טון ברזל זיון קוטר 12, 3 משטחי בלוקים, 40 שקי צמנט',
     supervisorSignature: signatureDataUrl,
     managerSignature: signatureDataUrl,
-    photos: [
-      {
-        id: `p${index}a`,
-        caption: 'תקרת קומה 3 לפני היציקה',
-        blob: photoBlob,
-        width: 640,
-        height: 480,
-        takenAt: Date.now(),
-      },
-      {
-        id: `p${index}b`,
-        caption: 'משאבת הבטון בעמדת העבודה',
-        blob: photoBlob,
-        width: 640,
-        height: 480,
-        takenAt: Date.now(),
-      },
-    ],
+    photos: samplePhotos(index),
     status: 'signed',
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -216,6 +230,20 @@ async function main(): Promise<void> {
   const week = ['2026-07-27', '2026-07-28', '2026-07-29', '2026-07-30'].map((date, i) =>
     sampleEntry(date, i + 1),
   );
+  /*
+   * One crowded day. A real diary lists every trade on the site, and this is
+   * the shape that finds the two ways a page can overflow without saying so:
+   * the day's own table growing past the blocks under it, and the trades tally
+   * on the report's cover growing past the bottom of the cover.
+   */
+  week[3] = {
+    ...week[3],
+    contractors: [
+      'טפסנות', 'ברזלנות', 'אינסטלציה', 'חשמל', 'טיח', 'גבס', 'ריצוף', 'איטום',
+      'צביעה', 'אלומיניום', 'מסגרות', 'גינון', 'מיזוג אוויר', 'ספרינקלרים',
+    ].map((trade, i) => ({ id: `x${i}`, trade, workers: String((i % 5) + 1) })),
+  };
+
   // One sparse day, to prove an empty page still prints its ruled rows.
   week[1] = {
     ...week[1],
@@ -250,6 +278,54 @@ async function main(): Promise<void> {
       logoDataUrl,
       includePhotos: true,
     }),
+  );
+
+  /*
+   * Every box on the page given more than it was drawn for, in one document.
+   *
+   * The page is a grid of fixed boxes and the words that go in them are typed
+   * by hand on a phone. Each of these was a real failure: a description longer
+   * than thirteen ruled lines lost its last sentences without a mark, a trade
+   * name wider than its column printed across the one beside it, and the
+   * casting box's values ran out through its frame. Look at this page after
+   * touching anything in `src/pdf/` — nothing may leave its box, and nothing
+   * may be missing.
+   */
+  const long =
+    'המשך עבודות אינסטלציה בדירות 1 עד 6 בקומות א׳ ו-ב׳, כולל פתיחת שרוולים, ' +
+    'הנחת צנרת מים חמים וקרים, בדיקת לחץ ואיטום מעברים באש. במקביל התקדמו ' +
+    'עבודות החשמל בלוחות הקומתיים והושלמה השחלת כבלים בשלושה גושים. ' +
+    'צוות הגבס המשיך בהקמת מחיצות במסדרון המרכזי ובחדרי הרטוב, והושלמה ' +
+    'סגירת תקרות בחלק המזרחי. הריצוף התחיל בדירה 2 לאחר השלמת השכבה המיישרת, ' +
+    'ובוצע ניקיון כללי ופינוי פסולת בשתי מכולות. מנהל העבודה הנחה להשלים גידור ' +
+    'בטיחות סביב פיר המעלית עד מחר בבוקר ולוודא שילוט אזהרה בכל הקומות.';
+
+  await writeFile(
+    'tmp/sample-stress.pdf',
+    await buildEntryPdf(
+      {
+        ...sampleEntry('2026-07-31', 9),
+        workDescription: long,
+        supervisorNotes: long,
+        receivedToday: long,
+        casting: {
+          description: 'תקרת קומה 3 באגף המזרחי כולל קורות היקפיות',
+          sizeQty: '240 מ"ר · 58 מ"ק',
+          pump: 'משאבה 42 מ׳ עם זרוע ארוכה — 4 שעות המתנה',
+          concreteType: 'ב-30 עם תוסף מאיץ התקשרות',
+          concreteQty: '58 מ"ק',
+          notes: 'היציקה הסתיימה ב-15:40, בוצעה ויברציה מלאה בכל השטח',
+          notesConcreteType: 'ב-30 עם תוסף מאיץ ומעכב התקשרות לפי הנחיית היועץ',
+        },
+      },
+      {
+        ...project,
+        name: 'מגדלי הים התיכון — מתחם המזרחי, שלב ב׳',
+        company: 'מחרום בנייה, הנדסה ותשתיות בע"מ',
+        address: 'רחוב הרצל 15, קריית הממשלה, חיפה',
+      },
+      { fontBytes, logoDataUrl },
+    ),
   );
 
   // ספקים וקבלנים. Two rows carry values long enough to wrap, because the row

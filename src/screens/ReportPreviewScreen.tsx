@@ -26,6 +26,7 @@ import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
 import { EmptyState } from '../components/ui';
 import { canShareFiles } from '../lib/save';
+import { photoPageCount } from '../lib/photoPages';
 import { Icon } from '../components/Icon';
 
 /**
@@ -74,6 +75,10 @@ export function ReportPreviewScreen({
 
   const canShare = useMemo(() => canShareFiles(), []);
   const shown = useMemo(() => (entries ?? []).slice(0, MAX_SHEETS), [entries]);
+
+  /** Sheets one day contributes: the form, and however many its photos need. */
+  const dayPages = (entry: DiaryEntry) =>
+    1 + (includePhotos ? photoPageCount(entry.photos.length) : 0);
 
   const build = async (deliver: 'save' | 'share') => {
     if (!entries?.length) return;
@@ -163,7 +168,7 @@ export function ReportPreviewScreen({
                 entry={entry}
                 project={project}
                 companyLogo={logoDataUrl}
-                pages={includePhotos && entry.photos.length > 0 ? 2 : 1}
+                pages={dayPages(entry)}
                 themeId={themeId}
               />
               {includePhotos && entry.photos.length > 0 && (
@@ -171,7 +176,7 @@ export function ReportPreviewScreen({
                   entry={entry}
                   project={project}
                   companyLogo={logoDataUrl}
-                  pages={2}
+                  pages={dayPages(entry)}
                   themeId={themeId}
                 />
               )}

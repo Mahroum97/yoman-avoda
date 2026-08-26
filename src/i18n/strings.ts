@@ -197,7 +197,11 @@ export interface Strings {
   photosSummary: (count: number, size: string) => string;
   deletePhoto: string;
   photoLoadFailed: string;
+  /** Some of a batch could not be read; the rest were added. */
+  photosSkipped: (n: number) => string;
   photoNumber: (n: number) => string;
+  /** Printed in a photo's slot when its bytes cannot be read. */
+  photoUnreadable: string;
 
   /* סל מחיקה */
   trashTitle: string;
@@ -675,7 +679,14 @@ const he: Strings = {
   photosSummary: (count, size) => `${count} תמונות · ${size}`,
   deletePhoto: 'מחק תמונה',
   photoLoadFailed: 'לא ניתן היה לטעון את התמונות',
+  photosSkipped: (n) =>
+    n === 1
+      ? 'תמונה אחת לא נוספה — לא ניתן היה לקרוא אותה'
+      : n === 2
+        ? 'שתי תמונות לא נוספו — לא ניתן היה לקרוא אותן'
+        : `${n} תמונות לא נוספו — לא ניתן היה לקרוא אותן`,
   photoNumber: (n) => `תמונה ${n}`,
+  photoUnreadable: 'לא ניתן לקרוא את התמונה',
 
   trashTitle: 'סל מחיקה',
   trashOpen: 'סל מחיקה',
@@ -1189,7 +1200,16 @@ const ar: Strings = {
   photosSummary: (count, size) => `${count} صور · ${size}`,
   deletePhoto: 'حذف الصورة',
   photoLoadFailed: 'تعذر تحميل الصور',
+  photosSkipped: (n) =>
+    n === 1
+      ? 'لم تُضَف صورة واحدة — تعذّرت قراءتها'
+      : n === 2
+        ? 'لم تُضَف صورتان — تعذّرت قراءتهما'
+        : n <= 10
+          ? `لم تُضَف ${n} صور — تعذّرت قراءتها`
+          : `لم تُضَف ${n} صورة — تعذّرت قراءتها`,
   photoNumber: (n) => `صورة ${n}`,
+  photoUnreadable: 'تعذّرت قراءة الصورة',
 
   trashTitle: 'سلة المحذوفات',
   trashOpen: 'سلة المحذوفات',
@@ -1722,7 +1742,10 @@ const en: Strings = {
   photosSummary: (count, size) => `${count} photos · ${size}`,
   deletePhoto: 'Delete photo',
   photoLoadFailed: 'Could not load the photos',
+  photosSkipped: (n) =>
+    n === 1 ? 'One photo was not added — it could not be read' : `${n} photos were not added — they could not be read`,
   photoNumber: (n) => `Photo ${n}`,
+  photoUnreadable: 'This photo could not be read',
 
   trashTitle: 'Trash',
   trashOpen: 'Trash',

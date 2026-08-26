@@ -123,7 +123,7 @@ elif ! git remote get-url origin >/dev/null 2>&1; then
   עוד לא יצרת מאגר ב-GitHub, אז אין לאן לפרסם.
   זו פקודה אחת בטרמינל:
 
-      cd "$HOME/Desktop/יומן עבודה" && gh repo create yoman-avoda --public --source=. --remote=origin --push
+      cd "$HOME/יומן עבודה" && gh repo create yoman-avoda --public --source=. --remote=origin --push
 EOS
 elif bash scripts/deploy-pages.sh; then
   WEB_STATUS="נשלח ל-GitHub — האתר נבנה שם"

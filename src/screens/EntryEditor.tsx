@@ -147,6 +147,23 @@ export function EntryEditor({
     };
   }, [dirty, persist]);
 
+  /**
+   * Photographs are written the moment they are added, not on the debounce.
+   *
+   * Everything else on this page can be typed again; a photograph taken at ten
+   * past seven in a stairwell cannot. The debounce is 1.2 seconds and the app
+   * can be closed, backgrounded or killed by iOS inside it, and a phone with a
+   * dozen new pictures in a page that was never written is exactly the report
+   * that came back missing them.
+   */
+  const persistPhotos = useCallback(
+    (photos: DiaryEntry['photos']) => {
+      const current = latest.current;
+      if (current) void persist({ ...current, photos });
+    },
+    [persist],
+  );
+
   // The changed keys are the coalescing tag: typing into one field folds into
   // a single step, but moving to another field starts a new one.
   const patch = useCallback(
@@ -636,7 +653,10 @@ export function EntryEditor({
       <Card title={t.sectionPhotos} step={10} note={t.hintPhotos}>
         <PhotoGrid
           photos={entry.photos}
-          onChange={(photos) => patch({ photos })}
+          onChange={(photos) => {
+            patch({ photos });
+            persistPhotos(photos);
+          }}
           onError={toast.error}
         />
       </Card>

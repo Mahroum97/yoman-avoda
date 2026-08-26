@@ -5,13 +5,19 @@
  * column proportions, same padding rows — so the preview predicts what the
  * generated PDF will look like. Change one, change the other.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import type { DiaryEntry, Project } from '../types';
 import { formatDdMmYyyy, formatLongDate } from '../lib/dates';
 import { useLanguage } from '../i18n/useLanguage';
 import type { Strings } from '../i18n/strings';
 import { css, docTheme } from '../docTheme';
+import { PHOTOS_PER_PAGE, photoPageCount } from '../lib/photoPages';
+import { crewRowHeight } from '../lib/crewLayout';
+import { usePhotoUrls } from '../hooks/usePhotoUrls';
 import { Logo } from './Logo';
+
+/** A point in CSS pixels, which is how every height here comes from METRICS. */
+const PT = 96 / 72;
 
 /** Same ratios as CREW_COLUMNS in the PDF and Word builders. */
 const CREW_WIDTHS = [1750, 1500, 1700, 1000, 1900, 1550, 1486];
@@ -47,6 +53,23 @@ function useRuled(text: string, minLines: number, perLine: number): string[] {
     while (lines.length < minLines) lines.push('');
     return lines;
   }, [text, minLines, perLine]);
+}
+
+/**
+ * The style a ruled area needs when the writing runs past its last rule.
+ *
+ * The PDF sets the text smaller and tighter so all of it stays inside the box
+ * (`ruledText` in src/pdf/entryPage.ts); the preview does the same arithmetic,
+ * because a preview that grows a sheet the printer cannot grow is a preview
+ * that shows a page nobody will ever hold.
+ */
+function ruledFit(lines: number, rules: number, pitch: number): CSSProperties | undefined {
+  if (lines <= rules) return undefined;
+  const factor = rules / lines;
+  return {
+    '--rule-h': `${pitch * factor}px`,
+    fontSize: `${Math.max(7.3, 11.3 * factor)}px`,
+  } as CSSProperties;
 }
 
 function HeaderBand({
@@ -199,7 +222,11 @@ export function SheetPreview({
 
       <div className="sheet__section">{t.labelCrewSection}</div>
 
-      <table className="sheet__grid">
+      {/* The rows tighten exactly as the PDF's do — see src/lib/crewLayout.ts. */}
+      <table
+        className="sheet__grid"
+        style={{ '--crew-row': `${crewRowHeight(rowCount) * PT}px` } as CSSProperties}
+      >
         <colgroup>
           {CREW_WIDTHS.map((width, i) => (
             <col key={i} style={{ width: pct(width) }} />
@@ -242,7 +269,10 @@ export function SheetPreview({
       <div className="sheet__section">{t.labelWorkDescription}</div>
 
       <div className="sheet__body">
-        <div className="sheet__ruled">
+        <div
+          className="sheet__ruled"
+          style={ruledFit(description.length, DESCRIPTION_LINES, 21)}
+        >
           {description.map((line, i) => (
             <div className="sheet__rule" key={i}>
               {line}
@@ -288,7 +318,7 @@ export function SheetPreview({
       </div>
 
       <div className="sheet__body sheet__body--footer">
-        <div className="sheet__notes">
+        <div className="sheet__notes" style={ruledFit(notes.length, SUPERVISOR_LINES, 19)}>
           <div className="sheet__notes-head">{t.labelSupervisorNotes}</div>
           {notes.map((line, i) => (
             <div className="sheet__rule" key={i}>
@@ -297,7 +327,7 @@ export function SheetPreview({
           ))}
         </div>
         <div className="sheet__side">
-          <div className="sheet__received">
+          <div className="sheet__received" style={ruledFit(received.length, RECEIVED_LINES, 17)}>
             <div className="sheet__notes-head">{t.labelReceivedToday}</div>
             {received.map((line, i) => (
               <div className="sheet__rule" key={i}>
@@ -324,55 +354,75 @@ export function SheetPreview({
   );
 }
 
-/** Second sheet: the photo appendix, matching the PDF's appendix page. */
+/**
+ * The photo appendix, as the sheets the PDF will print.
+ *
+ * Split at `PHOTOS_PER_PAGE`, the same number the document uses, because a
+ * preview that puts a day's fifteen photographs on one endless sheet is not
+ * showing what comes out of the printer — and what came out of the printer,
+ * before this, was eight of them and the rest drawn off the bottom edge.
+ */
 export function PhotoSheet({
   entry,
   project,
   companyLogo,
+  firstPage = 2,
   pages = 2,
   themeId,
 }: {
   entry: DiaryEntry;
   project: Project;
   companyLogo?: string;
+  /** Number of the first appendix sheet within the document. */
+  firstPage?: number;
   pages?: number;
   themeId?: string;
 }) {
   const { t, dir } = useLanguage();
-  const [urls, setUrls] = useState<string[]>([]);
-
-  // Mint and revoke in one effect: a URL created during render can outlive the
-  // cleanup that revokes it, leaving broken images behind.
-  useEffect(() => {
-    const made = entry.photos.map((photo) => URL.createObjectURL(photo.blob));
-    setUrls(made);
-    return () => {
-      for (const url of made) URL.revokeObjectURL(url);
-    };
-  }, [entry.photos]);
+  const { urls, retry } = usePhotoUrls(entry.photos);
 
   if (entry.photos.length === 0) return null;
 
+  const sheets = Array.from({ length: photoPageCount(entry.photos.length) }, (_, index) =>
+    entry.photos.slice(index * PHOTOS_PER_PAGE, (index + 1) * PHOTOS_PER_PAGE),
+  );
+
   return (
-    <div className="sheet sheet--photos" dir={dir} style={themeVars(themeId)}>
-      <HeaderBand
-        title={t.docPhotoAppendix}
-        subtitle={project.name}
-        detail={formatLongDate(entry.date, t)}
-        page={2}
-        pages={pages}
-        companyLogo={companyLogo}
-        t={t}
-      />
-      <div className="sheet__photos">
-        {entry.photos.map((photo, i) => (
-          <figure className="sheet__photo" key={photo.id}>
-            <img src={urls[i]} alt={photo.caption || t.photoNumber(i + 1)} />
-            <figcaption>{photo.caption || t.photoNumber(i + 1)}</figcaption>
-          </figure>
-        ))}
-      </div>
-      <FooterBand project={project} page={2} pages={pages} t={t} />
-    </div>
+    <>
+      {sheets.map((slice, sheet) => (
+        <div
+          className="sheet sheet--photos"
+          dir={dir}
+          style={themeVars(themeId)}
+          key={slice[0]?.id ?? sheet}
+        >
+          <HeaderBand
+            title={t.docPhotoAppendix}
+            subtitle={project.name}
+            detail={formatLongDate(entry.date, t)}
+            page={firstPage + sheet}
+            pages={pages}
+            companyLogo={companyLogo}
+            t={t}
+          />
+          <div className="sheet__photos">
+            {slice.map((photo, i) => {
+              const number = sheet * PHOTOS_PER_PAGE + i + 1;
+              return (
+                <figure className="sheet__photo" key={photo.id}>
+                  <img
+                    src={urls[photo.id]}
+                    alt={photo.caption || t.photoNumber(number)}
+                    onError={() => retry(photo.id)}
+                  />
+                  <figcaption>{photo.caption || t.photoNumber(number)}</figcaption>
+                </figure>
+              );
+            })}
+          </div>
+          <FooterBand project={project} page={firstPage + sheet} pages={pages} t={t} />
+        </div>
+      ))}
+    </>
   );
 }

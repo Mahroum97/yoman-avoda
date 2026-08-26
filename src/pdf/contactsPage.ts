@@ -63,9 +63,16 @@ function measure(p: Painter, contacts: Contact[], t: Strings): Measured[] {
       contact.projects,
       contact.notes,
     ];
-    const lines = cells.map((text, column) =>
-      p.wrap(text, widths[column] - CELL_PAD * 2, { size: TYPE.cell }).slice(0, MAX_LINES),
-    );
+    const lines = cells.map((text, column) => {
+      const wrapped = p.wrap(text, widths[column] - CELL_PAD * 2, { size: TYPE.cell });
+      if (wrapped.length <= MAX_LINES) return wrapped;
+      // Cut, and *marked* as cut. A note that simply stopped read as the whole
+      // note, and the phone book is exactly where the rest of the sentence
+      // ("שאל את דני") is the part that mattered.
+      const kept = wrapped.slice(0, MAX_LINES);
+      kept[MAX_LINES - 1] = `${kept[MAX_LINES - 1]}…`;
+      return kept;
+    });
     const tallest = Math.max(1, ...lines.map((l) => l.length));
     return { cells, lines, height: Math.max(MIN_ROW, tallest * LINE + 8) };
   });

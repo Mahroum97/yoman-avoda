@@ -19,6 +19,17 @@ export interface TextOptions {
   color?: RGB;
   /** Extra spacing between the box edge and the text. */
   pad?: number;
+  /**
+   * The widest the string may be drawn, in points.
+   *
+   * A table cell is a fixed box and the words that go in it are typed by hand:
+   * `אינסטלטור צוות ספרינקלרים` in a column sized for `חשמלאי` printed straight
+   * across its neighbour, over the rule between them. With this set the string
+   * is shrunk to fit and, only if that is not enough, cut short — see `fit`.
+   */
+  maxWidth?: number;
+  /** How far `maxWidth` may shrink the size before the text is cut instead. */
+  minSize?: number;
 }
 
 /**
@@ -83,21 +94,54 @@ export class Painter {
     return bold ? family.bold : family.regular;
   }
 
+  /**
+   * The string and the size a `maxWidth` leaves it, which is what every other
+   * helper here measures and draws.
+   *
+   * Shrinking comes first, because a trade name read at seven points is still
+   * the trade name; cutting is the last resort and is marked with an ellipsis
+   * so nobody mistakes the shortened text for what was typed. Both halves go
+   * through the same function, so the width used to align a string is always
+   * the width the string is actually drawn at.
+   */
+  private fit(text: string, options: TextOptions): { text: string; size: number } {
+    const size = options.size ?? TYPE.cell;
+    const max = options.maxWidth;
+    if (!max || !text) return { text, size };
+
+    const font = this.font(text, options.bold);
+    const widthAt = (value: string, at: number) => font.widthOfTextAtSize(pdfText(value), at);
+
+    const full = widthAt(text, size);
+    if (full <= max) return { text, size };
+
+    const floor = options.minSize ?? size * 0.72;
+    const shrunk = Math.max(floor, (size * max) / full);
+    if (widthAt(text, shrunk) <= max) return { text, size: shrunk };
+
+    let cut = text;
+    while (cut.length > 1 && widthAt(`${cut}…`, shrunk) > max) cut = cut.slice(0, -1);
+    return { text: `${cut}…`, size: shrunk };
+  }
+
   /** Width of a string as it will actually be drawn. */
   width(text: string, options: TextOptions = {}): number {
-    const size = options.size ?? TYPE.cell;
-    return this.font(text, options.bold).widthOfTextAtSize(pdfText(text), size);
+    const fitted = this.fit(text, options);
+    return this.font(fitted.text, options.bold).widthOfTextAtSize(
+      pdfText(fitted.text),
+      fitted.size,
+    );
   }
 
   /** Draws text with its left edge at `x` and its cap-height near `top`. */
   text(text: string, x: number, top: number, options: TextOptions = {}): void {
     if (!text) return;
-    const size = options.size ?? TYPE.cell;
-    this.page.drawText(pdfText(text), {
+    const fitted = this.fit(text, options);
+    this.page.drawText(pdfText(fitted.text), {
       x,
-      y: PAGE.height - top - size,
-      size,
-      font: this.font(text, options.bold),
+      y: PAGE.height - top - (options.size ?? TYPE.cell),
+      size: fitted.size,
+      font: this.font(fitted.text, options.bold),
       color: options.color ?? this.colors.ink,
     });
   }
@@ -135,6 +179,46 @@ export class Painter {
   ): void {
     const size = options.size ?? TYPE.cell;
     this.textCenter(text, centre, top + (h - size) / 2, options);
+  }
+
+  /**
+   * A table cell that holds more than it was drawn for.
+   *
+   * Shrinking a long trade name until it fits leaves it at six points beside
+   * neighbours at eight and a half — legible, but only just. A cell is taller
+   * than one line, so the text is wrapped onto two before it is shrunk, and the
+   * pair is centred in the box the way the single line would have been.
+   * Anything that still will not fit falls back to `maxWidth`, which shrinks
+   * and, in the end, cuts.
+   */
+  textCellBox(
+    text: string,
+    centre: number,
+    top: number,
+    h: number,
+    maxWidth: number,
+    options: TextOptions = {},
+  ): void {
+    if (!text) return;
+    const size = options.size ?? TYPE.cell;
+    if (this.width(text, { ...options, maxWidth: undefined }) <= maxWidth) {
+      this.textCentreBox(text, centre, top, h, options);
+      return;
+    }
+
+    const small = { ...options, size: size * 0.85 };
+    const lines = this.wrap(text, maxWidth, small);
+    const lineH = (small.size ?? size) * 1.2;
+    if (lines.length === 2 && lines.length * lineH <= h - 2) {
+      let y = top + (h - lines.length * lineH) / 2;
+      for (const line of lines) {
+        this.textCenter(line, centre, y, small);
+        y += lineH;
+      }
+      return;
+    }
+
+    this.textCentreBox(text, centre, top, h, { ...options, maxWidth });
   }
 
   rect(
