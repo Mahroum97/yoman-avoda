@@ -51,6 +51,8 @@ export function ContactsScreen() {
   const toast = useToast();
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
+  /** The trade being shown on its own, or '' for all of them. */
+  const [trade, setTrade] = useState('');
 
   /*
    * Edits that have not reached the database yet.
@@ -258,16 +260,36 @@ export function ContactsScreen() {
     [rows],
   );
 
+  /**
+   * The trades actually in the book, commonest first.
+   *
+   * Built from the list rather than from a fixed set: a site's suppliers are
+   * the same handful of trades over and over, and which handful is different
+   * for every site. Six is where a row of chips stops being scannable.
+   */
+  const trades = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const trade = row.trade.trim();
+      if (trade) counts.set(trade, (counts.get(trade) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'he'))
+      .slice(0, 6)
+      .map(([trade]) => trade);
+  }, [rows]);
+
   const shown = useMemo(() => {
+    const byTrade = trade ? rows.filter((row) => row.trade.trim() === trade) : rows;
     const needle = query.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((row) =>
+    if (!needle) return byTrade;
+    return byTrade.filter((row) =>
       [row.name, row.trade, row.phone, row.projects, row.notes]
         .join(' ')
         .toLowerCase()
         .includes(needle),
     );
-  }, [rows, query]);
+  }, [rows, query, trade]);
 
   if (!stored) return <p className="muted">{t.loading}</p>;
 
@@ -303,6 +325,37 @@ export function ContactsScreen() {
             {t.newContact}
           </button>
         </div>
+
+        {/*
+          The trades in the book, as one press each. A supplier list is
+          searched for a *kind* of person far more often than for a name —
+          "who does the plastering" — and typing the trade into the search box
+          is the same answer three seconds later.
+        */}
+        {trades.length > 1 && (
+          <div className="filterbar">
+            <button
+              type="button"
+              className="filterbar__chip"
+              aria-current={trade === ''}
+              onClick={() => setTrade('')}
+            >
+              {t.filterAll}
+              <span className="filterbar__count">{rows.length}</span>
+            </button>
+            {trades.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className="filterbar__chip"
+                aria-current={trade === name}
+                onClick={() => setTrade(trade === name ? '' : name)}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="btn-row contacts__files">
           <button type="button" className="btn btn--sm" onClick={() => void printList()}>
@@ -439,7 +492,7 @@ function Row({
         {dialable && (
           // The reason the list exists on a phone at all.
           <a
-            className="icon-btn"
+            className="icon-btn icon-btn--call"
             href={`tel:${dialable}`}
             aria-label={t.callContact(row.name || t.unnamedContact)}
             title={t.callContact(row.name || t.unnamedContact)}

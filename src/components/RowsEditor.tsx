@@ -14,6 +14,15 @@ export interface ColumnDef<T> {
   inputMode?: 'text' | 'numeric' | 'decimal';
   /** Remembered values offered as suggestions for this column. */
   options?: string[];
+  /**
+   * A count, with a minus and a plus either side of it.
+   *
+   * Typing `3` into a box means summoning the number keyboard, hitting a
+   * 40-pixel key and dismissing it again — outdoors, in daylight, often with
+   * gloves on. The field stays a field, so anything can still be typed into it;
+   * the buttons just move the number that is already there.
+   */
+  stepper?: boolean;
 }
 
 export function RowsEditor<T extends { id: string }>({
@@ -46,6 +55,26 @@ export function RowsEditor<T extends { id: string }>({
   };
 
   const add = () => onChange([...rows, { ...emptyValue, id: uid() } as T]);
+
+  /**
+   * Moves the number a cell begins with, and leaves the rest of it alone.
+   *
+   * The column is free text — `2`, but also `3 עובדים` or `1+2` — so the step
+   * works on the leading number and keeps whatever followed it. An empty cell
+   * starts at one, which is what a person pressing + on an empty row means.
+   */
+  const step = (id: string, key: string, by: number) => {
+    const row = rows.find((r) => r.id === id);
+    if (!row) return;
+    const text = String((row as Record<string, unknown>)[key] ?? '');
+    const match = text.match(/^\s*(\d+)/);
+    if (!match) {
+      if (by > 0) update(id, key, text.trim() ? `1 ${text.trim()}` : '1');
+      return;
+    }
+    const next = Math.max(0, Number(match[1]) + by);
+    update(id, key, text.replace(/^\s*\d+/, String(next)));
+  };
 
   return (
     <div className="stack">
@@ -86,14 +115,43 @@ export function RowsEditor<T extends { id: string }>({
             <div className="row-item__grid">
               {columns.map((column) => (
                 <Field label={column.label} key={String(column.key)}>
-                  <Combobox
-                    value={String(row[column.key] ?? '')}
-                    onChange={(value) => update(row.id, String(column.key), value)}
-                    options={column.options ?? []}
-                    listId={`opts-${String(column.key)}`}
-                    placeholder={column.placeholder}
-                    inputMode={column.inputMode}
-                  />
+                  {column.stepper ? (
+                    <div className="stepper">
+                      <button
+                        type="button"
+                        className="stepper__btn"
+                        aria-label={t.decrease}
+                        onClick={() => step(row.id, String(column.key), -1)}
+                      >
+                        <Icon name="minus" size={18} strokeWidth={2.2} />
+                      </button>
+                      <input
+                        className="stepper__value"
+                        type="text"
+                        inputMode={column.inputMode ?? 'numeric'}
+                        value={String(row[column.key] ?? '')}
+                        placeholder={column.placeholder}
+                        onChange={(e) => update(row.id, String(column.key), e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="stepper__btn"
+                        aria-label={t.increase}
+                        onClick={() => step(row.id, String(column.key), 1)}
+                      >
+                        <Icon name="plus" size={18} strokeWidth={2.2} />
+                      </button>
+                    </div>
+                  ) : (
+                    <Combobox
+                      value={String(row[column.key] ?? '')}
+                      onChange={(value) => update(row.id, String(column.key), value)}
+                      options={column.options ?? []}
+                      listId={`opts-${String(column.key)}`}
+                      placeholder={column.placeholder}
+                      inputMode={column.inputMode}
+                    />
+                  )}
                 </Field>
               ))}
             </div>

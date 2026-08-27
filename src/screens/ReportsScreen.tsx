@@ -4,6 +4,7 @@ import type { DiaryEntry, Project } from '../types';
 import { entriesInRange } from '../db';
 import { formatDdMmYyyy, isoDate, monthRange } from '../lib/dates';
 import { formatNum, summarise } from '../docx/summary';
+import { photoPageCount } from '../lib/photoPages';
 import { useCompanyLogo } from '../hooks/useBranding';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
@@ -12,6 +13,19 @@ import { navigate } from '../hooks/useRoute';
 import { canShareFiles, type ExportResult } from '../lib/save';
 import { useEditorActions } from '../hooks/editorActionsContext';
 import { Icon } from '../components/Icon';
+
+/** The same day of the month, `by` months away. */
+function shiftedMonth(iso: string, by: number): string {
+  const date = new Date(`${iso}T00:00:00`);
+  date.setMonth(date.getMonth() + by);
+  return date.toISOString().slice(0, 10);
+}
+
+function daysAgo(n: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - n);
+  return date.toISOString().slice(0, 10);
+}
 
 export function ReportsScreen({ project }: { project: Project }) {
   const toast = useToast();
@@ -231,24 +245,57 @@ export function ReportsScreen({ project }: { project: Project }) {
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           </Field>
         </div>
-        <div className="month-jump">
-          <button type="button" className="btn btn--sm" onClick={() => shiftMonth(-1)}>
+        {/*
+          The ranges people actually ask for, as one press each.
+          Two date fields is the right control for an unusual range and the
+          wrong one for "this month", which is what nearly every report is —
+          six taps through a date picker for a range the app could name.
+          The fields above stay, for the report that is neither.
+        */}
+        <div className="rangebar">
+          {([
+            [t.thisMonth, () => monthRange(isoDate())],
+            [t.lastMonth, () => monthRange(shiftedMonth(isoDate(), -1))],
+            [t.lastSevenDays, () => ({ from: daysAgo(6), to: isoDate() })],
+          ] as const).map(([label, range]) => {
+            const { from: rFrom, to: rTo } = range();
+            return (
+              <button
+                key={label}
+                type="button"
+                className="filterbar__chip"
+                aria-current={from === rFrom && to === rTo}
+                onClick={() => {
+                  setFrom(rFrom);
+                  setTo(rTo);
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+          {/*
+            Stepping a month at a time, as two arrows rather than two more
+            labels: "חודש קודם" was already the name of a preset beside them,
+            and the same words on two controls that do different things is
+            worse than no label at all.
+          */}
+          <button
+            type="button"
+            className="filterbar__chip filterbar__chip--icon"
+            aria-label={t.prevMonth}
+            title={t.prevMonth}
+            onClick={() => shiftMonth(-1)}
+          >
             <Icon name="chevron" size={15} className="icon--back" />
-            {t.prevMonth}
           </button>
           <button
             type="button"
-            className="btn btn--sm"
-            onClick={() => {
-              const range = monthRange(isoDate());
-              setFrom(range.from);
-              setTo(range.to);
-            }}
+            className="filterbar__chip filterbar__chip--icon"
+            aria-label={t.nextMonth}
+            title={t.nextMonth}
+            onClick={() => shiftMonth(1)}
           >
-            {t.thisMonth}
-          </button>
-          <button type="button" className="btn btn--sm" onClick={() => shiftMonth(1)}>
-            {t.nextMonth}
             <Icon name="chevron" size={15} />
           </button>
         </div>
@@ -282,6 +329,15 @@ export function ReportsScreen({ project }: { project: Project }) {
             <EmptyState icon="reports" title={t.noEntriesInRange} />
           ) : (
             <>
+              <p className="card__note" style={{ marginBottom: 12 }}>
+                {t.aboutPages(
+                  (includeSummary ? 1 : 0) +
+                    entries.length +
+                    (includePhotos
+                      ? entries.reduce((sum, e) => sum + photoPageCount(e.photos.length), 0)
+                      : 0),
+                )}
+              </p>
               <div className="grid-2">
                 <Stat label={t.statDiaryDays} value={String(stats.days)} />
                 <Stat label={t.statActiveDays} value={String(stats.activeDays)} />

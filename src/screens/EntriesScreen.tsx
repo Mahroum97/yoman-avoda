@@ -8,8 +8,9 @@ import {
   restoreEntry,
   saveEntry,
   setEntryPinned,
+  statusFor,
 } from '../db';
-import { formatDdMmYyyy, isoDate, monthKey, monthLabel, weekdayShort } from '../lib/dates';
+import { formatDdMmYyyy, formatLongDate, isoDate, monthKey, monthLabel, weekdayShort } from '../lib/dates';
 import { useEntries, useTrashedEntries } from '../hooks/useData';
 import { useEscape } from '../hooks/useEscape';
 import { useCompanyLogo } from '../hooks/useBranding';
@@ -61,6 +62,12 @@ export function EntriesScreen({ project }: { project: Project }) {
   const toast = useToast();
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
+  /*
+   * Deliberately not remembered between visits. A filter that survives a
+   * navigation is a filter someone will meet a fortnight later as "my days are
+   * missing" — the search box beside it clears itself for the same reason.
+   */
+  const [filter, setFilter] = useState<'all' | 'draft' | 'signed' | 'photos'>('all');
 
   const [mode, setMode] = useState<ViewMode>(() => stored(VIEW_KEY, ['grid', 'list'] as const, 'list'));
   const [sort, setSort] = useState<SortKey>(() =>
@@ -100,9 +107,15 @@ export function EntriesScreen({ project }: { project: Project }) {
 
   const filtered = useMemo(() => {
     if (!entries) return [];
+    const byFilter = entries.filter((entry) => {
+      if (filter === 'draft') return statusFor(entry) !== 'signed';
+      if (filter === 'signed') return statusFor(entry) === 'signed';
+      if (filter === 'photos') return entry.photos.length > 0;
+      return true;
+    });
     const needle = query.trim();
-    if (!needle) return entries;
-    return entries.filter((entry) =>
+    if (!needle) return byFilter;
+    return byFilter.filter((entry) =>
       [
         entry.date,
         formatDdMmYyyy(entry.date),
@@ -117,7 +130,7 @@ export function EntriesScreen({ project }: { project: Project }) {
         .join(' ')
         .includes(needle),
     );
-  }, [entries, query]);
+  }, [entries, query, filter]);
 
   const sorted = useMemo(() => {
     const rows = [...filtered];
@@ -378,12 +391,33 @@ export function EntriesScreen({ project }: { project: Project }) {
     <div className={selecting ? 'has-selectionbar' : undefined}>
       <h1 className="screen-title">{t.diaryTitle}</h1>
 
+      {/*
+        Today is the reason the app is open, so on a day with no page yet it is
+        the whole width of the screen rather than one pill among three. Once the
+        day has a page the card goes quiet again — a permanent banner for
+        something already done is a banner nobody reads.
+      */}
+      {!selecting && !entries.some((e) => e.date === today) && (
+        <button type="button" className="todaycard" onClick={() => void openToday()}>
+          <span className="todaycard__mark">
+            <Icon name="plus" size={22} strokeWidth={1.9} />
+          </span>
+          <span className="todaycard__text">
+            <span className="todaycard__title">{formatLongDate(today, t)}</span>
+            <span className="todaycard__sub">{t.noPageToday}</span>
+          </span>
+          <Icon name="chevron" size={20} className="todaycard__caret icon--chevron" />
+        </button>
+      )}
+
       {!selecting && (
         <div className="btn-row" style={{ marginBottom: 16 }}>
-          <button type="button" className="btn btn--primary" onClick={() => void openToday()}>
-            <Icon name="plus" size={17} />
-            {t.newToday}
-          </button>
+          {entries.some((e) => e.date === today) && (
+            <button type="button" className="btn btn--primary" onClick={() => void openToday()}>
+              <Icon name="plus" size={17} />
+              {t.newToday}
+            </button>
+          )}
           {entries.length > 0 && !entries.some((e) => e.date === today) && (
             <button type="button" className="btn" onClick={() => void repeatLast()}>
               {t.duplicateLast}
@@ -428,6 +462,34 @@ export function EntriesScreen({ project }: { project: Project }) {
             onStartSelecting={() => setSelecting(true)}
             trashCount={trashed?.length ?? 0}
           />
+        </div>
+      )}
+
+      {/*
+        Four chips instead of a filter menu: the whole point is to see at a
+        glance how many days are still unsigned, which a menu hides behind a
+        press. They appear once there are enough days for the answer to be
+        anything but obvious.
+      */}
+      {entries.length > 3 && !selecting && (
+        <div className="filterbar">
+          {([
+            ['all', t.filterAll, entries.length],
+            ['draft', t.statusDraft, entries.filter((e) => statusFor(e) !== 'signed').length],
+            ['signed', t.statusSigned, entries.filter((e) => statusFor(e) === 'signed').length],
+            ['photos', t.filterPhotos, entries.filter((e) => e.photos.length > 0).length],
+          ] as const).map(([id, label, count]) => (
+            <button
+              key={id}
+              type="button"
+              className="filterbar__chip"
+              aria-current={filter === id}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+              <span className="filterbar__count">{count}</span>
+            </button>
+          ))}
         </div>
       )}
 

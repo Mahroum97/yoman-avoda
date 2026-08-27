@@ -593,6 +593,42 @@ protocol, the chunking, the four performance traps, and the rules — tombstones
 numeric ids, last-write-wins — that are easy to undo by accident. Read it before
 touching either file.
 
+## The day's page folds
+
+Ten sections, one open at a time. The form the app is built around had every one
+of them expanded at once, which on a phone is four screens of scrolling to reach
+the photographs — and the diary is filled in standing up, outdoors, a section at
+a time.
+
+- **A folded section says what is in it.** `Card`'s `summary` is the whole idea:
+  `חשמלאי, אינסטלטור · 10 עובדים` on one line costs nothing to read past, where a
+  fold that showed only the section's name would make the page shorter and less
+  useful at once. The body is not rendered while it is closed.
+- **The rail belongs to the action bar, not to the screen.** `PageActions.sections`
+  publishes the ten as chips with a done dot, and `PageActionsBar` draws them
+  inside `.chrome` — there is room for exactly one sticky element here, and a
+  third bar sticking at `top: 0` on its own lands on top of the other two the
+  moment the page scrolls. `.card` carries `scroll-margin-top` so a section
+  opened from the rail scrolls clear of the bars rather than under them.
+- **The page opens where the day was left off** — `firstUnfinished`, the first
+  section with nothing written in it yet.
+- **A count is a stepper.** `ColumnDef.stepper` puts a minus and a plus either
+  side of the field in the crew tables. The field stays a field, because a crew
+  of `3 + 1` is a thing people write; the buttons move the number the cell starts
+  with and leave whatever followed it. Summoning the number keyboard to change a
+  2 into a 3 was the most-repeated action in the app.
+- **"כמו ביום הקודם" fills a table from the previous page** (`previousEntry` —
+  the previous *page*, not literally yesterday, because Friday is followed by
+  Sunday). Rows are copied with fresh ids, so editing today cannot reach back
+  into yesterday.
+
+The same vocabulary carries the other three screens: the diary list leads with a
+filled card for today when the day has no page yet and offers
+`הכל / טיוטה / פעיל / עם תמונות` as counted chips; the report screen names the
+ranges people actually ask for and says how long the document will be before it
+is made; the supplier list filters by the trades it actually contains and gives
+calling — the reason it exists on a phone — the one colour in the row.
+
 ## A screen's actions live at the top
 
 `src/hooks/editorActionsContext.ts` is how a screen puts its own actions in the

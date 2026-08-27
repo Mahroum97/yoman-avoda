@@ -104,7 +104,7 @@ export function PageActionsBar() {
   // Published by the screen; absent on the ones with nothing to publish, and
   // the bar then does not exist rather than standing there empty.
   if (!page) return null;
-  const { primary, groups, menuTitle } = page;
+  const { primary, groups, menuTitle, sections, current, onSection } = page;
   const hasMenu = groups.some((group) => group.items.length > 0);
 
   const run = (action: PageAction) => {
@@ -143,6 +143,30 @@ export function PageActionsBar() {
           </button>
         )}
       </div>
+
+      {/*
+        * The screen's sections, in the one sticky element there is room for.
+        *
+        * It scrolls sideways rather than wrapping: ten chips wrapped over three
+        * rows would be the problem the bar was built to solve, back again and
+        * a row higher up the screen.
+        */}
+      {sections && sections.length > 0 && (
+        <div className="sectionrail">
+          {sections.map((section) => (
+            <button
+              key={section.id}
+              type="button"
+              className={`sectionrail__chip${section.done ? ' sectionrail__chip--done' : ''}`}
+              aria-current={section.id === current}
+              onClick={() => onSection?.(section.id)}
+            >
+              <span className="sectionrail__dot" />
+              {section.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {open &&
         at &&

@@ -4,32 +4,77 @@ import { useLanguage } from '../i18n/useLanguage';
 import { useEscape } from '../hooks/useEscape';
 import { Icon, type IconName } from './Icon';
 
+/**
+ * A section of a screen.
+ *
+ * `collapsible` turns the heading into the control that opens it, and is what
+ * the diary page is built out of: ten sections, all of them open at once, made
+ * a form four screens long on a phone — the button you press most often was a
+ * screenful of scrolling away from the field you were typing in. Folded, a
+ * section that has been filled in shows what is in it on one line, so the page
+ * gets *shorter* as the day gets written rather than longer.
+ *
+ * `summary` is that line, `done` swaps the step number for a tick, and the
+ * body is not rendered at all while it is closed — a folded section costs
+ * nothing to have on the page.
+ */
 export function Card({
   title,
   step,
   action,
   note,
+  collapsible = false,
+  open = true,
+  onToggle,
+  summary,
+  done = false,
+  id,
   children,
 }: {
   title?: string;
   step?: number;
   action?: ReactNode;
   note?: string;
+  collapsible?: boolean;
+  open?: boolean;
+  onToggle?: () => void;
+  summary?: string;
+  done?: boolean;
+  id?: string;
   children: ReactNode;
 }) {
+  const badge = (
+    <span className={`section-badge${done ? ' section-badge--done' : ''}`}>
+      {done ? <Icon name="check" size={15} strokeWidth={2.6} /> : step}
+    </span>
+  );
+
   return (
-    <section className="card">
-      {title && (
-        <header className="card__head">
-          {step !== undefined && <span className="section-badge">{step}</span>}
-          <h2>{title}</h2>
-          {action}
-        </header>
+    <section className={`card${collapsible && !open ? ' card--folded' : ''}`} id={id}>
+      {collapsible && title ? (
+        <button type="button" className="card__toggle" aria-expanded={open} onClick={onToggle}>
+          {step !== undefined && badge}
+          <span className="card__toggle-text">
+            <span className="card__toggle-title">{title}</span>
+            {!open && summary && <span className="card__toggle-summary">{summary}</span>}
+          </span>
+          <Icon name="chevronDown" size={18} className="card__caret" />
+        </button>
+      ) : (
+        title && (
+          <header className="card__head">
+            {step !== undefined && badge}
+            <h2>{title}</h2>
+            {action}
+          </header>
+        )
       )}
-      <div className="card__body">
-        {note && <p className="card__note" style={{ marginBottom: 12 }}>{note}</p>}
-        {children}
-      </div>
+      {(!collapsible || open) && (
+        <div className="card__body">
+          {note && <p className="card__note" style={{ marginBottom: 12 }}>{note}</p>}
+          {children}
+        </div>
+      )}
     </section>
   );
 }

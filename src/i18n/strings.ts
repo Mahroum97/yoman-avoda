@@ -59,6 +59,11 @@ export interface Strings {
   /* diary list */
   diaryTitle: string;
   newToday: string;
+  /** On the card that opens today's page when there is not one yet. */
+  noPageToday: string;
+  /** The filters above the diary list. */
+  filterAll: string;
+  filterPhotos: string;
   duplicateLast: string;
   combinedReport: string;
   searchPlaceholder: string;
@@ -94,6 +99,13 @@ export interface Strings {
   hintDescriptionLines: string;
   addStaff: string;
   addContractor: string;
+  /** Copies the previous page's rows into this one. */
+  copyPrevious: string;
+  copiedFrom: (date: string) => string;
+  noPreviousDay: string;
+  /** The two ends of a quantity stepper. */
+  increase: string;
+  decrease: string;
   addEquipment: string;
   rowNumber: (n: number) => string;
   moveUp: string;
@@ -276,6 +288,10 @@ export interface Strings {
   toDate: string;
   prevMonth: string;
   thisMonth: string;
+  lastMonth: string;
+  lastSevenDays: string;
+  /** Roughly how long the report will be, before making it. */
+  aboutPages: (n: number) => string;
   nextMonth: string;
   invalidRange: string;
   reportContent: string;
@@ -551,6 +567,9 @@ const he: Strings = {
 
   diaryTitle: 'יומן עבודה',
   newToday: 'יומן להיום',
+  noPageToday: 'עוד לא נפתח דף להיום',
+  filterAll: 'הכל',
+  filterPhotos: 'עם תמונות',
   duplicateLast: 'שכפל את היומן האחרון',
   combinedReport: 'דוח מרוכז',
   searchPlaceholder: 'חיפוש בתאריך, מקצוע, תיאור…',
@@ -585,6 +604,11 @@ const he: Strings = {
   hintDescriptionLines: 'כל שורה תודפס על שורה נפרדת בטופס.',
   addStaff: 'הוסף איש צוות',
   addContractor: 'הוסף קבלן',
+  copyPrevious: 'כמו ביום הקודם',
+  copiedFrom: (date) => `הועתק מ-${date}`,
+  noPreviousDay: 'אין יום קודם להעתיק ממנו',
+  increase: 'הוסף אחד',
+  decrease: 'הורד אחד',
   addEquipment: 'הוסף ציוד',
   rowNumber: (n) => `שורה ${n}`,
   moveUp: 'הזז למעלה',
@@ -769,6 +793,9 @@ const he: Strings = {
   toDate: 'עד תאריך',
   prevMonth: 'חודש קודם',
   thisMonth: 'החודש הנוכחי',
+  lastMonth: 'חודש קודם',
+  lastSevenDays: '7 ימים',
+  aboutPages: (n) => (n === 1 ? 'עמוד אחד בערך' : `${n} עמודים בערך`),
   nextMonth: 'חודש הבא',
   invalidRange: 'טווח התאריכים אינו תקין.',
   reportContent: 'תוכן הדוח',
@@ -1070,6 +1097,9 @@ const ar: Strings = {
 
   diaryTitle: 'سجل العمل',
   newToday: 'سجل اليوم',
+  noPageToday: 'لم يُفتح سجل لليوم بعد',
+  filterAll: 'الكل',
+  filterPhotos: 'مع صور',
   duplicateLast: 'نسخ السجل الأخير',
   combinedReport: 'تقرير مجمّع',
   searchPlaceholder: 'بحث بالتاريخ أو المهنة أو الوصف…',
@@ -1113,6 +1143,11 @@ const ar: Strings = {
   hintDescriptionLines: 'كل سطر سيُطبع في سطر منفصل في النموذج.',
   addStaff: 'إضافة موظف',
   addContractor: 'إضافة مقاول',
+  copyPrevious: 'مثل اليوم السابق',
+  copiedFrom: (date) => `تم النسخ من ${date}`,
+  noPreviousDay: 'لا يوجد يوم سابق للنسخ منه',
+  increase: 'زيادة واحد',
+  decrease: 'إنقاص واحد',
   addEquipment: 'إضافة معدات',
   rowNumber: (n) => `صف ${n}`,
   moveUp: 'تحريك للأعلى',
@@ -1299,6 +1334,10 @@ const ar: Strings = {
   toDate: 'إلى تاريخ',
   prevMonth: 'الشهر السابق',
   thisMonth: 'الشهر الحالي',
+  lastMonth: 'الشهر الماضي',
+  lastSevenDays: '7 أيام',
+  aboutPages: (n) =>
+    n === 1 ? 'صفحة واحدة تقريبًا' : n === 2 ? 'صفحتان تقريبًا' : n <= 10 ? `${n} صفحات تقريبًا` : `${n} صفحة تقريبًا`,
   nextMonth: 'الشهر التالي',
   invalidRange: 'نطاق التواريخ غير صالح.',
   reportContent: 'محتوى التقرير',
@@ -1627,6 +1666,9 @@ const en: Strings = {
 
   diaryTitle: 'Work Diary',
   newToday: "Today's entry",
+  noPageToday: 'No page for today yet',
+  filterAll: 'All',
+  filterPhotos: 'With photos',
   duplicateLast: 'Duplicate last entry',
   combinedReport: 'Combined report',
   searchPlaceholder: 'Search by date, trade, description…',
@@ -1662,6 +1704,11 @@ const en: Strings = {
   hintDescriptionLines: 'Each line is printed on its own ruled line in the form.',
   addStaff: 'Add team member',
   addContractor: 'Add contractor',
+  copyPrevious: 'Same as the previous day',
+  copiedFrom: (date) => `Copied from ${date}`,
+  noPreviousDay: 'There is no earlier day to copy from',
+  increase: 'Add one',
+  decrease: 'Take one off',
   addEquipment: 'Add equipment',
   rowNumber: (n) => `Row ${n}`,
   moveUp: 'Move up',
@@ -1844,6 +1891,9 @@ const en: Strings = {
   toDate: 'To',
   prevMonth: 'Previous month',
   thisMonth: 'This month',
+  lastMonth: 'Last month',
+  lastSevenDays: 'Last 7 days',
+  aboutPages: (n) => (n === 1 ? 'About one page' : `About ${n} pages`),
   nextMonth: 'Next month',
   invalidRange: 'The date range is not valid.',
   reportContent: 'Report contents',

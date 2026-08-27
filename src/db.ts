@@ -364,6 +364,27 @@ export async function findEntryByDate(
 }
 
 /**
+ * The page before this date on the same site, if there is one.
+ *
+ * A site runs the same trades day after day, and the first thing anyone does on
+ * a new page is write yesterday's crew into it again. This is what the "same as
+ * the previous day" button reads — the *previous page*, not literally
+ * yesterday, because a Friday page is followed by a Sunday one and a site that
+ * stood idle for a week still ran the same way when it started again.
+ */
+export async function previousEntry(
+  projectId: number,
+  date: string,
+): Promise<DiaryEntry | undefined> {
+  const earlier = await db.entries
+    .where('projectId')
+    .equals(projectId)
+    .filter((e) => e.deletedAt === undefined && e.date < date)
+    .toArray();
+  return earlier.sort((a, b) => b.date.localeCompare(a.date))[0];
+}
+
+/**
  * A page stops being a draft the moment the מנ"ע has signed it.
  *
  * That signature is what puts the day's diary in force on an Israeli site —

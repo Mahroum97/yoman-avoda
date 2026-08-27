@@ -25,6 +25,8 @@ export type IconName =
   | 'contacts'
   | 'settings'
   | 'plus'
+  | 'minus'
+  | 'chevronDown'
   | 'sun'
   | 'moon'
   | 'auto'
@@ -105,6 +107,16 @@ const PATHS: Record<IconName, JSX.Element> = {
     </>
   ),
   plus: <path d="M12 5.5v13M5.5 12h13" />,
+  minus: <path d="M5.5 12h13" />,
+  /*
+   * The caret on a section that folds open.
+   *
+   * Down rather than along the reading direction, deliberately: `chevron` is
+   * mirrored in a right-to-left layout, and a mark that has to rotate to say
+   * "open" ends up pointing the wrong way in one of the two directions. Down
+   * and up mean the same thing in both.
+   */
+  chevronDown: <path d="M5.5 9l6.5 6.5L18.5 9" />,
   sun: (
     <>
       <circle cx="12" cy="12" r="4" />

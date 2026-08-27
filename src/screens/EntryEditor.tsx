@@ -8,14 +8,19 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DiaryEntry, Project } from '../types';
-import { blankEntry, db, deleteEntry, findEntryByDate, saveEntry, statusFor } from '../db';
+import { blankEntry, db, deleteEntry, findEntryByDate, previousEntry, saveEntry, statusFor } from '../db';
 import { formatDdMmYyyy, formatLongDate, isoDate } from '../lib/dates';
+import { formatBytes } from '../lib/images';
+import { photoSize } from '../lib/photoData';
+import { parseNum } from '../docx/summary';
 import { usePresets } from '../hooks/useData';
+import { uid } from '../lib/id';
 import { useCompanyLogo } from '../hooks/useBranding';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { navigate } from '../hooks/useRoute';
 import { Card, Combobox, Field, StatusChip } from '../components/ui';
+import { Icon } from '../components/Icon';
 import { RowsEditor, type ColumnDef } from '../components/RowsEditor';
 import { SignaturePad } from '../components/SignaturePad';
 import { useSavedSignatures } from '../hooks/useSignatures';
@@ -25,6 +30,16 @@ import { useUndoable } from '../hooks/useUndoable';
 import { useEditorActions } from '../hooks/editorActionsContext';
 
 const AUTOSAVE_MS = 1200;
+
+/** The section a page should open on: the first one with nothing written in it. */
+function firstUnfinished(entry: DiaryEntry): string {
+  if (!entry.weather.trim()) return 'date';
+  if (entry.contractors.length === 0) return 'contractors';
+  if (!entry.workDescription.trim()) return 'work';
+  if (entry.photos.length === 0) return 'photos';
+  if (!entry.managerSignature?.trim()) return 'signatures';
+  return 'date';
+}
 
 interface Handlers {
   saveNow: () => Promise<void>;
@@ -65,6 +80,12 @@ export function EntryEditor({
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dateConflict, setDateConflict] = useState(false);
+  /*
+   * Which section is unfolded. One at a time, deliberately: with ten of them
+   * open the page was four screens long, and the point of folding them is that
+   * the whole day fits on one.
+   */
+  const [openSection, setOpenSection] = useState<string>('');
   const [exporting, setExporting] = useState<'pdf' | 'word' | 'share' | 'image' | null>(null);
   // Offered only where a share sheet exists; on a plain desktop browser it
   // would do nothing the export buttons do not already do.
@@ -80,7 +101,15 @@ export function EntryEditor({
       if (cancelled) return;
       // A different page means a different history; nothing from the last one
       // should be reachable by pressing undo here.
-      reset(loaded ?? fresh());
+      const page = loaded ?? fresh();
+      reset(page);
+      /*
+       * Opens where the day was left off: the first section with nothing in it
+       * yet. A new page opens on the date, and a page that only wants its
+       * photographs adding opens on those — rather than everything folded and
+       * a tap needed before anything can be typed.
+       */
+      setOpenSection(firstUnfinished(page));
       setLoading(false);
     })();
     return () => {
@@ -244,7 +273,7 @@ export function EntryEditor({
   const contractorColumns = useMemo<ColumnDef<DiaryEntry['contractors'][number]>[]>(
     () => [
       { key: 'trade', label: t.labelTrade, options: presets.trade, placeholder: t.phTrade },
-      { key: 'workers', label: t.labelWorkers, inputMode: 'numeric', placeholder: '0' },
+      { key: 'workers', label: t.labelWorkers, inputMode: 'numeric', placeholder: '0', stepper: true },
     ],
     [presets.trade, t],
   );
@@ -252,11 +281,120 @@ export function EntryEditor({
   const equipmentColumns = useMemo<ColumnDef<DiaryEntry['equipment'][number]>[]>(
     () => [
       { key: 'kind', label: t.labelKind, options: presets.equipment, placeholder: t.phEquipment },
-      { key: 'qty', label: t.labelQty, inputMode: 'numeric', placeholder: '1' },
+      { key: 'qty', label: t.labelQty, inputMode: 'numeric', placeholder: '1', stepper: true },
       { key: 'hours', label: t.labelHours, inputMode: 'decimal', placeholder: t.phHours },
     ],
     [presets.equipment, t],
   );
+
+  /**
+   * The day's sections: what each is called, whether anything is in it, and
+   * what it says while it is folded.
+   *
+   * The summary is the whole idea. A folded section that said only its own name
+   * would make the page shorter and less useful at the same time; saying
+   * `חשמלאי, אינסטלטור · 5 עובדים` means the fold costs nothing to read past.
+   */
+  const sections = useMemo(() => {
+    if (!entry) return [];
+    const firstLine = (text: string) => (text ?? '').split('\n').map((l) => l.trim()).find(Boolean) ?? '';
+    const list = (values: (string | undefined)[]) =>
+      values.map((v) => (v ?? '').trim()).filter(Boolean).join(', ');
+
+    const workers = entry.contractors.reduce((sum, row) => sum + parseNum(row.workers), 0);
+    const casting = entry.casting;
+    const castingFilled = [
+      casting.description,
+      casting.sizeQty,
+      casting.pump,
+      casting.concreteType,
+      casting.concreteQty,
+      casting.notes,
+    ].some((value) => (value ?? '').trim());
+    const photoBytes = entry.photos.reduce((sum, photo) => sum + photoSize(photo), 0);
+
+    return [
+      {
+        id: 'date',
+        label: t.sectionProjectDate,
+        done: true,
+        summary: [formatDdMmYyyy(entry.date), entry.weather.trim()].filter(Boolean).join(' · '),
+      },
+      {
+        id: 'management',
+        label: t.sectionManagement,
+        done: entry.management.length > 0,
+        summary: list(entry.management.map((row) => row.name)),
+      },
+      {
+        id: 'contractors',
+        label: t.sectionContractors,
+        done: entry.contractors.length > 0,
+        summary: [list(entry.contractors.map((row) => row.trade)), workers > 0 ? t.workersShort(workers) : '']
+          .filter(Boolean)
+          .join(' · '),
+      },
+      {
+        id: 'equipment',
+        label: t.sectionEquipment,
+        done: entry.equipment.length > 0,
+        summary: list(entry.equipment.map((row) => row.kind)),
+      },
+      {
+        id: 'work',
+        label: t.sectionWorkDescription,
+        done: Boolean(entry.workDescription.trim()),
+        summary: firstLine(entry.workDescription),
+      },
+      {
+        id: 'casting',
+        label: t.sectionCasting,
+        done: castingFilled,
+        summary: [casting.description, casting.concreteQty && `${casting.concreteQty} ${t.unitCubicMetres}`]
+          .map((v) => (v ?? '').trim())
+          .filter(Boolean)
+          .join(' · '),
+      },
+      {
+        id: 'supervisor',
+        label: t.sectionSupervisorNotes,
+        done: Boolean(entry.supervisorNotes.trim()),
+        summary: firstLine(entry.supervisorNotes),
+      },
+      {
+        id: 'received',
+        label: t.sectionReceivedToday,
+        done: Boolean((entry.receivedToday ?? '').trim()),
+        summary: firstLine(entry.receivedToday ?? ''),
+      },
+      {
+        id: 'signatures',
+        label: t.sectionSignatures,
+        done: Boolean(entry.managerSignature?.trim()),
+        summary: entry.managerSignature?.trim() ? t.statusSigned : '',
+      },
+      {
+        id: 'photos',
+        label: t.sectionPhotos,
+        done: entry.photos.length > 0,
+        summary: entry.photos.length
+          ? t.photosSummary(entry.photos.length, formatBytes(photoBytes))
+          : '',
+      },
+    ];
+  }, [entry, t]);
+
+  /*
+   * Opening one scrolls it under the bars rather than leaving it wherever it
+   * happens to be — `scroll-margin-top` on `.card` is what keeps the heading
+   * clear of the sticky chrome.
+   */
+  const showSection = useCallback((id: string) => {
+    setOpenSection((current) => (current === id ? '' : id));
+    window.requestAnimationFrame(() => {
+      document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
 
   /*
    * The handlers go in a ref and the effect depends only on primitives.
@@ -280,6 +418,9 @@ export function EntryEditor({
     const busy = exporting !== null;
     publishPage({
       menuTitle: t.pageActions,
+      sections: sections.map(({ id, label, done }) => ({ id, label, done })),
+      current: openSection,
+      onSection: showSection,
       primary: {
         id: 'save',
         label: t.save,
@@ -380,7 +521,20 @@ export function EntryEditor({
       ],
     });
     return () => publishPage(null);
-  }, [publishPage, t, exporting, saving, canShare, pageId, entryStatus, signedByManager, entry]);
+  }, [
+    publishPage,
+    t,
+    exporting,
+    saving,
+    canShare,
+    pageId,
+    entryStatus,
+    signedByManager,
+    entry,
+    sections,
+    openSection,
+    showSection,
+  ]);
 
   if (loading || !entry) {
     return <p className="muted">{t.loading}</p>;
@@ -459,6 +613,52 @@ export function EntryEditor({
   // below it. A plain assignment crosses that line; a hook call cannot.
   handlers.current = { saveNow, doExport, doShare, toggleSigned, remove };
 
+  /**
+   * Fills one of the three tables from the page before this one.
+   *
+   * A site runs the same trades every day, and writing them out again each
+   * morning — on a phone, standing up — is the longest part of filling the
+   * form. The rows are copied with fresh ids so editing today's page cannot
+   * reach back into yesterday's.
+   */
+  const copyPrevious = async (which: 'management' | 'contractors' | 'equipment') => {
+    if (project.id === undefined) return;
+    const previous = await previousEntry(project.id, entry.date);
+    const rows = previous?.[which] ?? [];
+    if (!previous || rows.length === 0) {
+      toast.error(t.noPreviousDay);
+      return;
+    }
+    patch({ [which]: rows.map((row) => ({ ...row, id: uid() })) } as Partial<DiaryEntry>);
+    toast.show(t.copiedFrom(formatDdMmYyyy(previous.date)));
+  };
+
+  const copyButton = (which: 'management' | 'contractors' | 'equipment') => (
+    <button
+      type="button"
+      className="btn btn--sm btn--brand"
+      style={{ marginBottom: 12 }}
+      onClick={() => void copyPrevious(which)}
+    >
+      <Icon name="sync" size={16} />
+      {t.copyPrevious}
+    </button>
+  );
+
+  /** Everything a section's card needs to fold, given its id and its number. */
+  const fold = (id: string, step: number) => {
+    const section = sections.find((s) => s.id === id);
+    return {
+      id: `section-${id}`,
+      step,
+      collapsible: true,
+      open: openSection === id,
+      onToggle: () => showSection(id),
+      summary: section?.summary,
+      done: section?.done ?? false,
+    };
+  };
+
 
   return (
     <div>
@@ -482,7 +682,7 @@ export function EntryEditor({
         </div>
       )}
 
-      <Card title={t.sectionProjectDate} step={1}>
+      <Card title={t.sectionProjectDate} {...fold('date', 1)}>
         <div className="grid-2">
           <Field label={t.labelDate}>
             <input
@@ -506,7 +706,8 @@ export function EntryEditor({
         </p>
       </Card>
 
-      <Card title={t.sectionManagement} step={2} note={t.hintManagement}>
+      <Card title={t.sectionManagement} note={t.hintManagement} {...fold('management', 2)}>
+        {copyButton('management')}
         <RowsEditor
           rows={entry.management}
           columns={managementColumns}
@@ -516,7 +717,8 @@ export function EntryEditor({
         />
       </Card>
 
-      <Card title={t.sectionContractors} step={3} note={t.hintContractors}>
+      <Card title={t.sectionContractors} note={t.hintContractors} {...fold('contractors', 3)}>
+        {copyButton('contractors')}
         <RowsEditor
           rows={entry.contractors}
           columns={contractorColumns}
@@ -526,7 +728,8 @@ export function EntryEditor({
         />
       </Card>
 
-      <Card title={t.sectionEquipment} step={4} note={t.hintEquipment}>
+      <Card title={t.sectionEquipment} note={t.hintEquipment} {...fold('equipment', 4)}>
+        {copyButton('equipment')}
         <RowsEditor
           rows={entry.equipment}
           columns={equipmentColumns}
@@ -536,7 +739,7 @@ export function EntryEditor({
         />
       </Card>
 
-      <Card title={t.sectionWorkDescription} step={5}>
+      <Card title={t.sectionWorkDescription} {...fold('work', 5)}>
         <Field label={t.labelDescription} hint={t.hintDescriptionLines}>
           <textarea
             value={entry.workDescription}
@@ -546,7 +749,7 @@ export function EntryEditor({
         </Field>
       </Card>
 
-      <Card title={t.sectionCasting} step={6} note={t.hintCasting}>
+      <Card title={t.sectionCasting} note={t.hintCasting} {...fold('casting', 6)}>
         <div className="grid-2">
           <Field label={t.labelDescription}>
             <input
@@ -607,7 +810,7 @@ export function EntryEditor({
         </Field>
       </Card>
 
-      <Card title={t.sectionSupervisorNotes} step={7}>
+      <Card title={t.sectionSupervisorNotes} {...fold('supervisor', 7)}>
         <textarea
           value={entry.supervisorNotes}
           onChange={(e) => patch({ supervisorNotes: e.target.value })}
@@ -615,7 +818,7 @@ export function EntryEditor({
         />
       </Card>
 
-      <Card title={t.sectionReceivedToday} step={8}>
+      <Card title={t.sectionReceivedToday} {...fold('received', 8)}>
         <textarea
           value={entry.receivedToday ?? ''}
           onChange={(e) => patch({ receivedToday: e.target.value })}
@@ -624,7 +827,7 @@ export function EntryEditor({
         />
       </Card>
 
-      <Card title={t.sectionSignatures} step={9} note={t.hintSignatures}>
+      <Card title={t.sectionSignatures} note={t.hintSignatures} {...fold('signatures', 9)}>
         <div className="stack">
           <SignaturePad
             label={t.labelSupervisorSignature}
@@ -650,7 +853,7 @@ export function EntryEditor({
         </div>
       </Card>
 
-      <Card title={t.sectionPhotos} step={10} note={t.hintPhotos}>
+      <Card title={t.sectionPhotos} note={t.hintPhotos} {...fold('photos', 10)}>
         <PhotoGrid
           photos={entry.photos}
           onChange={(photos) => {

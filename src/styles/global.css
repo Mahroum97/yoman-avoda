@@ -461,12 +461,87 @@ p {
 /* --------------------------------------------------------------- cards */
 
 .card {
+  /* Clear of the sticky bars when a section is opened from the rail and
+     scrolled to — without this the heading lands underneath them. */
+  scroll-margin-top: 132px;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   margin-bottom: var(--s4);
   overflow: hidden;
+}
+
+/*
+ * A section that folds.
+ *
+ * The heading becomes the control that opens it, and while it is closed the
+ * body is not rendered at all — a filled-in section costs one line, and the
+ * page gets shorter as the day gets written instead of longer.
+ */
+.card__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s5) var(--s5);
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* Open, the heading keeps the space the body owns below it rather than adding
+   a second gap of its own. */
+.card__toggle[aria-expanded='true'] {
+  padding-bottom: 0;
+}
+
+.card__toggle-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.card__toggle-title {
+  display: block;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-tight);
+}
+
+/* What is in the section, on one line. It is cut rather than wrapped: a
+   summary that grows to three lines is not a summary. */
+.card__toggle-summary {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card__caret {
+  flex: none;
+  color: var(--muted);
+  transition: transform 0.18s ease;
+}
+
+.card__toggle[aria-expanded='true'] .card__caret {
+  transform: rotate(180deg);
+}
+
+/* Folded cards sit closer together: without a body between them the standard
+   gap reads as a gap between screens rather than between sections. */
+.card--folded {
+  margin-bottom: var(--s2);
+}
+
+.section-badge--done {
+  background: var(--ok);
 }
 
 /* No tinted strip and no rule under it: the heading is set in the card's own
@@ -856,6 +931,57 @@ select:focus {
   color: var(--amber);
 }
 
+/*
+ * A count, with a minus and a plus either side of it.
+ *
+ * The field is still a field — a crew of `3 + 1` is a thing people write — so
+ * this is not a number input; the buttons move the number the cell starts with
+ * and leave the rest. They are full-height so they can be hit with a glove on,
+ * which is the entire reason they exist.
+ */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  max-width: 46ch;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.stepper__btn {
+  flex: none;
+  inline-size: var(--tap);
+  min-height: var(--tap);
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.stepper__btn:hover {
+  background: var(--accent-soft);
+}
+
+.stepper__btn:active {
+  transform: translateY(1px);
+}
+
+.stepper__value {
+  flex: 1;
+  min-width: 0;
+  /* The input's own frame would be a second border inside this one. */
+  max-width: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  text-align: center;
+  font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ------------------------------------------------------- row editor */
 
 .rows {
@@ -1020,6 +1146,146 @@ select:focus {
   margin-top: 4px;
   color: var(--ink);
   opacity: 0.75;
+}
+
+/*
+ * Today, when the day has no page yet.
+ *
+ * The one thing anyone opens this app to do, at the width of the screen. It is
+ * filled in the accent — the only filled thing on the list — and it disappears
+ * the moment the day has a page, because a banner for something already done
+ * is a banner people learn to scroll past.
+ */
+.todaycard {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  width: 100%;
+  margin-bottom: var(--s5);
+  padding: var(--s4);
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--accent-fill);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-lift);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: transform 0.06s ease, filter 0.15s ease;
+}
+
+.todaycard:hover {
+  filter: brightness(1.1);
+}
+
+.todaycard:active {
+  transform: translateY(1px);
+}
+
+.todaycard__mark {
+  flex: none;
+  inline-size: var(--tap);
+  block-size: var(--tap);
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 15%);
+}
+
+.todaycard__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.todaycard__title {
+  display: block;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--ls-tight);
+}
+
+.todaycard__sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-sm);
+  opacity: 0.78;
+}
+
+.todaycard__caret {
+  flex: none;
+  opacity: 0.7;
+}
+
+/*
+ * How many days are still unsigned, without opening anything.
+ *
+ * The count is the reason these are chips rather than a menu: the answer to
+ * "what have I not finished" should be readable from the list itself.
+ */
+/* Named ranges above the date fields on the report screen — same chips. */
+.rangebar,
+.filterbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: var(--s3);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rangebar {
+  margin-top: var(--s2);
+  margin-bottom: 0;
+}
+
+.rangebar::-webkit-scrollbar,
+.filterbar::-webkit-scrollbar {
+  display: none;
+}
+
+.filterbar__chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semi);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.filterbar__chip[aria-current='true'] {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--accent-ink);
+}
+
+/* A chip that carries only a mark keeps a square, thumb-sized shape. */
+.filterbar__chip--icon {
+  padding: 0;
+  inline-size: 38px;
+  justify-content: center;
+}
+
+
+.filterbar__count {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.filterbar__chip[aria-current='true'] .filterbar__count {
+  background: rgb(255 255 255 / 18%);
+  color: var(--accent-ink);
 }
 
 .entry {
@@ -2735,6 +3001,25 @@ input[type='date']::-webkit-calendar-picker-indicator {
   color: var(--ink);
 }
 
+/*
+ * Calling is what the supplier list is for on a phone, so it is the one
+ * control in the row that carries a colour — still an outline rather than a
+ * fill, because it is on every row and a page of green buttons is a page with
+ * no emphasis at all. Full tap size: it is pressed with one thumb, outdoors.
+ */
+.icon-btn--call {
+  inline-size: var(--tap);
+  block-size: var(--tap);
+  color: var(--ok);
+  border-color: var(--line);
+}
+
+.icon-btn--call:hover {
+  background: var(--ok-soft);
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
 .icon-btn--danger:hover {
   background: var(--danger-soft);
   border-color: var(--danger);
@@ -3153,6 +3438,73 @@ label.btn {
   background: var(--topbar);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/*
+ * The rail of a screen's sections, under its buttons.
+ *
+ * Ten sections on a phone is a form four screens long; folded, it is a list you
+ * can see all of at once, and this is how you get back to any of them without
+ * scrolling for it. It sits inside `.actionbar` because that is already inside
+ * the one sticky element on the screen — a rail sticking on its own at `top: 0`
+ * lands on top of the bars the moment the page moves.
+ */
+.sectionrail {
+  display: flex;
+  gap: 6px;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 var(--s4) var(--s2);
+  padding-inline: max(var(--s4), env(safe-area-inset-left), env(safe-area-inset-right));
+  /* Sideways rather than wrapped: three rows of chips is the bottom row of
+     buttons all over again, moved to the top of the screen. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.sectionrail::-webkit-scrollbar {
+  display: none;
+}
+
+.sectionrail__chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semi);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sectionrail__chip[aria-current='true'] {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--accent-ink);
+}
+
+/* Filled, empty or open — the dot is the whole state of a section at a glance. */
+.sectionrail__dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--line-strong);
+}
+
+.sectionrail__chip--done .sectionrail__dot {
+  background: var(--ok);
+}
+
+.sectionrail__chip[aria-current='true'] .sectionrail__dot {
+  background: var(--accent-ink);
 }
 
 .actionbar__inner {

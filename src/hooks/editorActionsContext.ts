@@ -46,6 +46,14 @@ export interface PageActionGroup {
   items: PageAction[];
 }
 
+/** One section of a long screen, as the rail under the bar draws it. */
+export interface PageSection {
+  id: string;
+  label: string;
+  /** Something has been written in it. */
+  done: boolean;
+}
+
 export interface PageActions {
   /** Rendered as the filled button. The one thing you came to the screen to do. */
   primary?: PageAction;
@@ -53,6 +61,18 @@ export interface PageActions {
   groups: PageActionGroup[];
   /** Heading at the top of the menu. */
   menuTitle: string;
+  /**
+   * A rail of the screen's sections, under the buttons.
+   *
+   * It belongs to the bar rather than to the screen because there can only be
+   * one sticky element here: the app bar and the action bar already share
+   * `.chrome`, and a third bar sticking on its own at `top: 0` piles on top of
+   * them the moment the page scrolls.
+   */
+  sections?: PageSection[];
+  /** Which one is open. */
+  current?: string;
+  onSection?: (id: string) => void;
 }
 
 export interface EditorActionsRegistry {
