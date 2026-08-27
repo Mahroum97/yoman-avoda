@@ -629,6 +629,24 @@ ranges people actually ask for and says how long the document will be before it
 is made; the supplier list filters by the trades it actually contains and gives
 calling — the reason it exists on a phone — the one colour in the row.
 
+## Two settings that belong to the device
+
+- **What each swipe on a diary row does** (`src/lib/swipeActions.ts`). The
+  gestures and the actions behind them all existed; what was fixed and is now a
+  choice is which gesture reaches which action — and `ללא` is a first-class
+  answer, because a swipe that does nothing is the right setting for anyone who
+  has deleted a day by accident. Stored per edge (`start`/`end`), never per
+  side, so the choice survives switching the app to English.
+- **The daily reminder** (`src/lib/reminder.ts`). A *local* notification, so it
+  fires with no signal and no server — which is also why it exists only in the
+  installed app; a browser tab cannot schedule anything for tomorrow evening,
+  and the card says so rather than offering a switch that quietly does nothing.
+  It is a fortnight of individual notifications rather than one repeating alarm,
+  and that is what lets today's be dropped once the day has been written: a
+  repeating alarm cannot skip an occurrence. The window is laid again on launch
+  and when the app is put away, which is the moment the day's page has usually
+  just been finished.
+
 ## A screen's actions live at the top
 
 `src/hooks/editorActionsContext.ts` is how a screen puts its own actions in the

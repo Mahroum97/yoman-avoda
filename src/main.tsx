@@ -26,6 +26,32 @@ window.setTimeout(() => {
   void import('./lib/photoData').then(({ rewritePhotosAsBytes }) => rewritePhotosAsBytes());
 }, 2500);
 
+/*
+ * The daily reminder is laid again on launch, and again when the app is put
+ * away.
+ *
+ * Both matter. On launch the fortnight of notifications is topped back up;
+ * on the way out, today's is dropped if the day has been written since it was
+ * scheduled — which is the difference between a reminder and a bell that rings
+ * at five whatever you did at three.
+ */
+function layReminders(): void {
+  void (async () => {
+    const [{ scheduleReminders, canRemind }, { currentStrings }] = await Promise.all([
+      import('./lib/reminder'),
+      import('./i18n/useLanguage'),
+    ]);
+    if (!canRemind()) return;
+    const t = currentStrings();
+    await scheduleReminders(t.reminderBody, t.appName);
+  })();
+}
+
+window.setTimeout(layReminders, 3500);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') layReminders();
+});
+
 const log = logger('app');
 log.info('started', {
   shell: isDesktop() ? 'mac' : isNativeApp() ? 'ios-app' : isIos() ? 'ios-web' : 'web',

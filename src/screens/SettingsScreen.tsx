@@ -31,6 +31,14 @@ import { LANGUAGES, STRINGS } from '../i18n/strings';
 import { useTheme, type ThemePreference } from '../hooks/useTheme';
 import { clearCompanyLogo, saveCompanyLogo, useCompanyLogo } from '../hooks/useBranding';
 import { Card, Field } from '../components/ui';
+import { readSwipe, writeSwipe, type SwipeActionId } from '../lib/swipeActions';
+import {
+  canRemind,
+  readReminder,
+  scheduleReminders,
+  writeReminder,
+  type ReminderSettings,
+} from '../lib/reminder';
 import { LogCard } from '../components/LogCard';
 import { SignaturesCard } from '../components/SignaturesCard';
 import { SyncCard } from '../components/SyncCard';
@@ -57,6 +65,29 @@ export function SettingsScreen() {
   const { language, setLanguage, t } = useLanguage();
   // Re-read on every language change: the choice is stored per language.
   const [font, setFontState] = useState(() => readFont(language));
+  const [swipes, setSwipes] = useState(() => ({
+    start: readSwipe('start'),
+    end: readSwipe('end'),
+  }));
+  const [reminder, setReminder] = useState(readReminder);
+
+  /**
+   * Stores the choice and lays the notifications again.
+   *
+   * The permission prompt is iOS's and comes on the first switch-on; if it is
+   * refused the switch goes back off rather than sitting there claiming to be
+   * on while nothing is scheduled.
+   */
+  const applyReminder = async (next: ReminderSettings) => {
+    writeReminder(next);
+    setReminder(next);
+    const ok = await scheduleReminders(t.reminderBody, t.appName);
+    if (next.on && !ok) {
+      writeReminder({ ...next, on: false });
+      setReminder({ ...next, on: false });
+      toast.error(t.reminderDenied);
+    }
+  };
 
   const presetLabels: Record<PresetKind, string> = {
     staff: t.presetStaff,
@@ -247,6 +278,77 @@ export function SettingsScreen() {
                 <span className="fonts__note">{t.fontNote(option.note)}</span>
               </span>
             </button>
+          ))}
+        </div>
+      </Card>
+
+      {/*
+        Which action each swipe on a diary row reaches.
+
+        The gestures are not new and neither are the actions — pinning,
+        deleting and exporting are what a row has always been able to do. What
+        was fixed, and is now a choice, is which of them a swipe lands on, and
+        `ללא` is a real answer: a swipe that does nothing is what someone who
+        has deleted a day by accident actually wants.
+      */}
+      {/*
+        The daily reminder. It is a local notification scheduled on the device,
+        so it works with no signal — and so it only exists in the installed app;
+        a browser tab cannot schedule anything for tomorrow evening, and the
+        card says so rather than offering a switch that does nothing.
+      */}
+      <Card title={t.reminderTitle} note={t.reminderHint}>
+        {canRemind() ? (
+          <div className="stack">
+            <label className="swipeset">
+              <span className="swipeset__label">{t.reminderOn}</span>
+              <input
+                type="checkbox"
+                checked={reminder.on}
+                style={{ width: 22, height: 22, minHeight: 0, flex: 'none' }}
+                onChange={(e) => void applyReminder({ ...reminder, on: e.target.checked })}
+              />
+            </label>
+            <label className="swipeset">
+              <span className="swipeset__label">{t.reminderAt}</span>
+              <input
+                type="time"
+                value={reminder.time}
+                disabled={!reminder.on}
+                style={{ flex: 'none', inlineSize: '12ch' }}
+                onChange={(e) => void applyReminder({ ...reminder, time: e.target.value })}
+              />
+            </label>
+          </div>
+        ) : (
+          <p className="muted small">{t.reminderOnlyNative}</p>
+        )}
+      </Card>
+
+      <Card title={t.swipesTitle} note={t.swipesBlurb}>
+        <div className="stack">
+          {(
+            [
+              [t.swipeLeft, t.dir === 'rtl' ? 'start' : 'end'],
+              [t.swipeRight, t.dir === 'rtl' ? 'end' : 'start'],
+            ] as const
+          ).map(([label, edge]) => (
+            <label className="swipeset" key={edge}>
+              <span className="swipeset__label">{label}</span>
+              <select
+                value={swipes[edge]}
+                onChange={(e) => {
+                  const action = e.target.value as SwipeActionId;
+                  writeSwipe(edge, action);
+                  setSwipes((current) => ({ ...current, [edge]: action }));
+                }}
+              >
+                <option value="pin">{t.pinAction}</option>
+                <option value="delete">{t.deleteAction}</option>
+                <option value="export">{t.exportPdf}</option>
+                <option value="none">{t.swipeNone}</option>
+              </select>
+            </label>
           ))}
         </div>
       </Card>

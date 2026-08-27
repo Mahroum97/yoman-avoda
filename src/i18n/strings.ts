@@ -451,6 +451,20 @@ export interface Strings {
 
   /* pin and delete, by swipe or from the selection bar */
   pinAction: string;
+  /** The settings card where each swipe is given its action. */
+  /** The daily reminder to write the day's page. */
+  reminderTitle: string;
+  reminderHint: string;
+  reminderOn: string;
+  reminderAt: string;
+  reminderOnlyNative: string;
+  reminderBody: string;
+  reminderDenied: string;
+  swipesTitle: string;
+  swipesBlurb: string;
+  swipeLeft: string;
+  swipeRight: string;
+  swipeNone: string;
   unpinAction: string;
   deleteAction: string;
   pinnedHeading: string;
@@ -974,6 +988,18 @@ const he: Strings = {
   reportFromSelected: 'דוח מהנבחרים',
 
   pinAction: 'הצמד',
+  reminderTitle: 'תזכורת יומית',
+  reminderHint: 'הטלפון יזכיר לך לכתוב את היומן, גם בלי קליטה. התזכורת מדלגת על יום שכבר נכתב.',
+  reminderOn: 'הפעל תזכורת',
+  reminderAt: 'בשעה',
+  reminderOnlyNative: 'זמין באפליקציה המותקנת על הטלפון בלבד.',
+  reminderBody: 'עוד לא נכתב יומן להיום',
+  reminderDenied: 'iOS חסם התראות לאפליקציה — אפשר לאשר בהגדרות ← התראות',
+  swipesTitle: 'החלקות בשורת יומן',
+  swipesBlurb: 'מה קורה כשמחליקים שורה ביומן. אפשר גם לכבות החלקה.',
+  swipeLeft: 'החלקה שמאלה',
+  swipeRight: 'החלקה ימינה',
+  swipeNone: 'ללא',
   unpinAction: 'בטל הצמדה',
   deleteAction: 'מחק',
   pinnedHeading: 'מוצמדים',
@@ -1535,6 +1561,18 @@ const ar: Strings = {
   reportFromSelected: 'تقرير من المختارة',
 
   pinAction: 'تثبيت',
+  reminderTitle: 'تذكير يومي',
+  reminderHint: 'سيذكّرك الهاتف بكتابة السجل، حتى بدون تغطية. ويتخطّى التذكير يومًا كُتب بالفعل.',
+  reminderOn: 'تشغيل التذكير',
+  reminderAt: 'الساعة',
+  reminderOnlyNative: 'متاح في التطبيق المثبَّت على الهاتف فقط.',
+  reminderBody: 'لم يُكتب سجل لليوم بعد',
+  reminderDenied: 'منع iOS الإشعارات للتطبيق — يمكن السماح بها من الإعدادات ← الإشعارات',
+  swipesTitle: 'السحب في سطر السجل',
+  swipesBlurb: 'ما الذي يحدث عند سحب سطر في السجل. ويمكن إيقاف السحب.',
+  swipeLeft: 'سحب إلى اليسار',
+  swipeRight: 'سحب إلى اليمين',
+  swipeNone: 'بدون',
   unpinAction: 'إلغاء التثبيت',
   deleteAction: 'حذف',
   pinnedHeading: 'المثبتة',
@@ -2073,6 +2111,18 @@ const en: Strings = {
   reportFromSelected: 'Report from selected',
 
   pinAction: 'Pin',
+  reminderTitle: 'Daily reminder',
+  reminderHint: 'The phone reminds you to write the day up, with or without a signal. A day already written is skipped.',
+  reminderOn: 'Remind me',
+  reminderAt: 'At',
+  reminderOnlyNative: 'Available in the app installed on the phone only.',
+  reminderBody: 'No page written for today yet',
+  reminderDenied: 'iOS is blocking notifications for the app — allow them in Settings → Notifications',
+  swipesTitle: 'Swipes on a diary row',
+  swipesBlurb: 'What swiping a row in the diary does. A swipe can also be turned off.',
+  swipeLeft: 'Swipe left',
+  swipeRight: 'Swipe right',
+  swipeNone: 'None',
   unpinAction: 'Unpin',
   deleteAction: 'Delete',
   pinnedHeading: 'Pinned',

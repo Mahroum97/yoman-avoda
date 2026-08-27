@@ -21,7 +21,8 @@ import { logger } from '../lib/log';
 import { EmptyState, StatusChip } from '../components/ui';
 import { Icon, type IconName } from '../components/Icon';
 import { EntryTile } from '../components/EntryTile';
-import { SwipeRow } from '../components/SwipeRow';
+import { SwipeRow, type SwipeAction } from '../components/SwipeRow';
+import { readSwipe, type SwipeActionId } from '../lib/swipeActions';
 import { ViewMenu } from '../components/ViewMenu';
 import type { SortKey, ViewMode } from '../components/viewOptions';
 
@@ -68,6 +69,10 @@ export function EntriesScreen({ project }: { project: Project }) {
    * missing" — the search box beside it clears itself for the same reason.
    */
   const [filter, setFilter] = useState<'all' | 'draft' | 'signed' | 'photos'>('all');
+  // Read once per visit: the screen is rebuilt when you come back from Settings,
+  // which is the only place it can change.
+  const [swipeStart] = useState(() => readSwipe('start'));
+  const [swipeEnd] = useState(() => readSwipe('end'));
 
   const [mode, setMode] = useState<ViewMode>(() => stored(VIEW_KEY, ['grid', 'list'] as const, 'list'));
   const [sort, setSort] = useState<SortKey>(() =>
@@ -375,6 +380,32 @@ export function EntriesScreen({ project }: { project: Project }) {
     }
   };
 
+  /**
+   * The action behind a swipe, as chosen in Settings.
+   *
+   * Each one is something the row can already do from its own controls — the
+   * setting decides which gesture reaches it, and `none` leaves that side of
+   * the row inert, which is the right answer for anyone who has swiped a day
+   * away by accident.
+   */
+  const swipeAction = (id: SwipeActionId, entry: DiaryEntry): SwipeAction | undefined => {
+    if (id === 'pin') {
+      return {
+        label: entry.pinned ? t.unpinAction : t.pinAction,
+        icon: 'pin',
+        tone: 'pin',
+        run: () => void togglePin(entry),
+      };
+    }
+    if (id === 'delete') {
+      return { label: t.deleteAction, icon: 'trash', tone: 'danger', run: () => void removeOne(entry) };
+    }
+    if (id === 'export') {
+      return { label: t.exportPdf, icon: 'download', tone: 'pin', run: () => void quickExport(entry) };
+    }
+    return undefined;
+  };
+
   const quickExport = async (entry: DiaryEntry) => {
     try {
       const { exportEntryPdf } = await import('../pdf/export');
@@ -542,18 +573,8 @@ export function EntriesScreen({ project }: { project: Project }) {
                   <SwipeRow
                     key={entry.id}
                     disabled={selecting}
-                    start={{
-                      label: entry.pinned ? t.unpinAction : t.pinAction,
-                      icon: 'pin',
-                      tone: 'pin',
-                      run: () => void togglePin(entry),
-                    }}
-                    end={{
-                      label: t.deleteAction,
-                      icon: 'trash',
-                      tone: 'danger',
-                      run: () => void removeOne(entry),
-                    }}
+                    start={swipeAction(swipeStart, entry)}
+                    end={swipeAction(swipeEnd, entry)}
                   >
                   <div className={`entry${isOn ? ' entry--selected' : ''}`}>
                     <button
