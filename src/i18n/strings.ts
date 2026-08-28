@@ -457,6 +457,8 @@ export interface Strings {
   reminderHint: string;
   reminderOn: string;
   reminderAt: string;
+  reminderDays: string;
+  reminderNoDays: string;
   reminderOnlyNative: string;
   reminderBody: string;
   reminderDenied: string;
@@ -1002,6 +1004,8 @@ const he: Strings = {
   reminderHint: 'הטלפון יזכיר לך לכתוב את היומן, גם בלי קליטה. התזכורת מדלגת על יום שכבר נכתב.',
   reminderOn: 'הפעל תזכורת',
   reminderAt: 'בשעה',
+  reminderDays: 'בימים',
+  reminderNoDays: 'לא נבחר אף יום, אז לא תישלח תזכורת.',
   reminderOnlyNative: 'זמין באפליקציה המותקנת על הטלפון בלבד.',
   reminderBody: 'עוד לא נכתב יומן להיום',
   reminderDenied: 'iOS חסם התראות לאפליקציה — אפשר לאשר בהגדרות ← התראות',
@@ -1585,6 +1589,8 @@ const ar: Strings = {
   reminderHint: 'سيذكّرك الهاتف بكتابة السجل، حتى بدون تغطية. ويتخطّى التذكير يومًا كُتب بالفعل.',
   reminderOn: 'تشغيل التذكير',
   reminderAt: 'الساعة',
+  reminderDays: 'في الأيام',
+  reminderNoDays: 'لم يُختَر أي يوم، لذا لن يُرسَل تذكير.',
   reminderOnlyNative: 'متاح في التطبيق المثبَّت على الهاتف فقط.',
   reminderBody: 'لم يُكتب سجل لليوم بعد',
   reminderDenied: 'منع iOS الإشعارات للتطبيق — يمكن السماح بها من الإعدادات ← الإشعارات',
@@ -2145,6 +2151,8 @@ const en: Strings = {
   reminderHint: 'The phone reminds you to write the day up, with or without a signal. A day already written is skipped.',
   reminderOn: 'Remind me',
   reminderAt: 'At',
+  reminderDays: 'On days',
+  reminderNoDays: 'No day is chosen, so nothing will be sent.',
   reminderOnlyNative: 'Available in the app installed on the phone only.',
   reminderBody: 'No page written for today yet',
   reminderDenied: 'iOS is blocking notifications for the app — allow them in Settings → Notifications',

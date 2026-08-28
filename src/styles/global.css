@@ -1001,6 +1001,56 @@ select:focus {
   inline-size: 16ch;
 }
 
+/* ---------------------------------------------------- the reminder days */
+
+.daypicker__label {
+  display: block;
+  margin-block-end: var(--s2);
+  font-size: var(--fs-base);
+}
+
+/*
+ * Seven across, whatever the width.
+ *
+ * They share the row evenly rather than each holding `--tap` of it: seven 46px
+ * targets and their gaps come to more than a 375px phone has, and the one that
+ * wrapped onto a second line would be Saturday — the day the choice is usually
+ * about. The height stays the full tap target, which is the half of it that
+ * matters with a glove on.
+ */
+.daypicker__row {
+  display: flex;
+  gap: var(--s1);
+}
+
+.daypicker__day {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  min-height: var(--tap);
+  padding: 0 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daypicker__day[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-fill);
+  color: var(--accent-ink);
+  font-weight: var(--fw-semi);
+}
+
+.daypicker__day:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* ------------------------------------------------- keyboard shortcuts */
 
 .shortcuts__group + .shortcuts__group {

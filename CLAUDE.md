@@ -643,11 +643,24 @@ Three of them now, and the keyboard shortcuts below are the third.
   fires with no signal and no server — which is also why it exists only in the
   installed app; a browser tab cannot schedule anything for tomorrow evening,
   and the card says so rather than offering a switch that quietly does nothing.
-  It is a fortnight of individual notifications rather than one repeating alarm,
-  and that is what lets today's be dropped once the day has been written: a
+  It is fourteen individual notifications rather than one repeating alarm, and
+  that is what lets today's be dropped once the day has been written: a
   repeating alarm cannot skip an occurrence. The window is laid again on launch
   and when the app is put away, which is the moment the day's page has usually
   just been finished.
+  - **Which weekdays it asks about is part of the setting**, because Saturday is
+    not a working day on most sites here and Friday is not on others, and the
+    reminder that arrives on the day nobody is on site is the one that teaches
+    people to swipe this app's notifications away. Stored as seven characters
+    indexed the way `Date.getDay()` counts; anything else in that key was
+    written by a build without the setting and reads as every day, which is
+    what the reminder did before it could be told otherwise.
+  - **Fourteen reminders, not fourteen days.** `plannedReminders` walks the
+    calendar and takes the days that were chosen, so asking only for Sunday is
+    three months of cover rather than two Sundays and then silence. It is a
+    pure function of the settings, the moment and whether today is written, so
+    the cases that fail quietly — one weekday chosen, none chosen, today's time
+    already past — can be looked at without a phone.
 
 ## A screen's actions live at the top
 

@@ -320,6 +320,43 @@ export function SettingsScreen() {
                 onChange={(e) => void applyReminder({ ...reminder, time: e.target.value })}
               />
             </label>
+
+            {/*
+              Which days to ask about.
+
+              Saturday is not a working day on most sites here and Friday is not
+              on others, and a reminder that arrives on the day nobody is on
+              site is the one that teaches people to swipe the app's
+              notifications away. The names come from `weekdaysShort`, so the
+              row reads in whichever language the diary is kept in and starts on
+              Sunday, the way the week is counted here.
+            */}
+            <div className="daypicker">
+              <span className="daypicker__label">{t.reminderDays}</span>
+              <div className="daypicker__row">
+                {t.weekdaysShort.map((name, day) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className="daypicker__day"
+                    aria-pressed={reminder.days[day]}
+                    disabled={!reminder.on}
+                    onClick={() =>
+                      void applyReminder({
+                        ...reminder,
+                        days: reminder.days.map((on, n) => (n === day ? !on : on)),
+                      })
+                    }
+                  >
+                    {name}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {reminder.on && !reminder.days.some(Boolean) && (
+              <p className="muted small">{t.reminderNoDays}</p>
+            )}
           </div>
         ) : (
           <p className="muted small">{t.reminderOnlyNative}</p>
