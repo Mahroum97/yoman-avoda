@@ -629,7 +629,9 @@ ranges people actually ask for and says how long the document will be before it
 is made; the supplier list filters by the trades it actually contains and gives
 calling — the reason it exists on a phone — the one colour in the row.
 
-## Two settings that belong to the device
+## Settings that belong to the device
+
+Three of them now, and the keyboard shortcuts below are the third.
 
 - **What each swipe on a diary row does** (`src/lib/swipeActions.ts`). The
   gestures and the actions behind them all existed; what was fixed and is now a
@@ -676,6 +678,55 @@ settings are untouched.
   the effect depends on `t`, the busy flag and the ids. In `EntryEditor` that
   ref is filled **during render** rather than in an effect, because the hook has
   to sit above the loading guard while the functions are defined below it.
+
+## Keyboard shortcuts press the buttons that are already there
+
+`src/lib/shortcuts.ts` is the catalogue, `src/hooks/useShortcuts.ts` is the one
+listener, and `ShortcutsCard` in Settings is where they are changed. The Mac app
+had no keyboard at all: every export meant reaching for the mouse, on the one
+platform where that is the slower way to do anything.
+
+- **A shortcut can do nothing a button cannot.** Every screen already publishes
+  what it can do (`editorActionsContext`), so a shortcut names a `PageAction` by
+  its id and presses it — through the same `disabled`/`busy` flags the button is
+  drawn with. There is no second implementation of saving or exporting to keep
+  in step with the first, and a shortcut on a screen that does not offer the
+  action does nothing, which is the answer the missing button already gives.
+  This is the same bargain `swipeActions.ts` makes with the gestures.
+- **Bindings are read from `event.code`, never `event.key`.** `event.key` is the
+  letter the *layout* produces: on the Hebrew keyboard this diary is written on,
+  the S key sends `ד` and ⌘S never arrives. `event.code` is the physical key —
+  `KeyS` whatever the input source is. The letters are chosen from the English
+  words for the same reason: the binding is a key, not a word, and the same key
+  has to make sense to a diary kept in three languages.
+- **A letter typed into a field is a letter.** Shortcuts with no modifier never
+  fire while the caret is in one. Two modified ones stand down there as well and
+  say so themselves (`inField: 'skip'`): ⌘Z belongs to the field's own undo
+  stack — taking it over throws away a sentence when the user meant the last
+  word — and ⌘⌫ is "delete to the start of the line" on every Mac, where here it
+  would delete the day's page. ⌘S is the opposite case and must reach the app
+  from inside the description, which is where you are when you want it.
+- **The key is printed left to right, and the markup has to say so.** `⌘ ⇧ Z`
+  set loose in a Hebrew row comes out `Z ⇧ ⌘` — the same reordering the PDF's
+  dates are guarded against, one layer up. Every place a combination is drawn
+  carries `dir="ltr"`.
+- **The parsed bindings are cached in the module.** Every keystroke anywhere in
+  the app asks which shortcut it is, and answering walks the whole catalogue —
+  so reading the stored JSON per definition meant eighteen `localStorage` reads
+  for each letter typed into a day's description.
+- **The menu prints the key beside the action.** Nobody opens a settings screen
+  to learn that P makes a PDF; they see it every time they reach for the menu,
+  and eventually stop reaching for it. The settings card is for changing them,
+  not for learning them.
+- Recording refuses a combination that is taken, **by name**, and `Backspace`
+  clears one — `ללא` is a first-class answer here for the reason it is for a
+  swipe. While a row is listening, a module flag stops the key being *used* at
+  the moment it is being stored, or pressing ⌘S to bind it would save the page
+  underneath and pressing 1 would walk off the screen.
+
+`EntryEditor` used to carry its own ⌘Z listener. It is in the catalogue now, so
+it is listed with the rest and can be rebound; the rule that came with it did
+not get lost in the move.
 
 ## The look: a scale, a grid, and one family of icons
 

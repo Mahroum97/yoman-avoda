@@ -27,6 +27,7 @@ import { createPortal } from 'react-dom';
 import { useEditorActions, type PageAction } from '../hooks/editorActionsContext';
 import { useEscape } from '../hooks/useEscape';
 import { useLanguage } from '../i18n/useLanguage';
+import { keyLabelForAction } from '../lib/shortcuts';
 import { Icon } from './Icon';
 
 const SHEET_WIDTH = 300;
@@ -182,19 +183,37 @@ export function PageActionsBar() {
               <div className="actionmenu__group" key={group.title ?? index}>
                 {group.title && <p className="actionmenu__heading">{group.title}</p>}
                 <div className="actionmenu__items">
-                  {group.items.map((action) => (
-                    <button
-                      key={action.id}
-                      type="button"
-                      role="menuitem"
-                      className={`actionmenu__item${action.danger ? ' actionmenu__item--danger' : ''}`}
-                      disabled={action.disabled || action.busy}
-                      onClick={() => run(action)}
-                    >
-                      <Icon name={action.icon} size={19} />
-                      <span>{label(action)}</span>
-                    </button>
-                  ))}
+                  {group.items.map((action) => {
+                    /*
+                      The key beside the action is how a shortcut is learned.
+                      Nobody opens a settings screen to find out that P makes a
+                      PDF; they see it here every time they reach for the menu,
+                      and one day they stop reaching for the menu.
+
+                      `dir="ltr"` because `⌘ ⇧ Z` set loose in a Hebrew row is
+                      reordered into `Z ⇧ ⌘` by the paragraph around it — the
+                      same trap the PDF's dates are guarded against.
+                    */
+                    const key = keyLabelForAction(action.id);
+                    return (
+                      <button
+                        key={action.id}
+                        type="button"
+                        role="menuitem"
+                        className={`actionmenu__item${action.danger ? ' actionmenu__item--danger' : ''}`}
+                        disabled={action.disabled || action.busy}
+                        onClick={() => run(action)}
+                      >
+                        <Icon name={action.icon} size={19} />
+                        <span>{label(action)}</span>
+                        {key && (
+                          <span className="actionmenu__key" dir="ltr">
+                            {key}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             ))}

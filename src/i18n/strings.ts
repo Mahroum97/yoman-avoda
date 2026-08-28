@@ -465,6 +465,16 @@ export interface Strings {
   swipeLeft: string;
   swipeRight: string;
   swipeNone: string;
+  /** Keyboard shortcuts: the settings card, and the wording the recorder needs. */
+  shortcutsTitle: string;
+  shortcutsHint: string;
+  shortcutsNav: string;
+  shortcutsPage: string;
+  shortcutsApp: string;
+  shortcutRecord: string;
+  shortcutTaken: (label: string) => string;
+  shortcutsReset: string;
+  shortcutsClear: string;
   unpinAction: string;
   deleteAction: string;
   pinnedHeading: string;
@@ -1000,6 +1010,16 @@ const he: Strings = {
   swipeLeft: 'החלקה שמאלה',
   swipeRight: 'החלקה ימינה',
   swipeNone: 'ללא',
+  shortcutsTitle: 'קיצורי מקלדת',
+  shortcutsHint:
+    'עובד כשמחוברת מקלדת — במחשב, ובאייפד עם מקלדת. אות בודדת לא פועלת בזמן הקלדה בשדה, וקיצור של פעולה פועל במסך שבו הפעולה קיימת.',
+  shortcutsNav: 'מעבר בין מסכים',
+  shortcutsPage: 'הדף שפתוח',
+  shortcutsApp: 'כללי',
+  shortcutRecord: 'הקש צירוף…',
+  shortcutTaken: (label) => `הצירוף כבר תפוס על ידי ${label}`,
+  shortcutsReset: 'החזר לברירת המחדל',
+  shortcutsClear: 'Backspace מוחק קיצור · Esc יוצא בלי לשנות',
   unpinAction: 'בטל הצמדה',
   deleteAction: 'מחק',
   pinnedHeading: 'מוצמדים',
@@ -1573,6 +1593,16 @@ const ar: Strings = {
   swipeLeft: 'سحب إلى اليسار',
   swipeRight: 'سحب إلى اليمين',
   swipeNone: 'بدون',
+  shortcutsTitle: 'اختصارات لوحة المفاتيح',
+  shortcutsHint:
+    'تعمل عند توصيل لوحة مفاتيح — على الحاسوب، وعلى الآيباد مع لوحة مفاتيح. الحرف المفرد لا يعمل أثناء الكتابة في حقل، واختصار الإجراء يعمل في الشاشة التي يوجد فيها.',
+  shortcutsNav: 'التنقّل بين الشاشات',
+  shortcutsPage: 'الصفحة المفتوحة',
+  shortcutsApp: 'عام',
+  shortcutRecord: 'اضغط التركيبة…',
+  shortcutTaken: (label) => `التركيبة مستخدمة بالفعل لـ${label}`,
+  shortcutsReset: 'استعادة الإعداد الافتراضي',
+  shortcutsClear: 'Backspace يحذف الاختصار · Esc يخرج دون تغيير',
   unpinAction: 'إلغاء التثبيت',
   deleteAction: 'حذف',
   pinnedHeading: 'المثبتة',
@@ -2123,6 +2153,16 @@ const en: Strings = {
   swipeLeft: 'Swipe left',
   swipeRight: 'Swipe right',
   swipeNone: 'None',
+  shortcutsTitle: 'Keyboard shortcuts',
+  shortcutsHint:
+    'For when a keyboard is attached — on the Mac, and on an iPad with one. A single letter does not fire while you are typing in a field, and an action shortcut works on the screen that offers the action.',
+  shortcutsNav: 'Moving between screens',
+  shortcutsPage: 'The open page',
+  shortcutsApp: 'General',
+  shortcutRecord: 'Press a combination…',
+  shortcutTaken: (label) => `Already used by ${label}`,
+  shortcutsReset: 'Back to the defaults',
+  shortcutsClear: 'Backspace clears a shortcut · Esc leaves it unchanged',
   unpinAction: 'Unpin',
   deleteAction: 'Delete',
   pinnedHeading: 'Pinned',

@@ -1001,6 +1001,74 @@ select:focus {
   inline-size: 16ch;
 }
 
+/* ------------------------------------------------- keyboard shortcuts */
+
+.shortcuts__group + .shortcuts__group {
+  margin-block-start: var(--s5);
+}
+
+.shortcuts__heading {
+  margin: 0 0 var(--s1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semi);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shortcut {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: var(--tap);
+}
+
+.shortcut__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-base);
+}
+
+/*
+ * The key itself, drawn as the key it is.
+ *
+ * `inline-size` rather than a width in ch: `⌘ ⇧ Z` and `1` sit in the same
+ * column, so the list reads down its edge the way the printed form's fields do.
+ * Tabular figures keep 1 and 4 the same width.
+ */
+.shortcut__key {
+  flex: none;
+  inline-size: 11ch;
+  min-height: 38px;
+  padding: 0 var(--s2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: pointer;
+}
+
+.shortcut__key:hover:not([data-listening]) {
+  border-color: var(--accent);
+}
+
+.shortcut__key[data-empty] {
+  color: var(--muted);
+  font-weight: var(--fw-regular);
+}
+
+/* Listening for the next combination — the one row that has the keyboard. */
+.shortcut__key[data-listening] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  color: var(--accent);
+  font-weight: var(--fw-regular);
+}
+
 /* ------------------------------------------------------- row editor */
 
 .rows {
@@ -3652,6 +3720,16 @@ label.btn {
   text-align: start;
   cursor: pointer;
   transition: background 0.12s ease;
+}
+
+/* The shortcut, pushed to the end edge of the row and quiet until wanted. */
+.actionmenu__key {
+  margin-inline-start: auto;
+  padding-inline-start: var(--s3);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .actionmenu__item + .actionmenu__item {

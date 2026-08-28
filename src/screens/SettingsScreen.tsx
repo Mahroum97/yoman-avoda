@@ -42,6 +42,7 @@ import {
 import { LogCard } from '../components/LogCard';
 import { SignaturesCard } from '../components/SignaturesCard';
 import { SyncCard } from '../components/SyncCard';
+import { ShortcutsCard } from '../components/ShortcutsCard';
 import { DocThemePicker } from '../components/DocThemePicker';
 import { fontsFor, readFont, setFont } from '../fonts';
 import { Icon, type IconName } from '../components/Icon';
@@ -352,6 +353,13 @@ export function SettingsScreen() {
           ))}
         </div>
       </Card>
+
+      {/*
+        Keyboard shortcuts, next to the swipes: the two settings that describe
+        the device rather than the diary. A swipe is what the phone offers and a
+        shortcut is what the Mac does, and neither belongs in the sync.
+      */}
+      <ShortcutsCard />
 
       <Card title={t.docThemeTitle} note={t.docThemeHint}>
         <DocThemePicker value={docThemeId} onChange={(id) => void setDocThemeId(id)} />

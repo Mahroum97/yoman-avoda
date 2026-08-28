@@ -1,5 +1,5 @@
 /** Shell, routing and the "no project yet" onboarding path. */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { dbHealth, onDbHealth, type DbHealth } from './db';
 import { useActiveProject, useProjects } from './hooks/useData';
 import { useRoute, navigate } from './hooks/useRoute';
@@ -23,6 +23,7 @@ import type { Strings } from './i18n/strings';
 import { useAutoSync } from './hooks/useAutoSync';
 import { UndoButtons } from './components/UndoButtons';
 import { PageActionsBar } from './components/PageActions';
+import { useShortcuts, type ShellHandlers } from './hooks/useShortcuts';
 import {
   EditorActionsContext,
   type EditorActions,
@@ -66,6 +67,18 @@ function Shell() {
     [editorActions, pageActions],
   );
 
+  /*
+   * Backup and the display mode are the two things the shell owns rather than a
+   * screen, and their state lives inside the buttons that draw them. Each fills
+   * its own slot here during render — the pattern `EntryEditor` uses for the
+   * same reason — so a keyboard shortcut presses the real button instead of a
+   * second copy of what it does. Calling `useTheme()` again up here would have
+   * given the shortcut its own state, and the icon in the bar would have gone
+   * stale the first time the theme was cycled from the keyboard.
+   */
+  const shell = useRef<ShellHandlers>({});
+  useShortcuts(pageActions, editorActions, shell);
+
   // Mounted once, for the whole app: the diary keeps itself current while it is
   // open, and only speaks up when something actually arrived.
   useAutoSync((received) => {
@@ -104,8 +117,8 @@ function Shell() {
               {project?.address && <div className="topbar__sub">{project.address}</div>}
             </div>
             <UndoButtons />
-            <BackupButton />
-            <ThemeButton />
+            <BackupButton shell={shell} />
+            <ThemeButton shell={shell} />
           </header>
           {/* Renders nothing at all when the screen has published no actions. */}
           <PageActionsBar />
@@ -170,7 +183,7 @@ function Shell() {
  * does the most this device is capable of rather than being disabled and
  * explaining why.
  */
-function BackupButton() {
+function BackupButton({ shell }: { shell: React.RefObject<ShellHandlers> }) {
   const { t } = useLanguage();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -223,6 +236,10 @@ function BackupButton() {
     }
   };
 
+  // Filled during render, not in an effect: `run` is rebuilt every render and
+  // the slot has to hold the current one, not the one from mount.
+  shell.current.backup = () => void run();
+
   return (
     <button
       type="button"
@@ -259,10 +276,11 @@ const THEME_LABELS: Record<ThemePreference, keyof Strings> = {
  * black theme it has to lose the pale tint it wears on the others, or it sits
  * on a pure-black bar looking like a leftover from a different app.
  */
-function ThemeButton() {
+function ThemeButton({ shell }: { shell: React.RefObject<ShellHandlers> }) {
   const { preference, cycle } = useTheme();
   const { t } = useLanguage();
   const label = `${t.display}: ${t[THEME_LABELS[preference]] as string}`;
+  shell.current.theme = cycle;
   return (
     <button
       type="button"

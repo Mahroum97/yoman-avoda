@@ -242,25 +242,14 @@ export function EntryEditor({
    */
 
   /*
-   * ⌘Z / ⌘⇧Z, but never while the caret is in a field.
-   *
-   * A text input has its own undo stack, and taking that over would make ⌘Z
-   * throw away a whole sentence when the user only meant to drop the last
-   * word. Inside a field the browser wins; everywhere else this does.
+   * ⌘Z and ⌘⇧Z used to be handled here, on a listener of this screen's own.
+   * They are in `lib/shortcuts.ts` now, with everything else the keyboard can
+   * reach, and they arrive through the actions published just above — so they
+   * are listed in Settings and can be rebound like the rest. The one rule that
+   * came with them is written down there rather than lost: inside a field the
+   * browser's own undo stack wins, because taking it over throws away a
+   * sentence when the user meant the last word (`inField: 'skip'`).
    */
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
-      const target = event.target as HTMLElement | null;
-      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-      if (target?.isContentEditable) return;
-      event.preventDefault();
-      if (event.shiftKey) stepForward();
-      else stepBack();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [stepBack, stepForward]);
 
   const managementColumns = useMemo<ColumnDef<DiaryEntry['management'][number]>[]>(
     () => [
