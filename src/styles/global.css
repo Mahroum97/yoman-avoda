@@ -1049,6 +1049,7 @@ select:focus {
   font-weight: var(--fw-semi);
   font-variant-numeric: tabular-nums;
   text-align: center;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -1061,8 +1062,18 @@ select:focus {
   font-weight: var(--fw-regular);
 }
 
-/* Listening for the next combination — the one row that has the keyboard. */
+/*
+ * Listening for the next combination — the one row that has the keyboard.
+ *
+ * It grows here, and has to: the column is sized for `⌘ ⇧ Z`, while the prompt
+ * that replaces it is a sentence — 83px of it in Hebrew, 88 in Arabic and 167
+ * in English, against a box of 88. Every combination still lines up down the
+ * column; only the row being recorded steps out of it, for as long as it takes
+ * to press a key.
+ */
 .shortcut__key[data-listening] {
+  inline-size: auto;
+  min-inline-size: 11ch;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
   color: var(--accent);
