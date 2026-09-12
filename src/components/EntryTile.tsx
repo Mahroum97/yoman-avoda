@@ -84,6 +84,15 @@ export function EntryTile({
 
       <span className="tile__status">
         <StatusChip status={entry.status} />
+        {entry.syncConflict && (
+          <span className="chip" style={{ color: 'var(--amber)' }}
+            title={entry.syncConflictKind === 'deletion'
+              ? t.syncDeletionConflictNotice
+              : t.syncConflictNotice}>
+            <Icon name="warning" size={13} />
+            {t.syncConflictLabel}
+          </span>
+        )}
       </span>
     </button>
   );

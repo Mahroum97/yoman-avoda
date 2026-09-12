@@ -20,6 +20,11 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const isDev = !!process.env.YOMAN_DEV_URL;
+// electron-builder supplies the packaged product name. It distinguishes the
+// Cards edition from the existing diary without changing development labels.
+const productName = app.isPackaged ? app.getName() : 'יומן עבודה';
+const backupFolder = `${productName} - גיבויים`;
+const shareFolder = productName === 'יומן עבודה' ? 'yoman-share' : 'yoman-cards-share';
 
 let mainWindow = null;
 
@@ -29,8 +34,8 @@ function createWindow() {
     height: 860,
     minWidth: 380,
     minHeight: 560,
-    title: 'יומן עבודה',
-    backgroundColor: '#0f2d4a',
+    title: productName,
+    backgroundColor: '#f4f4f3',
     titleBarStyle: 'hiddenInset',
     show: false,
     webPreferences: {
@@ -72,14 +77,14 @@ sandbox: false,
     console.error(`load failed: ${description} (${errorCode}) ${url}`);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
-      dialog.showErrorBox('יומן עבודה', `הטעינה נכשלה: ${description} (${errorCode})`);
+      dialog.showErrorBox(productName, `הטעינה נכשלה: ${description} (${errorCode})`);
     }
   });
 
   // The renderer dying takes the diary's screen with it and used to be silent.
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     console.error(`renderer gone: ${details.reason} (exit ${details.exitCode})`);
-    dialog.showErrorBox('יומן עבודה', `החלון נסגר במפתיע: ${details.reason}`);
+    dialog.showErrorBox(productName, `החלון נסגר במפתיע: ${details.reason}`);
   });
 
   if (isDev) {
@@ -168,7 +173,7 @@ const BACKUP_KEEP = 30;
 
 ipcMain.handle('yoman:autoBackup', async (_event, name, data) => {
   try {
-    const dir = join(app.getPath('documents'), 'יומן עבודה - גיבויים');
+    const dir = join(app.getPath('documents'), backupFolder);
     await mkdir(dir, { recursive: true });
     // `basename` for the same reason the share sheet uses it: the name is built
     // in the renderer and is treated as untrusted here.
@@ -206,7 +211,7 @@ ipcMain.handle('yoman:shareFile', async (_event, name, data) => {
   if (process.platform !== 'darwin' || !mainWindow) return { shared: false };
 
   try {
-    const dir = join(app.getPath('temp'), 'yoman-share');
+    const dir = join(app.getPath('temp'), shareFolder);
     await mkdir(dir, { recursive: true });
     // `name` is built in the renderer from the project name, so it is treated
     // as untrusted here: `basename` keeps a crafted name from escaping the
@@ -225,9 +230,9 @@ ipcMain.handle('yoman:shareFile', async (_event, name, data) => {
 function buildMenu() {
   const template = [
     {
-      label: 'יומן עבודה',
+      label: productName,
       submenu: [
-        { role: 'about', label: 'אודות יומן עבודה' },
+        { role: 'about', label: `אודות ${productName}` },
         { type: 'separator' },
         { role: 'hide', label: 'הסתר' },
         { role: 'hideOthers', label: 'הסתר אחרים' },
@@ -308,7 +313,13 @@ if (!app.requestSingleInstanceLock()) {
     startSyncServer(askRenderer);
 
     app.on('activate', () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow();
+        // Closing the last window stops the LAN host. macOS keeps the process
+        // alive, so reopening from the Dock must bring the host back with the
+        // window rather than leaving sync off until Settings is opened.
+        startSyncServer(askRenderer);
+      }
     });
   });
 }

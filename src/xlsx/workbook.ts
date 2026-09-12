@@ -16,7 +16,9 @@
  * dependency here rather than borrowed from docx's own.
  */
 
-export type Cell = string | number | null | undefined;
+/** Only builder-supplied formulas are executable; user text stays inlineStr. */
+export interface FormulaCell { formula: string; value: number }
+export type Cell = string | number | FormulaCell | null | undefined;
 
 export interface Sheet {
   name: string;
@@ -64,6 +66,10 @@ function cellXml(cell: Cell, ref: string, styleId: number): string {
   }
   if (typeof cell === 'number' && Number.isFinite(cell)) {
     return `<c r="${ref}"${style}><v>${cell}</v></c>`;
+  }
+  if (typeof cell === 'object') {
+    if (!Number.isFinite(cell.value)) throw new Error('Invalid formula result');
+    return `<c r="${ref}"${style}><f>${esc(cell.formula)}</f><v>${cell.value}</v></c>`;
   }
   // Inline strings rather than a shared-strings table: a diary has few enough
   // rows that the table would cost more code than it saves bytes.

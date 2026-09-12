@@ -25,6 +25,7 @@ import { SwipeRow, type SwipeAction } from '../components/SwipeRow';
 import { readSwipe, type SwipeActionId } from '../lib/swipeActions';
 import { ViewMenu } from '../components/ViewMenu';
 import type { SortKey, ViewMode } from '../components/viewOptions';
+import { conflictingReportDates } from '../lib/reportConflicts';
 
 const log = logger('diary');
 
@@ -258,6 +259,10 @@ export function EntriesScreen({ project }: { project: Project }) {
       toast.error(t.selectNothing);
       return;
     }
+    if (picked.some((entry) => entry.syncConflict) || conflictingReportDates(picked).length > 0) {
+      toast.error(t.syncConflictBody);
+      return;
+    }
     setBusy(true);
     try {
       const dates = picked.map((entry) => entry.date).sort();
@@ -407,6 +412,10 @@ export function EntriesScreen({ project }: { project: Project }) {
   };
 
   const quickExport = async (entry: DiaryEntry) => {
+    if (entry.syncConflictKind === 'deletion') {
+      toast.error(t.syncDeletionConflictBody);
+      return;
+    }
     try {
       const { exportEntryPdf } = await import('../pdf/export');
       const name = await exportEntryPdf(entry, project, { logoDataUrl });
@@ -417,10 +426,33 @@ export function EntriesScreen({ project }: { project: Project }) {
   };
 
   if (!entries) return <p className="muted">{t.loading}</p>;
+  const hasDeletionConflict = entries.some(
+    (entry) => entry.syncConflict && entry.syncConflictKind === 'deletion',
+  );
+  const hasRevisionConflict = entries.some(
+    (entry) => entry.syncConflict && entry.syncConflictKind !== 'deletion',
+  );
 
   return (
     <div className={selecting ? 'has-selectionbar' : undefined}>
       <h1 className="screen-title">{t.diaryTitle}</h1>
+
+      {hasRevisionConflict && (
+        <div className="card" role="status" style={{ borderColor: 'var(--amber)' }}>
+          <div className="card__body">
+            <strong>{t.syncConflictNotice}</strong>
+            <p className="small muted">{t.syncConflictBody}</p>
+          </div>
+        </div>
+      )}
+      {hasDeletionConflict && (
+        <div className="card" role="status" style={{ borderColor: 'var(--amber)' }}>
+          <div className="card__body">
+            <strong>{t.syncDeletionConflictNotice}</strong>
+            <p className="small muted">{t.syncDeletionConflictBody}</p>
+          </div>
+        </div>
+      )}
 
       {/*
         Today is the reason the app is open, so on a day with no page yet it is
@@ -607,6 +639,12 @@ export function EntriesScreen({ project }: { project: Project }) {
                         </span>
                         <span className="entry__meta">
                           <StatusChip status={entry.status} subtle />
+                          {entry.syncConflict && (
+                            <span style={{ color: 'var(--amber)' }}>
+                              <Icon name="warning" size={14} />
+                              {t.syncConflictLabel}
+                            </span>
+                          )}
                           {workers > 0 && (
                             <span>
                               <Icon name="crew" size={14} />

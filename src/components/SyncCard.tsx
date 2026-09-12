@@ -148,8 +148,6 @@ function ClientPanel() {
         return;
       }
       const next = { address: address.trim(), code: code.trim() };
-      savePeer(next);
-      setPeer(next);
       await run(next);
     } finally {
       setBusy(false);
@@ -161,12 +159,30 @@ function ClientPanel() {
     setProgress(null);
     try {
       const outcome = await syncNow(target, setProgress);
+      const saved = { address: target.address.trim(), code: target.code.trim() };
+      // The Mac's address or pairing code may have changed since the first
+      // pairing. Once the edited values work, make them the values automatic
+      // sync and the next launch use too.
+      savePeer(saved);
+      setPeer(saved);
+      setAddress(saved.address);
+      setCode(saved.code);
       setSeen(formatDateTime(Date.now(), language));
       setFailure(null);
       toast.show(
         t.syncDone(
-          outcome.received.projects + outcome.received.entries + outcome.received.contacts,
-          outcome.sent.projects + outcome.sent.entries,
+          outcome.received.projects +
+            outcome.received.entries +
+            outcome.received.contacts +
+            outcome.received.presets +
+            outcome.received.settings +
+            outcome.received.tombstones,
+          outcome.sent.projects +
+            outcome.sent.entries +
+            outcome.sent.contacts +
+            outcome.sent.presets +
+            outcome.sent.settings +
+            outcome.sent.tombstones,
         ),
       );
     } catch (error) {

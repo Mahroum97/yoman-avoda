@@ -72,15 +72,24 @@ export function useAutoSync(onSynced?: (received: number) => void): void {
           outcome.received.projects +
           outcome.received.entries +
           outcome.received.contacts +
-          outcome.received.deleted +
+          outcome.received.presets +
+          outcome.received.settings +
+          outcome.received.tombstones +
           outcome.sent.projects +
-          outcome.sent.entries;
+          outcome.sent.entries +
+          outcome.sent.contacts +
+          outcome.sent.presets +
+          outcome.sent.settings +
+          outcome.sent.tombstones;
         if (moved > 0) {
           log.info('auto sync moved records', { why, moved });
           handler.current?.(
             outcome.received.projects +
               outcome.received.entries +
-              outcome.received.contacts,
+              outcome.received.contacts +
+              outcome.received.presets +
+              outcome.received.settings +
+              outcome.received.tombstones,
           );
         } else {
           log.debug('auto sync found nothing', { why });

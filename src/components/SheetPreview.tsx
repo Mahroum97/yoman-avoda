@@ -79,6 +79,7 @@ function HeaderBand({
   page,
   pages,
   companyLogo,
+  showPageNumber,
   t,
 }: {
   title: string;
@@ -87,6 +88,7 @@ function HeaderBand({
   page: number;
   pages: number;
   companyLogo?: string;
+  showPageNumber: boolean;
   t: Strings;
 }) {
   return (
@@ -102,7 +104,9 @@ function HeaderBand({
         {companyLogo && <img className="sheet__band-logo" src={companyLogo} alt="" />}
         <div>
           <div className="sheet__band-detail">{detail}</div>
-          <div className="sheet__band-page">{t.docPage(page, pages)}</div>
+          <div className="sheet__band-page">
+            {showPageNumber ? t.docPage(page, pages) : null}
+          </div>
         </div>
       </div>
     </div>
@@ -113,11 +117,13 @@ function FooterBand({
   project,
   page,
   pages,
+  showPageNumber,
   t,
 }: {
   project: Project;
   page: number;
   pages: number;
+  showPageNumber: boolean;
   t: Strings;
 }) {
   const now = new Date();
@@ -128,7 +134,7 @@ function FooterBand({
         {t.docGeneratedBy} · {formatDdMmYyyy(now.toISOString().slice(0, 10))}{' '}
         {now.toTimeString().slice(0, 5)}
       </span>
-      <span>{t.docPage(page, pages)}</span>
+      <span>{showPageNumber ? t.docPage(page, pages) : null}</span>
     </div>
   );
 }
@@ -170,13 +176,19 @@ export function SheetPreview({
   entry,
   project,
   companyLogo,
+  page = 1,
   pages = 1,
+  showPageNumbers = true,
   themeId,
 }: {
   entry: DiaryEntry;
   project: Project;
   companyLogo?: string;
+  /** Global page number within the document being previewed. */
+  page?: number;
   pages?: number;
+  /** False when the PDF-only summary plan makes an HTML number unknowable. */
+  showPageNumbers?: boolean;
   themeId?: string;
 }) {
   const { t, dir } = useLanguage();
@@ -196,9 +208,10 @@ export function SheetPreview({
         title={t.docWorkDiary}
         subtitle={project.name}
         detail={formatLongDate(entry.date, t)}
-        page={1}
+        page={page}
         pages={pages}
         companyLogo={companyLogo}
+        showPageNumber={showPageNumbers}
         t={t}
       />
 
@@ -349,7 +362,13 @@ export function SheetPreview({
         </div>
       </div>
 
-      <FooterBand project={project} page={1} pages={pages} t={t} />
+      <FooterBand
+        project={project}
+        page={page}
+        pages={pages}
+        showPageNumber={showPageNumbers}
+        t={t}
+      />
     </div>
   );
 }
@@ -368,6 +387,7 @@ export function PhotoSheet({
   companyLogo,
   firstPage = 2,
   pages = 2,
+  showPageNumbers = true,
   themeId,
 }: {
   entry: DiaryEntry;
@@ -376,6 +396,8 @@ export function PhotoSheet({
   /** Number of the first appendix sheet within the document. */
   firstPage?: number;
   pages?: number;
+  /** False when the PDF-only summary plan makes an HTML number unknowable. */
+  showPageNumbers?: boolean;
   themeId?: string;
 }) {
   const { t, dir } = useLanguage();
@@ -403,6 +425,7 @@ export function PhotoSheet({
             page={firstPage + sheet}
             pages={pages}
             companyLogo={companyLogo}
+            showPageNumber={showPageNumbers}
             t={t}
           />
           <div className="sheet__photos">
@@ -420,7 +443,13 @@ export function PhotoSheet({
               );
             })}
           </div>
-          <FooterBand project={project} page={firstPage + sheet} pages={pages} t={t} />
+          <FooterBand
+            project={project}
+            page={firstPage + sheet}
+            pages={pages}
+            showPageNumber={showPageNumbers}
+            t={t}
+          />
         </div>
       ))}
     </>

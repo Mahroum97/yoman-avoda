@@ -3,8 +3,7 @@
  * produces a PDF of the same layout, which is the app's PDF route.
  */
 import { useMemo, useState } from 'react';
-import type { Project } from '../types';
-import { useEntry } from '../hooks/useData';
+import type { DiaryEntry, Project } from '../types';
 import { useCompanyLogo } from '../hooks/useBranding';
 import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
@@ -16,15 +15,15 @@ import { canShareFiles, needsShareToPrint } from '../lib/save';
 import { photoPageCount } from '../lib/photoPages';
 import { useDocThemeId } from '../hooks/useDocTheme';
 import { Icon } from '../components/Icon';
+import { EmptyState } from '../components/ui';
 
 export function PreviewScreen({
-  entryId,
+  entry,
   project,
 }: {
-  entryId: number;
+  entry: DiaryEntry;
   project: Project;
 }) {
-  const entry = useEntry(entryId);
   const logoDataUrl = useCompanyLogo();
   const themeId = useDocThemeId();
   const toast = useToast();
@@ -34,8 +33,17 @@ export function PreviewScreen({
 
 
   // Escape leaves the preview the same way the button beside it does.
-  useEscape(() => navigate(`/entry/${entryId}`));
-  if (!entry) return <p className="muted">{t.loading}</p>;
+  useEscape(() => navigate(`/entry/${entry.id}`));
+
+  if (entry.syncConflictKind === 'deletion') {
+    return (
+      <EmptyState icon="warning" title={t.syncDeletionConflictNotice}>
+        <p className="muted" style={{ marginBottom: 16 }}>{t.syncDeletionConflictBody}</p>
+        <button type="button" className="btn btn--primary"
+          onClick={() => navigate(`/entry/${entry.id}`)}>{t.back}</button>
+      </EmptyState>
+    );
+  }
 
   const pages = 1 + photoPageCount(entry.photos.length);
 
@@ -104,7 +112,7 @@ export function PreviewScreen({
         <button
           type="button"
           className="btn btn--sm"
-          onClick={() => navigate(`/entry/${entryId}`)}
+          onClick={() => navigate(`/entry/${entry.id}`)}
         >
           <Icon name="chevron" size={16} className="icon--back" />
           {t.back}

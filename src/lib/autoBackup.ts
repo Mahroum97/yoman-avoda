@@ -25,14 +25,18 @@
  *  - **It never blocks the first paint.** It runs after the app is up, because
  *    serialising a diary full of photos takes long enough to be felt.
  */
-import { backupToJson, db } from '../db';
+import { createBackupSnapshot, currentBackupStateSignature } from '../db';
 import { isNativeApp } from './save';
 import { logger } from './log';
+import { flushPendingWrites } from './pendingWrites';
 
 const log = logger('backup');
 
 /** When the last automatic copy was written, on this device. */
 export const LAST_BACKUP_KEY = 'yoman-last-backup';
+
+/** Fingerprint of the exact database snapshot in the last automatic file. */
+export const LAST_BACKUP_STATE_KEY = 'yoman-last-backup-state';
 
 /** How often one is due. Often enough to matter, rare enough to go unnoticed. */
 const EVERY_MS = 12 * 60 * 60 * 1000;
@@ -67,23 +71,21 @@ const stamp = (): string => {
 };
 
 /**
- * Whether anything has been written since the last copy was taken.
+ * Whether anything has changed since the last copy was taken.
  *
  * A backup carries every photo in the diary, so an unchanged one written again
  * every launch is tens of megabytes of duplicate on a phone — and a folder of
- * fourteen identical copies is not fourteen times safer than one. The stamp
- * still moves when nothing has changed, because the existing copy *is* current
- * and the reminder in Settings would otherwise nag about a diary that is
- * perfectly backed up.
+ * fourteen identical copies is not fourteen times safer than one. The compact
+ * fingerprint covers every table represented by the backup plus tombstones;
+ * comparing only the newest diary page missed project, setting, preset and
+ * deletion-only changes. An existing installation without a fingerprint takes
+ * one fresh copy to seed it safely.
  */
 async function changedSinceLastBackup(): Promise<boolean> {
-  const last = lastBackupAt();
-  if (last === null) return true;
   try {
-    const [entry] = await db.entries.orderBy('updatedAt').reverse().limit(1).toArray();
-    const contact = await db.contacts.orderBy('updatedAt').reverse().limit(1).toArray();
-    const newest = Math.max(entry?.updatedAt ?? 0, contact[0]?.updatedAt ?? 0);
-    return newest > last;
+    const backed = localStorage.getItem(LAST_BACKUP_STATE_KEY);
+    if (backed === null) return true;
+    return (await currentBackupStateSignature()) !== backed;
   } catch {
     // If the question cannot be answered, take the copy. Backing up too often
     // is a cost; backing up too rarely is the thing this file exists to stop.
@@ -104,19 +106,24 @@ export async function backupNow(options: { force?: boolean } = {}): Promise<Back
   const where = backupTarget();
   if (where === 'none') return null;
 
-  if (!options.force && !(await changedSinceLastBackup())) {
-    try {
-      localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
-    } catch {
-      // The copy on disk is still the current one either way.
-    }
-    log.debug('automatic backup skipped — nothing changed');
-    return where;
-  }
-
-  const done = log.time('automatic backup');
+  let done: ((note?: string) => void) | null = null;
   try {
-    const json = await backupToJson();
+    // The decision itself must see the latest in-memory edit. Flushing only in
+    // `createBackupSnapshot` would let an automatic run decide "unchanged" and
+    // return before the editor's debounce reached IndexedDB.
+    await flushPendingWrites();
+
+    if (!options.force && !(await changedSinceLastBackup())) {
+      // No file was written, so the age shown in Settings remains the age of
+      // the real copy on disk. Advancing it here made a fortnight-old file look
+      // newly current even when the change detector had missed a table.
+      log.debug('automatic backup skipped — nothing changed');
+      return where;
+    }
+
+    done = log.time('automatic backup');
+    const snapshot = await createBackupSnapshot({ flush: false });
+    const { json } = snapshot;
     const name = `גיבוי-יומן-עבודה-${stamp()}.json`;
 
     if (where === 'mac') {
@@ -143,6 +150,9 @@ export async function backupNow(options: { force?: boolean } = {}): Promise<Back
     }
 
     try {
+      // State first: if localStorage fills between these writes, the missing
+      // time causes another due check rather than a fresh-looking stale copy.
+      localStorage.setItem(LAST_BACKUP_STATE_KEY, snapshot.stateSignature);
       localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()));
     } catch {
       // A device with no storage for the stamp still got the backup itself.
@@ -152,7 +162,7 @@ export async function backupNow(options: { force?: boolean } = {}): Promise<Back
     log.info('automatic backup written', { where, bytes: json.length });
     return where;
   } catch (error) {
-    done('failed');
+    done?.('failed');
     log.error('automatic backup failed', error);
     return null;
   }

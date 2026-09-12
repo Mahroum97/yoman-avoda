@@ -42,7 +42,7 @@ export function PageActionsBar() {
   const { page } = useEditorActions();
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
-  const [at, setAt] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [at, setAt] = useState<{ top: number; left: number; width: number; maxHeight: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const sheet = useRef<HTMLDivElement>(null);
 
@@ -61,12 +61,23 @@ export function PageActionsBar() {
   const place = useCallback(() => {
     const anchor = button.current?.getBoundingClientRect();
     if (!anchor) return;
-    const width = Math.min(SHEET_WIDTH, window.innerWidth - EDGE * 2);
+    const viewport = window.visualViewport;
+    const start = viewport?.offsetLeft ?? 0;
+    const topEdge = (viewport?.offsetTop ?? 0) + EDGE;
+    let bottomEdge = (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight) - EDGE;
+    const nav = document.querySelector<HTMLElement>('.nav');
+    if (nav && getComputedStyle(nav).position === 'fixed') {
+      const navTop = nav.getBoundingClientRect().top;
+      if (navTop > topEdge) bottomEdge = Math.min(bottomEdge, navTop - EDGE);
+    }
+    const viewportWidth = viewport?.width ?? window.innerWidth;
+    const width = Math.min(SHEET_WIDTH, viewportWidth - EDGE * 2);
     // Centred under the button, then held inside the viewport — which is what
     // keeps it on screen when the button sits near either edge.
     const centred = anchor.left + anchor.width / 2 - width / 2;
-    const left = Math.max(EDGE, Math.min(centred, window.innerWidth - width - EDGE));
-    setAt({ top: anchor.bottom + GAP, left, width });
+    const left = Math.max(start + EDGE, Math.min(centred, start + viewportWidth - width - EDGE));
+    const top = Math.max(topEdge, Math.min(anchor.bottom + GAP, bottomEdge - 100));
+    setAt({ top, left, width, maxHeight: Math.max(0, bottomEdge - top) });
   }, []);
 
   useLayoutEffect(() => {
@@ -79,11 +90,21 @@ export function PageActionsBar() {
     // "never", and a menu that drifts off its button looks broken.
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
+    window.visualViewport?.addEventListener('resize', place);
+    window.visualViewport?.addEventListener('scroll', place);
     return () => {
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
+      window.visualViewport?.removeEventListener('resize', place);
+      window.visualViewport?.removeEventListener('scroll', place);
     };
   }, [open, place]);
+
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener('hashchange', close);
+    return () => window.removeEventListener('hashchange', close);
+  }, []);
 
   // Escape closes the menu before anything outer reacts to it — the same stack
   // the preview and the dialogs are on, so a second press leaves the screen.
@@ -176,7 +197,7 @@ export function PageActionsBar() {
             ref={sheet}
             className="actionmenu__sheet"
             role="menu"
-            style={{ top: at.top, left: at.left, width: at.width }}
+            style={at}
           >
             <p className="actionmenu__title">{menuTitle}</p>
             {groups.map((group, index) => (

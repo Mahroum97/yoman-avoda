@@ -14,16 +14,18 @@
  * Conflicts are resolved by `updatedAt`, last write wins. That is correct for
  * one person with two devices, which is what this is for.
  */
-import type { TombstoneTable } from '../types';
+import type { DeliveryLedger, TombstoneTable } from '../types';
+import { compareEntryRevisions } from './revision';
 
 export type { TombstoneTable };
 
 /**
- * 2 — chunked. Version 1 sent the whole diary in a single request and could not
- * finish once real photos were in it. Both devices run this code, so both must
- * be updated together; a mismatched peer is reported rather than half-synced.
+ * 5 — entry manifests carry causal revisions, so equal timestamps, clock skew
+ * and concurrent same-UID edits cannot silently choose one branch. Version 4
+ * retained independent same-date UIDs; version 3 planned metadata separately;
+ * version 2 introduced chunking. Mixed versions are refused before mutation.
  */
-export const SYNC_PROTOCOL_VERSION = 2;
+export const SYNC_PROTOCOL_VERSION = 5;
 
 /** One line of a manifest: what a record is, and how fresh. */
 export interface RecordStamp {
@@ -31,11 +33,15 @@ export interface RecordStamp {
   updatedAt: number;
 }
 
+export interface EntryStamp extends RecordStamp {
+  syncRevision: string;
+}
+
 export interface SyncManifest {
   version: number;
   deviceName: string;
   projects: RecordStamp[];
-  entries: RecordStamp[];
+  entries: EntryStamp[];
   /**
    * ספקים וקבלנים. Optional, and `SYNC_PROTOCOL_VERSION` deliberately does not
    * move for it: a peer on an older build simply omits the field, and the only
@@ -47,7 +53,12 @@ export interface SyncManifest {
   contacts?: RecordStamp[];
   /** Keyed `kind value`; merged by taking the higher use count. */
   presets: { key: string; uses: number; updatedAt: number }[];
-  tombstones: { uid: string; table: TombstoneTable; deletedAt: number }[];
+  tombstones: {
+    uid: string;
+    table: TombstoneTable;
+    deletedAt: number;
+    entryRevision?: string;
+  }[];
   /** Synced settings, e.g. the company logo. */
   settings: { key: string; updatedAt: number }[];
 }
@@ -77,6 +88,8 @@ export interface WireEntry {
   supervisorNotes: string;
   /** התקבל היום — optional for the same reason `pinned` is. */
   receivedToday?: string;
+  /** Optional addition: absence is an older build, an empty ledger is explicit clearing. */
+  deliveryLedger?: DeliveryLedger;
   supervisorSignature: string;
   managerSignature: string;
   photos: { id: string; caption: string; dataUrl: string; width: number; height: number; takenAt: number }[];
@@ -93,6 +106,16 @@ export interface WireEntry {
    * which is the right answer rather than an error.
    */
   deletedAt?: number;
+  /** Both independently-created pages for one date are retained. */
+  syncConflict?: boolean;
+  /** Deletion conflicts may have one live row plus a causal tombstone. */
+  syncConflictKind?: 'revision' | 'deletion';
+  /** Links preserved alternatives even when one revision changed the date. */
+  syncConflictGroup?: string;
+  /** Original UID shared by every causally-conflicting branch. */
+  syncConflictRoot?: string;
+  /** Required since protocol v5; content fingerprint + version vector. */
+  syncRevision: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -129,6 +152,10 @@ export interface SyncRequest {
   settings: string[];
   /** Absent when the peer is an older build with no address book to offer. */
   contacts?: string[];
+  /** The peer has a preset count we have not merged yet. */
+  presets?: boolean;
+  /** The peer has a deletion we have not merged yet. */
+  tombstones?: boolean;
 }
 
 export interface SyncPayload {
@@ -137,7 +164,12 @@ export interface SyncPayload {
   contacts?: WireContact[];
   presets: WirePreset[];
   settings: WireSetting[];
-  tombstones: { uid: string; table: TombstoneTable; deletedAt: number }[];
+  tombstones: {
+    uid: string;
+    table: TombstoneTable;
+    deletedAt: number;
+    entryRevision?: string;
+  }[];
 }
 
 /**
@@ -183,7 +215,18 @@ export function whatToRequest(
   ours: SyncManifest,
   theirs: SyncManifest,
 ): SyncRequest {
-  const deleted = new Set(ours.tombstones.map((t) => `${t.table}:${t.uid}`));
+  const deleted = new Map<string, number>();
+  const entryDeletions = new Map<string, SyncManifest['tombstones'][number]>();
+  for (const tombstone of ours.tombstones) {
+    const key = `${tombstone.table}:${tombstone.uid}`;
+    deleted.set(key, Math.max(deleted.get(key) ?? 0, tombstone.deletedAt));
+    if (tombstone.table === 'entries') {
+      const held = entryDeletions.get(tombstone.uid);
+      if (!held || held.deletedAt < tombstone.deletedAt) {
+        entryDeletions.set(tombstone.uid, tombstone);
+      }
+    }
+  }
 
   const pick = (
     mine: RecordStamp[],
@@ -193,7 +236,9 @@ export function whatToRequest(
     const local = stampMap(mine);
     return other
       .filter((stamp) => {
-        if (deleted.has(`${table}:${stamp.uid}`)) return false;
+        // A deletion suppresses the copy it deleted, but not a record edited or
+        // restored afterwards. `applyPayload` uses the same >= comparison.
+        if ((deleted.get(`${table}:${stamp.uid}`) ?? -1) >= stamp.updatedAt) return false;
         const have = local.get(stamp.uid);
         return have === undefined || stamp.updatedAt > have;
       })
@@ -201,16 +246,76 @@ export function whatToRequest(
   };
 
   const localSettings = new Map(ours.settings.map((s) => [s.key, s.updatedAt]));
+  const localEntries = new Map(ours.entries.map((entry) => [entry.uid, entry]));
+  const localPresets = new Map(ours.presets.map((preset) => [preset.key, preset.uses]));
+  const localTombstones = new Map<string, number>();
+  for (const tombstone of ours.tombstones) {
+    const key = `${tombstone.table}:${tombstone.uid}`;
+    localTombstones.set(
+      key,
+      Math.max(localTombstones.get(key) ?? 0, tombstone.deletedAt),
+    );
+  }
 
   return {
     projects: pick(ours.projects, theirs.projects, 'projects'),
-    entries: pick(ours.entries, theirs.entries, 'entries'),
+    entries: theirs.entries
+      .filter((stamp) => {
+        const stone = entryDeletions.get(stamp.uid);
+        if (stone?.entryRevision) {
+          const deletionOrder = compareEntryRevisions(
+            stone.entryRevision,
+            stamp.syncRevision,
+          );
+          if (deletionOrder === 'same' || deletionOrder === 'local-ahead') return false;
+        } else if ((stone?.deletedAt ?? -1) >= stamp.updatedAt) {
+          return false;
+        }
+        const mine = localEntries.get(stamp.uid);
+        if (!mine) return true;
+        const order = compareEntryRevisions(mine.syncRevision, stamp.syncRevision);
+        // Concurrent vectors must travel in both directions. `applyPayload`
+        // deterministically keeps both branches; timestamps never break this tie.
+        return order === 'remote-ahead' || order === 'concurrent';
+      })
+      .map((stamp) => stamp.uid),
     // `?? []` on both sides: a peer that predates the address book sends no
     // list, which asks for nothing rather than throwing mid-sync.
     contacts: pick(ours.contacts ?? [], theirs.contacts ?? [], 'contacts'),
     settings: theirs.settings
       .filter((s) => (localSettings.get(s.key) ?? -1) < s.updatedAt)
       .map((s) => s.key),
+    // Presets and tombstones are sent with the small metadata payload. They
+    // still need to make a round happen when they are the only changed data;
+    // otherwise a deletion can report a successful sync without ever leaving
+    // the device that made it.
+    presets: theirs.presets.some(
+      (preset) => (localPresets.get(preset.key) ?? -1) < preset.uses,
+    ),
+    tombstones: theirs.tombstones.some(
+      (tombstone) => {
+        const localDeletedAt =
+          localTombstones.get(`${tombstone.table}:${tombstone.uid}`) ?? -1;
+        if (tombstone.table !== 'entries' || !tombstone.entryRevision) {
+          return localDeletedAt < tombstone.deletedAt;
+        }
+        const local = entryDeletions.get(tombstone.uid);
+        if (!local?.entryRevision) {
+          const localEntry = localEntries.get(tombstone.uid);
+          if (!localEntry) return true;
+          const entryOrder = compareEntryRevisions(
+            localEntry.syncRevision,
+            tombstone.entryRevision,
+          );
+          return entryOrder === 'remote-ahead' || entryOrder === 'concurrent';
+        }
+        const order = compareEntryRevisions(
+          local.entryRevision,
+          tombstone.entryRevision,
+        );
+        return order === 'remote-ahead' || order === 'concurrent';
+      },
+    ),
   };
 }
 

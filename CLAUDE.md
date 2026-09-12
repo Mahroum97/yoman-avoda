@@ -272,9 +272,11 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
   by `src/lib/images.ts` *before* saving — see the Photos section for why they are not
   `Blob`s. The company logo is a PNG data URL in `settings`.
 - Saving an entry runs `learnPresets`, which feeds the comboboxes.
-- **The schema is at v6, and every version restates every store.** The comment above
+- **The schema is at v8, and every version restates every store.** The comment above
   each says what it changed and why: v2's `uid`s and tombstones, v4's `[uid+updatedAt]`
-  indexes (so sync can build a manifest without deserialising photos), v6's `contacts`.
+  indexes (so sync can build a manifest without deserialising photos), v6's `contacts`,
+  v7's mutable project `updatedAt` stamps and `[uid+updatedAt]` index, and v8's
+  causal entry revision plus `[uid+updatedAt+syncRevision]` manifest index.
 - **The status is derived, and only ever rises.** `statusFor` reads a page carrying a
   מנ"ע signature as `signed`, whatever the stored value says; without a signature the
   stored value is left alone, so marking a page by hand still works for the days that
@@ -287,7 +289,7 @@ Date wording comes from the active language: `formatLongDate(iso, t)` in `src/li
   signature is changed or deleted.
 - Backup is the only copy that leaves the device, so photos become data URLs there.
   **Settings must stay reachable with zero projects** (`App.tsx`) or restoring onto a new
-  device is impossible — the onboarding redirect has an explicit exception for it.
+  device is impossible — Settings is resolved before the project requirement.
 - **`restoreFromJson` clears the tombstones and stamps every restored page with
   `updatedAt = now`.** Both halves are load-bearing, and without them a restore is undone
   by the next sync. A tombstone carries the moment of the deletion, which is necessarily
@@ -325,6 +327,11 @@ keep it are worth more than any feature in this file.
   diary that has some, is asked twice.
 - **Photographs are written the moment they are picked**, rather than on the
   editor's debounce — see the Photos section above.
+- **A backup or sync flushes every mounted editor first.** `pendingWrites.ts`
+  holds per-registration tokens in one page-wide registry. The token identity
+  matters under React Strict Mode: a deferred cleanup from the first effect
+  setup must not unregister its live replacement and let a snapshot copy the
+  previous database revision.
 - **The status only ever rises and the trash is a soft delete**, both covered
   under Storage; the point they share is that no ordinary action in the app is
   allowed to end with less diary than it started with.
@@ -456,7 +463,7 @@ a number takes a moment while the man is still standing there.
 - **A pending edit outranks the stored row** while it is in flight, and is dropped
   only after the write and only if no newer keystroke replaced it. Without that
   test the live query hands back the row as saved and eats the last letter typed.
-- **It is reachable with no project** (`PROJECTLESS` in `App.tsx`), like Settings:
+- **It is reachable with no project** (before the project guard in `App.tsx`), like Settings:
   the book belongs to the person, not to a site.
 - **תחום התעסקות suggests the trades the diary already learned.** `usePresets().trade` is
   fed by every contractor row ever saved, and the trades on a site are the same handful
@@ -590,7 +597,7 @@ Two devices each hold a full copy of the diary; syncing is a **merge**, not a cl
 talking to a server. The whole thing lives in `src/sync/` (with the Mac’s half in
 `electron/sync-server.js`), and so does its guidance: **`src/sync/CLAUDE.md`** covers the
 protocol, the chunking, the four performance traps, and the rules — tombstones, local
-numeric ids, last-write-wins — that are easy to undo by accident. Read it before
+numeric ids and causal entry revisions — that are easy to undo by accident. Read it before
 touching either file.
 
 ## The day's page folds
@@ -628,6 +635,42 @@ filled card for today when the day has no page yet and offers
 ranges people actually ask for and says how long the document will be before it
 is made; the supplier list filters by the trades it actually contains and gives
 calling — the reason it exists on a phone — the one colour in the row.
+
+## The Cards workspace is the production interface
+
+`cards.css` supplies neutral application surfaces in every shell. Colour marks
+meaningful state — signed, invalid, needs review or destructive — rather than a
+report category or decorative theme. The document keeps its own palette inside
+`.sheet`; changing the interface must not recolour the A4 deliverable.
+
+- On a phone, `.cards-sidebar { display: contents }` leaves five fixed work
+  tabs at the bottom. Settings is the single control at the physical
+  upper-right in either writing direction; its Appearance card owns the four
+  theme choices, so the app bar does not duplicate them. New is the centre
+  item on the phone because it is the primary action; the desktop sidebar moves
+  that same item to its bottom, after the destinations.
+- The native status bar follows the selected theme. Capacitor's StatusBar plugin
+  requires `UIViewControllerBasedStatusBarAppearance = true`; dark and black
+  request `Style.Dark` (light clock/Wi-Fi/battery content), while the light
+  theme requests `Style.Light`. A mutation observer reapplies both foreground
+  style and strip colour whenever `data-theme` changes.
+- The hidden recent-day rail and live preview do not query or render on a phone.
+- Electron's hidden-inset title bar overlays the physical left edge. The Mac
+  toolbar marks that space as a drag region, keeps its buttons at the physical
+  right, and hides the repeated web logo/title. Never place a control beneath
+  the traffic lights. When English puts the desktop sidebar on the physical
+  left, its contents start below that native title-bar area; Hebrew's right-side
+  sidebar needs no offset. The iPhone and browser keep their ordinary header.
+- At 1100px the tabs become the desktop sidebar and `CardsDayNavigation` shows a
+  bounded, live list of recent pages. At 1200px `CardsEditorLayout` adds a
+  deferred live A4 preview and expanded dialog using the existing
+  `SheetPreview`; it is not a fourth document renderer.
+- `electron-builder.cards.yml` packages the separate Mac edition as
+  `com.akhutaba.yoman.cards.mac` / `יומן עבודה כרטיס` into `release-cards`.
+  Its Electron user data and automatic-backup folder are selected by that
+  product name, so they do not overwrite the original edition. Both editions
+  still host LAN sync on port 45231; the second one reports `EADDRINUSE` in
+  Settings. Run only one Mac sync host at a time.
 
 ## Settings that belong to the device
 
@@ -834,3 +877,113 @@ because its absence was what made the app look homemade.
 
 The original prints `חתמת מנ"ע` (missing yod); the app uses the correct `חתימת מנ"ע`.
 Everything else follows the form as drawn.
+
+
+## Separate report summaries
+
+`SummaryExportCard` on the reports screen exports **one complete summary table
+per file**: workers by trade, equipment or concrete, through
+`src/lib/summaryReport.ts`. Each file includes every row and daily contribution
+for that table. This is the user-confirmed scope; do not reinterpret it as a
+report per named contractor or omit other rows from the selected table.
+
+- The PDF and Excel read the same selected source rows. Unrelated work descriptions,
+  photos, signatures and other groups must not enter a selected summary.
+- Preserve original free-text quantities beside the number used to calculate.
+  `parseNum` reads the first number and recognizes ASCII, Arabic-Indic and Persian
+  numerals. Equipment hours remain hours as entered; do not multiply by quantity
+  or evaluate `3 + 1` without an explicit business-rule change.
+- `src/pdf/summaryReport.ts` plans every line before drawing. This separate document
+  may span pages; the diary form itself still has a one-page budget. Translated labels
+  and user values are separate strings so an Arabic label does not select a font
+  lacking the Hebrew glyphs in the value.
+- The workbook uses `SUMPRODUCT` with `EXACT`: `SUMIF` matches case-insensitively and
+  interprets wildcard/operator characters, which would disagree with literal labels
+  in the app. User-entered strings always remain `inlineStr`, never executable formulas.
+- `ReportsScreen` uses a live query keyed by project and requested dates. Never enable
+  an export with records loaded for the previous range. Calendar shortcuts use local
+  dates and start month arithmetic from day one to avoid end-of-month overflow.
+
+`QuantityReportsPanel` is mounted on that same range-bound result. It exports
+received concrete, received steel in kilograms and worker-days for one identified
+contractor at a time. PDF and Excel consume the same immutable calculation and
+retain source rows and coverage issues; casting quantities and free-text deliveries
+are never inferred into received totals. See
+`docs/delivery-and-contractor-reports.md` for the business rules.
+
+**No report may choose between unresolved sync alternatives.**
+`reportConflictState` blocks the combined report, preview, selected-days report,
+summary and quantity exports when two live revisions share a conflict group or a
+project/date. A deletion racing an independent edit has only one recoverable live
+row, so `syncConflictKind: 'deletion'` blocks by itself until Save explicitly keeps
+the edit or Trash confirms the deletion. The UI names every involved date and links
+back to the diary for resolution.
+
+`npm run sample` also writes `tmp/sample-summary-{he,ar,en}.{pdf,xlsx}`.
+Focused regressions use the existing bundler, without introducing a test framework:
+
+```bash
+node scripts/bundle.mjs scripts/check-reports.ts tmp/check-reports.mjs
+node tmp/check-reports.mjs
+node scripts/bundle.mjs scripts/check-sync.ts tmp/check-sync.mjs
+node tmp/check-sync.mjs
+```
+
+The report checks need `pdftotext`. `scripts/check-report-ui.mjs` uses Playwright
+(optional `YOMAN_PLAYWRIGHT_PATH`) against the local Vite server and a fresh synthetic
+browser database; never point such checks at the user's installed diary profile.
+`scripts/check-quantity-ui.mjs`, `check-route-errors.mjs`,
+`check-mutation-failures.mjs`, `check-cards-workspace.mjs`,
+`check-causal-sync.mjs` and `check-causal-conflict-ui.mjs` follow the same
+fresh-profile rule.
+
+
+## Persistence checks added after the September review
+
+- Editor saves share an ordered queue across unmounts. Dirtiness belongs to a
+  specific revision; an old save cannot mark a newer keystroke clean. Route exit
+  flushes the latest draft, and reopening waits before reading it.
+- `saveEntry` checks one live page per project/date inside the same transaction
+  as the write, resolves by UID, and checks parent/deletion state. A stale editor
+  is not a restoration operation. Signed status may not fall on undo or sync.
+- Local mutation stamps advance beyond known record timestamps, including after
+  restoring over a future-dated tombstone. Reintroducing raw `Date.now()` at an
+  update path can make the new edit lose to the copy it just replaced.
+- Photo-wrapper migration re-reads current records and changes only matching
+  photo wrappers. Never put the pre-conversion whole-entry snapshot back.
+- Async photo batches belong to the day on which they were picked. A batch that
+  finishes after navigation appends only its new photo IDs to that day's latest
+  stored photos, retaining intervening captions, additions and removals.
+- Backup `settings` is optional and contains only `SYNCED_SETTINGS`. Missing
+  `settings` means a legacy backup; an explicit empty array means clear those
+  diary settings. Stamp both present and cleared values so sync respects restore.
+
+Every saved entry now carries a content fingerprint and per-device causal version
+vector. A dominating head replaces its ancestor; concurrent identical content joins
+vectors; concurrent different content gets stable branch IDs and remains visible on
+both peers until the user resolves it. Photograph bytes are part of the fingerprint,
+and entry tombstones carry a deletion head, so equal clocks, skewed clocks and
+delete-versus-edit races never silently choose a diary page.
+
+## iPhone touch regressions
+
+- A first save replaces the URL without remounting the editor. Explicit navigation
+  has its own `navigationId`, so tapping New starts a fresh editor even when the
+  router last saw `/entry/new`. Leaving it still flushes its pending revision.
+- A swipe may end without a click. Its click suppression must expire on the next
+  pointer-down, or the next tap on Open/Export is silently discarded.
+- Section scroll offsets follow the measured `.chrome` height. A fixed pixel
+  offset lets the toolbar cover the section's button on an iPhone.
+- The action menu stays within the visual viewport and above the bottom tabs,
+  scrolls internally, and closes on navigation. Test with the keyboard or a short
+  viewport as well as a full-height desktop window.
+
+`scripts/check-mobile-taps.mjs` tests these paths with Playwright touchscreen taps
+in a fresh synthetic diary. Set `YOMAN_PLAYWRIGHT_PATH` when using a bundled runtime.
+
+The empty installation is a required navigation case. Diary, Reports and New
+must remain selected and show an explicit setup screen when there is no project;
+never silently redirect those taps to Projects or disable New. Setup offers
+creation and restore; creation activates the project and returns to the requested
+destination. `scripts/check-empty-navigation.mjs` tests all three tabs **before**
+creating a project, in Hebrew and English, including cancellation and continuation.

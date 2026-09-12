@@ -24,6 +24,7 @@ import { useToast } from '../hooks/toastContext';
 import { useLanguage } from '../i18n/useLanguage';
 import { saveBlob } from '../lib/save';
 import { logger } from '../lib/log';
+import { registerPendingWriteFlusher } from '../lib/pendingWrites';
 import { EmptyState } from '../components/ui';
 import { Icon } from '../components/Icon';
 
@@ -65,10 +66,26 @@ export function ContactsScreen() {
   const [pending, setPending] = useState<Map<string, Contact>>(new Map());
   const pendingRef = useRef(pending);
   const timers = useRef(new Map<string, number>());
+  const flushes = useRef(new Map<string, Promise<void>>());
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const operation = useRef<string | null>(null);
 
-  const putPending = (next: Map<string, Contact>) => {
+  const putPending = useCallback((next: Map<string, Contact>) => {
     pendingRef.current = next;
     setPending(next);
+  }, []);
+
+  const begin = (name: string) => {
+    if (operation.current !== null) return false;
+    operation.current = name;
+    setBusy(name);
+    return true;
+  };
+
+  const finish = () => {
+    operation.current = null;
+    setBusy(null);
   };
 
   const flush = useCallback(async (uid: string) => {
@@ -77,21 +94,46 @@ export function ContactsScreen() {
       clearTimeout(timer);
       timers.current.delete(uid);
     }
-    const row = pendingRef.current.get(uid);
-    if (!row) return;
-    // Dropped from the pending map only after the write, and only if no newer
-    // keystroke replaced it meanwhile — otherwise the last letter typed would
-    // be rolled back by the live query returning the row as it was saved.
-    await saveContact(row);
-    if (pendingRef.current.get(uid) === row) {
-      const next = new Map(pendingRef.current);
-      next.delete(uid);
-      putPending(next);
-    }
-  }, []);
+    const existing = flushes.current.get(uid);
+    if (existing) return existing;
 
-  const flushAll = useCallback(() => {
-    for (const uid of [...pendingRef.current.keys()]) void flush(uid);
+    const run = (async () => {
+      while (true) {
+        const row = pendingRef.current.get(uid);
+        if (!row) return;
+        try {
+          await saveContact(row);
+        } catch (error) {
+          // Keep the pending object in the map: it is the visible source of
+          // truth and the retry payload. Removing it here would roll the field
+          // back to the older live-query value after a failed write.
+          setSaveFailed(true);
+          log.error('contact autosave failed', error);
+          throw error;
+        }
+        // Dropped only if no newer keystroke replaced it while the write was
+        // in flight. If there is a newer version, loop and serialize it behind
+        // this one so blur, timer and backup cannot write out of order.
+        if (pendingRef.current.get(uid) === row) {
+          const next = new Map(pendingRef.current);
+          next.delete(uid);
+          putPending(next);
+          return;
+        }
+      }
+    })();
+    flushes.current.set(uid, run);
+    try {
+      await run;
+    } finally {
+      if (flushes.current.get(uid) === run) flushes.current.delete(uid);
+    }
+  }, [putPending]);
+
+  const flushAll = useCallback(async () => {
+    const uids = [...pendingRef.current.keys()];
+    await Promise.all(uids.map((uid) => flush(uid)));
+    setSaveFailed(false);
   }, [flush]);
 
   /*
@@ -100,13 +142,22 @@ export function ContactsScreen() {
    * are the same rule the activity log follows for the same platform reason.
    */
   useEffect(() => {
+    // Backups and sync take their snapshot only after this promise resolves.
+    // Keep the registration alive through unmount flushing: a backup pressed
+    // immediately after navigation must still wait for the row being saved by
+    // this cleanup.
+    // One wrapper per effect setup. React StrictMode sets up, cleans up, then
+    // sets up the same effect again; registering `flushAll` itself in an
+    // identity Set lets the delayed first cleanup remove the second setup too.
+    const registeredFlush = () => flushAll();
+    const unregister = registerPendingWriteFlusher(registeredFlush);
     const onHide = () => {
-      if (document.visibilityState === 'hidden') flushAll();
+      if (document.visibilityState === 'hidden') void flushAll().catch(() => undefined);
     };
     document.addEventListener('visibilitychange', onHide);
     return () => {
       document.removeEventListener('visibilitychange', onHide);
-      flushAll();
+      void flushAll().then(unregister, unregister);
     };
   }, [flushAll]);
 
@@ -122,15 +173,23 @@ export function ContactsScreen() {
     if (existing !== undefined) clearTimeout(existing);
     timers.current.set(
       row.uid,
-      window.setTimeout(() => void flush(row.uid), SAVE_AFTER_MS),
+      window.setTimeout(() => void flush(row.uid).catch(() => undefined), SAVE_AFTER_MS),
     );
   };
 
   const add = async () => {
+    if (!begin('add')) return;
     const row = blankContact();
     // The row exists before the first letter is typed, so an interrupted entry
     // survives the app being closed.
-    await saveContact(row);
+    try {
+      await saveContact(row);
+    } catch (error) {
+      log.error('contact creation failed', error);
+      toast.error(t.contactAddFailed);
+      finish();
+      return;
+    }
 
     /*
      * Focus follows it, once it is actually there. A single frame is too early:
@@ -149,6 +208,7 @@ export function ContactsScreen() {
       }
     };
     requestAnimationFrame(focus);
+    finish();
   };
 
   /*
@@ -159,9 +219,17 @@ export function ContactsScreen() {
    * than one that took half a second longer.
    */
   const printList = async () => {
-    flushAll();
+    if (!begin('print')) return;
+    try {
+      await flushAll();
+    } catch {
+      toast.error(t.contactSaveFailed);
+      finish();
+      return;
+    }
     if (rows.length === 0) {
       toast.error(t.contactsNothingToExport);
+      finish();
       return;
     }
     try {
@@ -171,13 +239,23 @@ export function ContactsScreen() {
     } catch (error) {
       log.error('contacts pdf failed', error);
       toast.error(t.pdfFailed);
+    } finally {
+      finish();
     }
   };
 
   const exportList = async () => {
-    flushAll();
+    if (!begin('export')) return;
+    try {
+      await flushAll();
+    } catch {
+      toast.error(t.contactSaveFailed);
+      finish();
+      return;
+    }
     if (rows.length === 0) {
       toast.error(t.contactsNothingToExport);
+      finish();
       return;
     }
     try {
@@ -196,12 +274,23 @@ export function ContactsScreen() {
       if (saved) toast.show(t.fileCreated(name));
     } catch (error) {
       log.error('contacts csv failed', error);
-      toast.error(t.contactsImportFailed);
+      toast.error(t.contactsExportFailed);
+    } finally {
+      finish();
     }
   };
 
   const importList = async (file: File) => {
+    if (!begin('import')) return;
     try {
+      // Names/numbers already visible in the table must participate in the
+      // import's matching pass, even if their debounce has not elapsed.
+      try {
+        await flushAll();
+      } catch {
+        toast.error(t.contactSaveFailed);
+        return;
+      }
       const { csvToContacts } = await import('../lib/contactsCsv');
       const parsed = csvToContacts(await file.text());
       if (parsed.length === 0) {
@@ -213,39 +302,64 @@ export function ContactsScreen() {
     } catch (error) {
       log.error('contacts import failed', error);
       toast.error(t.contactsImportFailed);
+    } finally {
+      finish();
     }
   };
 
   const remove = async (row: Contact) => {
-    if (row.id === undefined) return;
+    if (row.id === undefined || !begin(`delete:${row.uid}`)) return;
 
     /*
-     * The pending edit dies with the row.
-     *
-     * Left armed, a save scheduled half a second ago fires *after* the delete
-     * and writes the record straight back — with a stamp newer than the
-     * tombstone, so it survives the next sync too. Typing into a line and
-     * deleting it in the same breath is not an unusual thing to do; it is what
-     * happens when a line is added by mistake.
+     * Flush the pending edit before deleting. This both disarms its timer and
+     * makes the undo payload the exact row the user saw. If that write fails,
+     * deletion stops and the pending map keeps every typed character.
      */
-    const timer = timers.current.get(row.uid);
-    if (timer !== undefined) {
-      clearTimeout(timer);
-      timers.current.delete(row.uid);
+    const latestRow = pendingRef.current.get(row.uid) ?? row;
+    try {
+      await flush(row.uid);
+      await deleteContact(row.id);
+      // An undo rather than a confirmation, as in the diary list: the question
+      // costs everyone time, and the answer to a mistake is putting it back.
+      toast.show(t.contactDeleted, {
+        label: t.undo,
+        run: () => void undoDelete(latestRow),
+      });
+    } catch (error) {
+      log.error('contact deletion failed', error);
+      toast.error(pendingRef.current.has(row.uid) ? t.contactSaveFailed : t.contactDeleteFailed);
+    } finally {
+      finish();
     }
-    if (pendingRef.current.has(row.uid)) {
-      const next = new Map(pendingRef.current);
-      next.delete(row.uid);
-      putPending(next);
-    }
+  };
 
-    await deleteContact(row.id);
-    // An undo rather than a confirmation, as in the diary list: the question
-    // costs everyone time, and the answer to a mistake is putting it back.
-    toast.show(t.contactDeleted, {
-      label: t.undo,
-      run: () => void restoreContact(row),
-    });
+  const undoDelete = async (row: Contact) => {
+    if (!begin(`restore:${row.uid}`)) return;
+    try {
+      await restoreContact(row);
+      toast.show(t.contactRestored);
+    } catch (error) {
+      log.error('contact restore failed', error);
+      // The first toast action is dismissed before it runs. Put the retry back
+      // so a transient failure does not turn an undoable delete into a dead end.
+      toast.show(t.contactRestoreFailed, {
+        label: t.retry,
+        run: () => void undoDelete(row),
+      });
+    } finally {
+      finish();
+    }
+  };
+
+  const retryPending = async () => {
+    if (!begin('retry')) return;
+    try {
+      await flushAll();
+    } catch {
+      toast.error(t.contactSaveFailed);
+    } finally {
+      finish();
+    }
   };
 
   /** The pending copy of a row wins, so typing is never rolled back mid-word. */
@@ -320,9 +434,9 @@ export function ContactsScreen() {
               aria-label={t.searchContacts}
             />
           </div>
-          <button type="button" className="btn btn--primary" onClick={() => void add()}>
+          <button type="button" className="btn btn--primary" disabled={busy !== null} onClick={() => void add()}>
             <Icon name="plus" size={17} />
-            {t.newContact}
+            {busy === 'add' ? t.working : t.newContact}
           </button>
         </div>
 
@@ -358,24 +472,25 @@ export function ContactsScreen() {
         )}
 
         <div className="btn-row contacts__files">
-          <button type="button" className="btn btn--sm" onClick={() => void printList()}>
+          <button type="button" className="btn btn--sm" disabled={busy !== null} onClick={() => void printList()}>
             <Icon name="printer" size={17} />
-            {t.contactsPrint}
+            {busy === 'print' ? t.working : t.contactsPrint}
           </button>
-          <button type="button" className="btn btn--sm" onClick={() => void exportList()}>
+          <button type="button" className="btn btn--sm" disabled={busy !== null} onClick={() => void exportList()}>
             <Icon name="download" size={17} />
-            {t.contactsExport}
+            {busy === 'export' ? t.working : t.contactsExport}
           </button>
           {/* A label rather than a button: the file picker has to be opened by
               the input itself, and a styled label is the one way to do that
               without an invisible control jumping about the layout. */}
-          <label className="btn btn--sm">
+          <label className="btn btn--sm" aria-disabled={busy !== null || undefined}>
             <Icon name="upload" size={17} />
             {t.contactsImport}
             <input
               type="file"
               accept=".csv,text/csv,text/plain"
               className="visually-hidden"
+              disabled={busy !== null}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 // Cleared straight away, so choosing the same file twice in a
@@ -388,12 +503,31 @@ export function ContactsScreen() {
         </div>
       </div>
 
+      {saveFailed && (
+        <div className="card" role="alert" style={{ borderColor: 'var(--danger)' }}>
+          <div className="card__body row row--wrap">
+            <div className="grow">
+              <strong>{t.contactSaveFailed}</strong>
+              <p className="small muted">{t.contactSaveFailedBody}</p>
+            </div>
+            <button
+              type="button"
+              className="btn btn--sm"
+              disabled={busy !== null}
+              onClick={() => void retryPending()}
+            >
+              {t.retry}
+            </button>
+          </div>
+        </div>
+      )}
+
       {rows.length === 0 ? (
         <EmptyState icon="contacts" title={t.noContactsTitle}>
           <p className="muted" style={{ marginBottom: 16 }}>
             {t.noContactsBody}
           </p>
-          <button type="button" className="btn btn--primary" onClick={() => void add()}>
+          <button type="button" className="btn btn--primary" disabled={busy !== null} onClick={() => void add()}>
             <Icon name="plus" size={17} />
             {t.newContact}
           </button>
@@ -427,8 +561,9 @@ export function ContactsScreen() {
               index={numbers.get(row.uid) ?? 0}
               columns={columns}
               onEdit={edit}
-              onBlur={() => void flush(row.uid)}
+              onBlur={() => void flush(row.uid).catch(() => undefined)}
               onDelete={() => void remove(row)}
+              disabled={busy !== null}
             />
           ))}
         </div>
@@ -444,6 +579,7 @@ function Row({
   onEdit,
   onBlur,
   onDelete,
+  disabled,
 }: {
   row: Contact;
   index: number;
@@ -451,6 +587,7 @@ function Row({
   onEdit: (row: Contact, key: Column, value: string) => void;
   onBlur: () => void;
   onDelete: () => void;
+  disabled: boolean;
 }) {
   const { t } = useLanguage();
   const dialable = row.phone.replace(/[^\d+]/g, '');
@@ -479,6 +616,7 @@ function Row({
             inputMode={column.key === 'phone' ? 'tel' : undefined}
             className={column.key === 'phone' ? 'ctable__input ctable__input--tel' : 'ctable__input'}
             data-first={column.key === 'name' ? row.uid : undefined}
+            disabled={disabled}
             value={row[column.key]}
             placeholder={column.placeholder}
             aria-label={column.label}
@@ -503,6 +641,7 @@ function Row({
         <button
           type="button"
           className="icon-btn icon-btn--danger"
+          disabled={disabled}
           onClick={onDelete}
           aria-label={t.deleteContact}
           title={t.deleteContact}

@@ -86,6 +86,9 @@ export function SwipeRow({
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     // Any gesture still hanging around belongs to a pointer that is gone.
     reset();
+    // Some iOS swipes end without a click. Suppress only the swipe's click,
+    // never the next independent tap on Open or Export in this row.
+    swallowClick.current = false;
     if (disabled || (!start && !end)) return;
     // A secondary mouse button is a context menu, not a swipe.
     if (event.pointerType === 'mouse' && event.button !== 0) return;

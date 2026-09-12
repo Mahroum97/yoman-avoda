@@ -217,6 +217,24 @@ export function SettingsScreen() {
     <div>
       <h1 style={{ marginBottom: 16 }}>{t.settingsTitle}</h1>
 
+      <Card title={t.display} note={t.displayHint}>
+        <div className="segmented">
+          {themeOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className="segmented__item"
+              aria-pressed={preference === option.value}
+              onClick={() => setPreference(option.value)}
+            >
+              <Icon name={option.icon} size={19} />
+              <span>{option.label}</span>
+              <span className="segmented__hint">{option.hint}</span>
+            </button>
+          ))}
+        </div>
+      </Card>
+
       <Card title={t.language} note={t.languageHint}>
         <div className="segmented">
           {LANGUAGES.map((code) => (
@@ -236,24 +254,6 @@ export function SettingsScreen() {
       </Card>
 
       <SyncCard />
-
-      <Card title={t.display} note={t.displayHint}>
-        <div className="segmented">
-          {themeOptions.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className="segmented__item"
-              aria-pressed={preference === option.value}
-              onClick={() => setPreference(option.value)}
-            >
-              <Icon name={option.icon} size={19} />
-              <span>{option.label}</span>
-              <span className="segmented__hint">{option.hint}</span>
-            </button>
-          ))}
-        </div>
-      </Card>
 
       <Card title={t.fontTitle} note={t.fontHint}>
         <div className="fonts">

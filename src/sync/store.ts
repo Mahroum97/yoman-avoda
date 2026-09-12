@@ -6,6 +6,8 @@ import type { Contact, DiaryEntry, Project, TombstoneTable } from '../types';
 import { db, getSetting } from '../db';
 import { bytesToDataUrl, dataUrlToBytes, photoBytes } from '../lib/photoData';
 import { uid as newUid } from '../lib/id';
+import { preserveContractorIdentities } from '../lib/reportFields';
+import { logger } from '../lib/log';
 import {
   SYNCED_SETTINGS,
   SYNC_PROTOCOL_VERSION,
@@ -16,9 +18,22 @@ import {
   type WireEntry,
   type WireProject,
 } from './protocol';
+import {
+  compareEntryRevisions,
+  mergeEntryDeletionRevisions,
+  mergeEquivalentEntryRevisions,
+  revisionWinner,
+  stableConflictBranchUid,
+  validatedEntryRevision,
+} from './revision';
 
 /** How long a tombstone is kept before it is assumed to have reached everyone. */
 const TOMBSTONE_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+
+const log = logger('sync-store');
+
+const conflictGroupFor = (...uids: string[]): string =>
+  `conflict:${[...uids].sort().join(':')}`;
 
 /**
  * A stamp list read from an index rather than from the records.
@@ -36,10 +51,21 @@ async function stampsFrom(
   return keys.map(([uid, updatedAt]) => ({ uid, updatedAt }));
 }
 
+async function entryStamps(): Promise<SyncManifest['entries']> {
+  const keys = (await db.entries
+    .orderBy('[uid+updatedAt+syncRevision]')
+    .keys()) as unknown as [string, number, string][];
+  return keys.map(([uid, updatedAt, syncRevision]) => ({
+    uid,
+    updatedAt,
+    syncRevision,
+  }));
+}
+
 export async function buildManifest(deviceName: string): Promise<SyncManifest> {
   const [projects, entries, contacts, presets, tombstones, settings] = await Promise.all([
-    stampsFrom(db.projects, '[uid+createdAt]'),
-    stampsFrom(db.entries, '[uid+updatedAt]'),
+    stampsFrom(db.projects, '[uid+updatedAt]'),
+    entryStamps(),
     stampsFrom(db.contacts, '[uid+updatedAt]'),
     db.presets.toArray(),
     db.tombstones.toArray(),
@@ -146,9 +172,9 @@ function toWireProject(project: Project): WireProject {
     company: project.company,
     archived: project.archived,
     createdAt: project.createdAt,
-    // Projects have no updatedAt of their own; createdAt is stable and edits
-    // are rare, so it doubles as the version stamp.
-    updatedAt: project.createdAt,
+    // Older backups predate project modification stamps. Their creation time is
+    // the best version they have until v7 backfills and the next edit advances it.
+    updatedAt: project.updatedAt ?? project.createdAt,
   };
 }
 
@@ -178,6 +204,7 @@ async function toWireEntry(entry: DiaryEntry): Promise<WireEntry> {
     casting: entry.casting,
     supervisorNotes: entry.supervisorNotes,
     receivedToday: entry.receivedToday ?? '',
+    deliveryLedger: entry.deliveryLedger,
     supervisorSignature: entry.supervisorSignature,
     managerSignature: entry.managerSignature,
     photos: await Promise.all(
@@ -200,6 +227,11 @@ async function toWireEntry(entry: DiaryEntry): Promise<WireEntry> {
     status: entry.status,
     pinned: entry.pinned ?? false,
     deletedAt: entry.deletedAt,
+    syncConflict: entry.syncConflict,
+    syncConflictKind: entry.syncConflictKind,
+    syncConflictGroup: entry.syncConflictGroup,
+    syncConflictRoot: entry.syncConflictRoot,
+    syncRevision: validatedEntryRevision(entry),
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
   };
@@ -210,11 +242,32 @@ export async function collectMeta(request: SyncRequest): Promise<SyncPayload> {
   return collectPayload({ ...request, entries: [] });
 }
 
-export interface ApplyResult {
+export interface SyncCounts {
   projects: number;
   entries: number;
   contacts: number;
+  presets: number;
+  settings: number;
+  tombstones: number;
+}
+
+/** Counts every record class actually carried by one wire payload. */
+export function countPayload(payload: SyncPayload): SyncCounts {
+  return {
+    projects: payload.projects.length,
+    entries: payload.entries.length,
+    contacts: payload.contacts?.length ?? 0,
+    presets: payload.presets.length,
+    settings: payload.settings.length,
+    tombstones: payload.tombstones.length,
+  };
+}
+
+export interface ApplyResult extends SyncCounts {
+  /** Records physically removed while applying received tombstones. */
   deleted: number;
+  /** Concurrent revision or delete/edit conflicts retained for review. */
+  conflicts: number;
 }
 
 /**
@@ -249,11 +302,17 @@ export async function applyPayload(payload: SyncPayload): Promise<ApplyResult> {
     );
   }
 
-  return db.transaction(
+  const result = await db.transaction(
     'rw',
     [db.projects, db.entries, db.contacts, db.presets, db.settings, db.tombstones],
     () => mergeInTransaction(payload, decoded),
   );
+  if (result.conflicts > 0) {
+    log.warn('kept concurrent diary revisions for review', {
+      conflicts: result.conflicts,
+    });
+  }
+  return result;
 }
 
 /**
@@ -282,23 +341,160 @@ function keepReadablePhotos(
   });
 }
 
+async function putStableConflictBranch(
+  branch: DiaryEntry,
+  rootUid: string,
+  group: string,
+): Promise<DiaryEntry> {
+  const syncRevision = validatedEntryRevision(branch);
+  const uid = stableConflictBranchUid(rootUid, syncRevision);
+  const held = await db.entries.where('uid').equals(uid).first();
+  if (held && validatedEntryRevision(held) !== syncRevision) {
+    // A 128-bit identity collision must stop the merge, never overwrite an
+    // unrelated preserved branch. The transaction abort leaves both originals.
+    throw new Error('CONFLICT_UID_COLLISION');
+  }
+  const record: DiaryEntry = {
+    ...branch,
+    id: held?.id,
+    uid,
+    syncRevision,
+    syncConflict: true,
+    syncConflictKind: 'revision',
+    syncConflictGroup: group,
+    syncConflictRoot: rootUid,
+  };
+  record.id = await db.entries.put(record);
+  return record;
+}
+
+async function preserveConcurrentBranches(
+  existing: DiaryEntry,
+  incoming: DiaryEntry,
+  localRevision: string,
+  remoteRevision: string,
+): Promise<void> {
+  const rootUid =
+    existing.syncConflictRoot ?? incoming.syncConflictRoot ?? existing.uid;
+  const group =
+    existing.syncConflictGroup ?? incoming.syncConflictGroup ?? `revision:${rootUid}`;
+  const local: DiaryEntry = {
+    ...existing,
+    syncRevision: localRevision,
+    syncConflict: true,
+    syncConflictKind: 'revision',
+    syncConflictGroup: group,
+    syncConflictRoot: rootUid,
+  };
+  const remote: DiaryEntry = {
+    ...incoming,
+    syncRevision: remoteRevision,
+    syncConflict: true,
+    syncConflictKind: 'revision',
+    syncConflictGroup: group,
+    syncConflictRoot: rootUid,
+  };
+
+  if (revisionWinner(localRevision, remoteRevision) === 'local') {
+    await putStableConflictBranch(remote, rootUid, group);
+    await db.entries.put({
+      ...local,
+      id: existing.id,
+      uid: existing.uid,
+      updatedAt: Math.max(existing.updatedAt, incoming.updatedAt),
+    });
+  } else {
+    await putStableConflictBranch(local, rootUid, group);
+    await db.entries.put({
+      ...remote,
+      id: existing.id,
+      uid: existing.uid,
+      updatedAt: Math.max(existing.updatedAt, incoming.updatedAt),
+    });
+  }
+}
+
 async function mergeInTransaction(
   payload: SyncPayload,
   decoded: Map<string, DiaryEntry['photos']>,
 ): Promise<ApplyResult> {
-  const result: ApplyResult = { projects: 0, entries: 0, contacts: 0, deleted: 0 };
+  const result: ApplyResult = {
+    projects: 0,
+    entries: 0,
+    contacts: 0,
+    presets: 0,
+    settings: 0,
+    tombstones: 0,
+    deleted: 0,
+    conflicts: 0,
+  };
 
   // --- deletions
-  for (const stone of payload.tombstones) {
-    const existing = await db.tombstones.get(stone.uid);
-    if (!existing || existing.deletedAt < stone.deletedAt) {
+  for (const incomingStone of payload.tombstones) {
+    const existing = await db.tombstones.get(incomingStone.uid);
+    let stone = incomingStone;
+    let shouldStore = !existing || existing.deletedAt < incomingStone.deletedAt;
+    if (
+      existing?.table === 'entries' &&
+      incomingStone.table === 'entries' &&
+      existing.entryRevision &&
+      incomingStone.entryRevision
+    ) {
+      const order = compareEntryRevisions(
+        existing.entryRevision,
+        incomingStone.entryRevision,
+      );
+      if (order === 'local-ahead' || order === 'same') {
+        stone = existing;
+        shouldStore = false;
+      } else if (order === 'concurrent') {
+        stone = {
+          ...incomingStone,
+          deletedAt: Math.max(existing.deletedAt, incomingStone.deletedAt),
+          entryRevision:
+            mergeEntryDeletionRevisions(
+              existing.entryRevision,
+              incomingStone.entryRevision,
+            ) ?? incomingStone.entryRevision,
+        };
+        shouldStore = true;
+      } else {
+        shouldStore = true;
+      }
+    }
+    if (shouldStore) {
       await db.tombstones.put(stone);
+      result.tombstones += 1;
     }
     if (stone.table === 'entries') {
       const entry = await db.entries.where('uid').equals(stone.uid).first();
-      if (entry?.id !== undefined && entry.updatedAt <= stone.deletedAt) {
-        await db.entries.delete(entry.id);
-        result.deleted += 1;
+      if (entry?.id !== undefined) {
+        const deletionOrder = stone.entryRevision
+          ? compareEntryRevisions(
+              validatedEntryRevision(entry),
+              stone.entryRevision,
+            )
+          : entry.updatedAt <= stone.deletedAt
+            ? 'remote-ahead'
+            : 'local-ahead';
+        if (deletionOrder === 'remote-ahead' || deletionOrder === 'same') {
+          await db.entries.delete(entry.id);
+          await clearResolvedConflict(entry, stone.deletedAt);
+          result.deleted += 1;
+        } else if (deletionOrder === 'concurrent') {
+          await db.entries.update(entry.id, {
+            syncConflict: true,
+            syncConflictKind: 'deletion',
+            syncConflictGroup: entry.syncConflictGroup ?? `deletion:${entry.uid}`,
+            syncConflictRoot: entry.syncConflictRoot ?? entry.uid,
+          });
+          result.conflicts += 1;
+        } else {
+          // The live entry causally follows this deletion (explicit Keep or a
+          // restore). Do not retain/rebroadcast the obsolete stone merely
+          // because it hitched a ride in an unrelated metadata payload.
+          await db.tombstones.delete(stone.uid);
+        }
       }
     } else if (stone.table === 'contacts') {
       const contact = await db.contacts.where('uid').equals(stone.uid).first();
@@ -310,7 +506,11 @@ async function mergeInTransaction(
       // Named rather than left as the `else`, so a table added later cannot
       // fall into the branch that deletes a project and every page under it.
       const project = await db.projects.where('uid').equals(stone.uid).first();
-      if (project?.id !== undefined) {
+      const projectUpdatedAt = project?.updatedAt ?? project?.createdAt ?? -1;
+      // A restored or edited project newer than the deletion survives, along
+      // with its pages. Applying project stones unconditionally used to undo a
+      // deliberate backup restore even though every restored page was newer.
+      if (project?.id !== undefined && projectUpdatedAt <= stone.deletedAt) {
         await db.entries.where('projectId').equals(project.id).delete();
         await db.projects.delete(project.id);
         result.deleted += 1;
@@ -327,17 +527,24 @@ async function mergeInTransaction(
    */
   const localStones = await db.tombstones.toArray();
   const deletedAt = new Map<string, number>();
-  for (const stone of [...localStones, ...payload.tombstones]) {
+  const entryStones = new Map<string, (typeof localStones)[number]>();
+  for (const stone of localStones) {
     const key = `${stone.table}:${stone.uid}`;
     deletedAt.set(key, Math.max(deletedAt.get(key) ?? 0, stone.deletedAt));
+    if (stone.table === 'entries') {
+      const held = entryStones.get(stone.uid);
+      if (!held || held.deletedAt < stone.deletedAt) entryStones.set(stone.uid, stone);
+    }
   }
   const isDeleted = (table: TombstoneTable, uid: string, updatedAt: number) =>
     (deletedAt.get(`${table}:${uid}`) ?? -1) >= updatedAt;
 
   // --- projects
   for (const wire of payload.projects) {
-    if (isDeleted('projects', wire.uid, wire.updatedAt)) continue;
+    const wireUpdatedAt = wire.updatedAt ?? wire.createdAt;
+    if (isDeleted('projects', wire.uid, wireUpdatedAt)) continue;
     const existing = await db.projects.where('uid').equals(wire.uid).first();
+    if ((existing?.updatedAt ?? existing?.createdAt ?? -1) >= wireUpdatedAt) continue;
     const record: Project = {
       uid: wire.uid,
       name: wire.name,
@@ -345,6 +552,7 @@ async function mergeInTransaction(
       company: wire.company,
       archived: wire.archived,
       createdAt: wire.createdAt,
+      updatedAt: wireUpdatedAt,
     };
     if (existing?.id === undefined) {
       await db.projects.add(record);
@@ -356,26 +564,12 @@ async function mergeInTransaction(
 
   // --- entries
   for (const wire of payload.entries) {
-    if (isDeleted('entries', wire.uid, wire.updatedAt)) continue;
     const project = await db.projects.where('uid').equals(wire.projectUid).first();
     // An entry whose project never arrived would be unreachable in the UI.
     if (project?.id === undefined) continue;
 
     const existing = await db.entries.where('uid').equals(wire.uid).first();
-    if (existing && existing.updatedAt >= wire.updatedAt) continue;
-
-    // One page per project per day: an entry arriving for a date that already
-    // has a different page replaces it, since the newer stamp wins.
-    const clash = await db.entries
-      .where({ projectId: project.id, date: wire.date })
-      .filter((e) => e.deletedAt === undefined)
-      .first();
-    if (clash?.id !== undefined && clash.uid !== wire.uid) {
-      if (clash.updatedAt > wire.updatedAt) continue;
-      await db.entries.delete(clash.id);
-    }
-
-    const entry: DiaryEntry = {
+    let entry: DiaryEntry = {
       id: existing?.id,
       uid: wire.uid,
       projectUid: wire.projectUid,
@@ -383,24 +577,154 @@ async function mergeInTransaction(
       date: wire.date,
       weather: wire.weather,
       management: wire.management as DiaryEntry['management'],
-      contractors: wire.contractors as DiaryEntry['contractors'],
+      contractors: preserveContractorIdentities(wire.contractors as DiaryEntry['contractors'], existing?.contractors),
       equipment: wire.equipment as DiaryEntry['equipment'],
       workDescription: wire.workDescription,
       casting: wire.casting as DiaryEntry['casting'],
       supervisorNotes: wire.supervisorNotes,
       receivedToday: wire.receivedToday ?? '',
+      deliveryLedger: wire.deliveryLedger ?? existing?.deliveryLedger,
       supervisorSignature: wire.supervisorSignature,
       managerSignature: wire.managerSignature,
       photos: keepReadablePhotos(decoded.get(wire.uid) ?? [], existing?.photos),
-      status: wire.status,
+      // A manager signature raises the status, and a signed page never falls
+      // back to draft. Older peers can still send the pre-v5 combination of a
+      // manager signature with `draft`, so trusting the wire value here would
+      // undo the invariant that `saveEntry` and the v5 migration enforce.
+      status:
+        wire.managerSignature?.trim() || existing?.status === 'signed'
+          ? 'signed'
+          : wire.status,
       pinned: wire.pinned ?? false,
+      syncConflict: wire.syncConflict,
+      syncConflictKind: wire.syncConflictKind,
+      syncConflictGroup: wire.syncConflictGroup,
+      syncConflictRoot: wire.syncConflictRoot,
+      syncRevision: wire.syncRevision,
       createdAt: wire.createdAt,
       updatedAt: wire.updatedAt,
     };
     // Set rather than always assigned: `deletedAt: undefined` on a record is
     // not the same as no `deletedAt` at all once it has been through IndexedDB.
     if (wire.deletedAt !== undefined) entry.deletedAt = wire.deletedAt;
+    const remoteRevision = validatedEntryRevision(entry, wire.syncRevision);
+    entry.syncRevision = remoteRevision;
+    const entryStone = entryStones.get(wire.uid);
+    if (entryStone?.entryRevision) {
+      const deletionOrder = compareEntryRevisions(
+        entryStone.entryRevision,
+        remoteRevision,
+      );
+      if (deletionOrder === 'local-ahead' || deletionOrder === 'same') continue;
+      if (deletionOrder === 'concurrent') {
+        entry = {
+          ...entry,
+          syncConflict: true,
+          syncConflictKind: 'deletion',
+          syncConflictGroup: entry.syncConflictGroup ?? `deletion:${wire.uid}`,
+          syncConflictRoot: entry.syncConflictRoot ?? wire.uid,
+        };
+      } else {
+        // The incoming entry causally follows our tombstone. Its restore/Keep
+        // decision makes that deletion obsolete on this device too.
+        await db.tombstones.delete(wire.uid);
+        entryStones.delete(wire.uid);
+      }
+    } else if (isDeleted('entries', wire.uid, wire.updatedAt)) {
+      continue;
+    }
+
+    if (existing) {
+      const localRevision = validatedEntryRevision(existing);
+      const relation = compareEntryRevisions(localRevision, remoteRevision);
+      if (relation === 'local-ahead') continue;
+      if (relation === 'same') {
+        const addsConflictMetadata =
+          (!!entry.syncConflict && !existing.syncConflict) ||
+          (!!entry.syncConflictKind && !existing.syncConflictKind) ||
+          (!!entry.syncConflictGroup && !existing.syncConflictGroup) ||
+          (!!entry.syncConflictRoot && !existing.syncConflictRoot);
+        if (!addsConflictMetadata) continue;
+        await db.entries.update(existing.id!, {
+          syncConflict: existing.syncConflict || entry.syncConflict,
+          syncConflictKind: existing.syncConflictKind ?? entry.syncConflictKind,
+          syncConflictGroup: existing.syncConflictGroup ?? entry.syncConflictGroup,
+          syncConflictRoot: existing.syncConflictRoot ?? entry.syncConflictRoot,
+          updatedAt: Math.max(existing.updatedAt, entry.updatedAt),
+        });
+        result.entries += 1;
+        continue;
+      }
+      if (relation === 'concurrent') {
+        const mergedRevision = mergeEquivalentEntryRevisions(
+          localRevision,
+          remoteRevision,
+        );
+        if (mergedRevision) {
+          const newer = entry.updatedAt > existing.updatedAt ? entry : existing;
+          entry = {
+            ...newer,
+            id: existing.id,
+            uid: existing.uid,
+            projectId: project.id,
+            photos: keepReadablePhotos(entry.photos, existing.photos),
+            syncRevision: mergedRevision,
+            syncConflict: existing.syncConflict || entry.syncConflict,
+            syncConflictKind: existing.syncConflictKind ?? entry.syncConflictKind,
+            syncConflictGroup: existing.syncConflictGroup ?? entry.syncConflictGroup,
+            syncConflictRoot: existing.syncConflictRoot ?? entry.syncConflictRoot,
+            updatedAt: Math.max(existing.updatedAt, entry.updatedAt),
+          };
+          await db.entries.put(entry);
+          result.entries += 1;
+          continue;
+        }
+        await preserveConcurrentBranches(
+          existing,
+          entry,
+          localRevision,
+          remoteRevision,
+        );
+        result.entries += 1;
+        result.conflicts += 1;
+        continue;
+      }
+      // `remote-ahead` falls through to the ordinary replacement below.
+    }
+
+    // Two devices can independently create their own page for the same
+    // project/date while offline. Deleting the lower timestamp here silently
+    // discarded a whole day. Keep both records and mark the pair so either can
+    // still be edited until the user deliberately moves one to the trash.
+    const clash = await db.entries
+      .where({ projectId: project.id, date: wire.date })
+      .filter((candidate) => candidate.uid !== wire.uid && candidate.deletedAt === undefined)
+      .first();
+    let conflictGroup = entry.syncConflictGroup ?? existing?.syncConflictGroup;
+    if (clash?.id !== undefined) {
+      conflictGroup ??=
+        clash.syncConflictGroup ?? conflictGroupFor(clash.uid, wire.uid);
+      await db.entries.update(clash.id, {
+        syncConflict: true,
+        syncConflictKind: 'revision',
+        syncConflictGroup: conflictGroup,
+      });
+      entry = {
+        ...entry,
+        syncConflict: true,
+        syncConflictKind: 'revision',
+        syncConflictGroup: conflictGroup,
+      };
+      result.conflicts += 1;
+    }
     await db.entries.put(entry);
+    if (
+      existing &&
+      (existing.projectId !== entry.projectId || existing.date !== entry.date)
+    ) {
+      await clearResolvedConflict(existing, entry.updatedAt);
+    }
+    await clearResolvedConflict(entry, entry.updatedAt);
     result.entries += 1;
   }
 
@@ -435,11 +759,13 @@ async function mergeInTransaction(
         uses: wire.uses,
         updatedAt: wire.updatedAt,
       });
+      result.presets += 1;
     } else if (wire.uses > existing.uses) {
       await db.presets.update(existing.id, {
         uses: wire.uses,
         updatedAt: Math.max(existing.updatedAt, wire.updatedAt),
       });
+      result.presets += 1;
     }
   }
 
@@ -448,6 +774,7 @@ async function mergeInTransaction(
     const existing = await db.settings.get(wire.key);
     if (!existing || (existing.updatedAt ?? 0) < wire.updatedAt) {
       await db.settings.put({ key: wire.key, value: wire.value, updatedAt: wire.updatedAt });
+      result.settings += 1;
     }
   }
 
@@ -460,6 +787,40 @@ async function mergeInTransaction(
 
   await pruneTombstones();
   return result;
+}
+
+/** Clears a conflict marker after a received move/delete leaves one live alternative. */
+async function clearResolvedConflict(
+  entry: Pick<DiaryEntry, 'projectId' | 'date' | 'syncConflictGroup'>,
+  after: number,
+): Promise<void> {
+  const live = entry.syncConflictGroup
+    ? await db.entries
+        .where('projectId')
+        .equals(entry.projectId)
+        .filter(
+          (candidate) =>
+            candidate.deletedAt === undefined &&
+            candidate.syncConflictGroup === entry.syncConflictGroup,
+        )
+        .toArray()
+    : await db.entries
+        .where({ projectId: entry.projectId, date: entry.date })
+        .filter((candidate) => candidate.deletedAt === undefined)
+        .toArray();
+  if (
+    live.length !== 1 ||
+    !live[0].syncConflict ||
+    live[0].syncConflictKind === 'deletion' ||
+    live[0].id === undefined
+  ) {
+    return;
+  }
+  await db.entries.update(live[0].id, {
+    syncConflict: false,
+    syncConflictKind: undefined,
+    updatedAt: Math.max(Date.now(), live[0].updatedAt, after) + 1,
+  });
 }
 
 /** Old tombstones would otherwise grow without bound. */

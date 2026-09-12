@@ -14,7 +14,7 @@ const config: CapacitorConfig = {
   ios: {
     // The diary is a document, not a game: keep the web view opaque and let the
     // page own its own background so dark mode does not flash white.
-    backgroundColor: '#0f2d4a',
+    backgroundColor: '#f4f4f3',
     contentInset: 'never',
     limitsNavigationsToAppBoundDomains: true,
   },

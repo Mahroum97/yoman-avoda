@@ -15,7 +15,13 @@ import type { DiaryEntry } from '../types';
  */
 export function parseNum(raw: string | undefined | null): number {
   if (typeof raw !== 'string') return 0;
-  const match = raw.replace(',', '.').match(/-?\d+(\.\d+)?/);
+  const normalized = raw
+    .replace(/[\u0660-\u0669]/g, digit => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, digit => String(digit.charCodeAt(0) - 0x06f0))
+    .replace(/\u066c/g, '')
+    .replace(/\u066b/g, '.')
+    .replace(',', '.');
+  const match = normalized.match(/-?\d+(\.\d+)?/);
   return match ? Number(match[0]) : 0;
 }
 
@@ -61,7 +67,7 @@ export interface RangeSummary {
   signedDays: number;
 }
 
-export function summarise(entries: DiaryEntry[]): RangeSummary {
+export function summarise(entries: DiaryEntry[], unspecifiedType = 'ללא ציון סוג'): RangeSummary {
   type Row = { label: string; value: number; day: number };
   const tradeRows: Row[] = [];
   const equipmentRows: Row[] = [];
@@ -92,7 +98,7 @@ export function summarise(entries: DiaryEntry[]): RangeSummary {
     const qty = parseNum(casting.concreteQty);
     const type = text(casting.concreteType);
     if (qty > 0 || type) {
-      concreteRows.push({ label: type || 'ללא ציון סוג', value: qty, day });
+      concreteRows.push({ label: type || unspecifiedType, value: qty, day });
     }
     if (qty > 0 || type || text(casting.description)) castingDays += 1;
     if ((entry.management?.length ?? 0) > 0 || (entry.contractors?.length ?? 0) > 0) {

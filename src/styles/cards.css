@@ -1,0 +1,762 @@
+/*
+ * כרטיס: separate, comfortable places to work, with neutral surfaces.
+ * Import after global.css. Color identifies a signed page, an issue needing
+ * attention, or a destructive action; navigation and categories stay neutral.
+ * These rules apply to the application on screen only. The A4 sheet's own
+ * typography, dimensions and document-theme variables are deliberately absent.
+ */
+@media screen {
+  :root {
+    --bg: #f4f4f3;
+    --surface: #ffffff;
+    --surface-2: #f7f7f6;
+    --ink: #242424;
+    --muted: #656565;
+    --line: #e2e2e0;
+    --line-strong: #c7c7c3;
+    --brand: #292929;
+    --brand-ink: #ffffff;
+    --accent: #292929;
+    --accent-fill: #292929;
+    --accent-ink: #ffffff;
+    --accent-soft: #ededeb;
+    --topbar: rgb(244 244 243 / 96%);
+    --topbar-ink: #242424;
+    --topbar-line: #e2e2e0;
+    --topbar-btn: #ffffff;
+    --topbar-btn-line: #d8d8d5;
+    --amber: #8a4b08;
+    --amber-soft: #fff5df;
+    --ok: #22643e;
+    --ok-soft: #edf6ef;
+    --danger: #b42318;
+    --danger-soft: #fff0ee;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 5px rgb(0 0 0 / 2%);
+    --shadow-lift: 0 6px 20px rgb(0 0 0 / 7%);
+    --tap: 46px;
+    --navh: 66px;
+    --cards-sidebar-width: 208px;
+    --cards-content-width: 1240px;
+  }
+
+  :root[data-theme='dark'] {
+    --bg: #191919;
+    --surface: #242424;
+    --surface-2: #2c2c2c;
+    --ink: #f1f1ef;
+    --muted: #b0b0aa;
+    --line: #393938;
+    --line-strong: #595955;
+    --brand: #e8e8e4;
+    --brand-ink: #242424;
+    --accent: #e8e8e4;
+    --accent-fill: #e8e8e4;
+    --accent-ink: #242424;
+    --accent-soft: #343432;
+    --topbar: rgb(25 25 25 / 96%);
+    --topbar-ink: #f1f1ef;
+    --topbar-line: #393938;
+    --topbar-btn: #242424;
+    --topbar-btn-line: #454543;
+    --amber: #efbc70;
+    --amber-soft: #382c1d;
+    --ok: #8ecba2;
+    --ok-soft: #213228;
+    --danger: #ffaba3;
+    --danger-soft: #402521;
+    --shadow: 0 2px 5px rgb(0 0 0 / 8%);
+    --shadow-lift: 0 6px 20px rgb(0 0 0 / 22%);
+  }
+
+  :root[data-theme='black'] {
+    --bg: #000000;
+    --surface: #111111;
+    --surface-2: #1a1a1a;
+    --ink: #f1f1ef;
+    --muted: #b0b0aa;
+    --line: #30302e;
+    --line-strong: #50504c;
+    --brand: #e8e8e4;
+    --brand-ink: #111111;
+    --accent: #e8e8e4;
+    --accent-fill: #e8e8e4;
+    --accent-ink: #111111;
+    --accent-soft: #292927;
+    --topbar: #000000;
+    --topbar-ink: #f1f1ef;
+    --topbar-line: #30302e;
+    --topbar-btn: #111111;
+    --topbar-btn-line: #3e3e3b;
+    --amber: #efbc70;
+    --amber-soft: #2e2418;
+    --ok: #8ecba2;
+    --ok-soft: #19291f;
+    --danger: #ffaba3;
+    --danger-soft: #321d1a;
+    --shadow: none;
+    --shadow-lift: none;
+  }
+
+  .cards-shell,
+  .cards-content,
+  .cards-editor-grid,
+  .cards-editor-form {
+    min-width: 0;
+  }
+
+  .cards-content {
+    display: flex;
+    flex: 1;
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .cards-shell {
+    flex: 1;
+    width: 100%;
+  }
+
+  .cards-sidebar {
+    display: contents;
+  }
+
+  .cards-sidebar__brand,
+  .cards-sidebar__project,
+  .cards-sidebar__note {
+    display: none;
+  }
+
+  .app--cards .main {
+    max-width: 900px;
+    padding-block-start: 22px;
+    padding-block-end: calc(104px + env(safe-area-inset-bottom));
+  }
+
+  .app--cards .chrome {
+    background: var(--bg);
+  }
+
+  .app--cards .topbar {
+    min-height: 68px;
+    gap: 10px;
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .app--cards .topbar__icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
+  }
+
+  .app--cards .topbar__title {
+    font-size: var(--fs-base);
+    font-weight: 650;
+  }
+
+  .app--cards .topbar__sub {
+    color: var(--muted);
+    opacity: 1;
+  }
+
+  .app--cards .actionbar {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .app--cards .actionbar::before {
+    background: var(--bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .app--cards .actionbar__inner {
+    min-height: 62px;
+  }
+
+  .app--cards .sectionrail {
+    gap: 6px;
+    padding-block-end: 12px;
+  }
+
+  .app--cards .nav {
+    min-height: var(--navh);
+    padding-block-start: 5px;
+    padding-inline: 5px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .app--cards .nav__item {
+    min-width: 0;
+    min-height: 56px;
+    border-radius: 10px;
+  }
+
+  .app--cards .nav__item[aria-current='page'] {
+    background: var(--accent-soft);
+    color: var(--ink);
+    font-weight: 700;
+  }
+
+  .app--cards .nav__item:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .app--cards .card {
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    margin-block-end: 16px;
+  }
+
+  .app--cards .card--folded {
+    margin-block-end: 12px;
+  }
+
+  .app--cards .card__head,
+  .app--cards .card__toggle {
+    padding-inline: 20px;
+    padding-block-start: 20px;
+  }
+
+  .app--cards .card__toggle {
+    padding-block-end: 20px;
+    gap: 12px;
+    min-height: 78px;
+  }
+
+  .app--cards .card__toggle[aria-expanded='true'] {
+    padding-block-end: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .app--cards .card__toggle-title,
+  .app--cards .card__head h2 {
+    font-size: var(--fs-base);
+    font-weight: 650;
+    letter-spacing: normal;
+  }
+
+  .app--cards .card__toggle-summary {
+    margin-block-start: 5px;
+    font-size: var(--fs-sm);
+  }
+
+  .app--cards .card__body {
+    padding: 18px 20px 20px;
+  }
+
+  .app--cards .section-badge,
+  .app--cards .section-badge--done {
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface-2);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* Filled fields are not a verified document. Keep those markers neutral. */
+  .app--cards .sectionrail__chip--done .sectionrail__dot {
+    background: var(--muted);
+  }
+
+  .app--cards .sectionrail__chip[aria-current='true'] .sectionrail__dot {
+    background: var(--accent-ink);
+  }
+
+  .app--cards .field__label {
+    margin-block-end: 6px;
+    color: var(--muted);
+    font-size: var(--fs-sm);
+    letter-spacing: normal;
+    font-weight: 550;
+  }
+
+  .app--cards :is(input[type='text'], input[type='date'], input[type='number'], input[type='search'], input[type='tel'], textarea, select) {
+    min-height: 46px;
+    border-color: var(--line-strong);
+    border-radius: 10px;
+    background: var(--surface);
+  }
+
+  .app--cards :is(input, textarea, select):focus {
+    border-color: var(--ink);
+  }
+
+  .app--cards :is(input, textarea, select, button, a):focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  .app--cards :is(input, textarea, select)[aria-invalid='true'] {
+    border-color: var(--danger);
+    background: var(--danger-soft);
+  }
+
+  .app--cards input[type='checkbox'],
+  .app--cards input[type='radio'] {
+    accent-color: var(--accent);
+  }
+
+  .app--cards .btn,
+  .app--cards .actionmenu__button {
+    border-radius: 11px;
+    letter-spacing: normal;
+  }
+
+  .app--cards .btn--sm {
+    min-height: 40px;
+  }
+
+  .app--cards .btn--primary:hover:not(:disabled) {
+    filter: none;
+    opacity: 0.88;
+  }
+
+  .app--cards .btn--brand {
+    border-color: var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .app--cards .row-item {
+    padding: 14px;
+    border-radius: 12px;
+    background: var(--surface-2);
+  }
+
+  .app--cards .row-item__actions {
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--surface);
+  }
+
+  .app--cards .rowbtn {
+    border-radius: 7px;
+  }
+
+  .app--cards .rows {
+    gap: 12px;
+  }
+
+  .app--cards .filterbar,
+  .app--cards .rangebar {
+    gap: 6px;
+    padding: 5px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  .app--cards .filterbar__chip,
+  .app--cards .sectionrail__chip {
+    min-height: 40px;
+    border-radius: 8px;
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .app--cards .filterbar__chip[aria-current='true'],
+  .app--cards .sectionrail__chip[aria-current='true'] {
+    background: var(--accent-fill);
+    border-color: var(--accent-fill);
+    color: var(--accent-ink);
+  }
+
+  .app--cards .filterbar__chip--icon {
+    inline-size: 40px;
+  }
+
+  .app--cards .segmented {
+    gap: 4px;
+    padding: 5px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-2);
+  }
+
+  .app--cards .segmented__item {
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+  }
+
+  .app--cards .segmented__item[aria-pressed='true'] {
+    border-color: var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+  }
+
+  .app--cards .todaycard {
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: var(--shadow);
+  }
+
+  .app--cards .todaycard:hover {
+    filter: none;
+    border-color: var(--ink);
+  }
+
+  .app--cards .todaycard__mark {
+    background: var(--accent-fill);
+    color: var(--accent-ink);
+  }
+
+  .app--cards .entry {
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .app--cards .entry--selected {
+    border-color: var(--ink);
+    background: var(--accent-soft);
+  }
+
+  .app--cards .entry__date {
+    background: var(--surface-2);
+    border-radius: 10px;
+  }
+
+  .app--cards .entry__pin,
+  .app--cards .ctable__badge {
+    color: var(--ink);
+  }
+
+  .app--cards .ctable__badge {
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    border-radius: 9px;
+  }
+
+  .app--cards .tile__preview {
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .app--cards .tile--selected .tile__preview {
+    box-shadow: 0 0 0 2px var(--ink);
+  }
+
+  .app--cards .status--draft {
+    color: var(--muted);
+  }
+
+  .app--cards .chip--draft {
+    border-color: var(--line);
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+
+  .app--cards .icon-btn--call,
+  .app--cards .icon-btn--call:hover {
+    border-color: var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .app--cards .backup-state:not(.backup-state--stale) {
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+
+  .app--cards .swipe__action--pin {
+    background: #414141;
+    color: #ffffff;
+  }
+
+  .app--cards .log-row--warn {
+    background: var(--amber-soft);
+  }
+
+  .report-conflict .card {
+    border-color: var(--amber);
+  }
+
+  .report-conflict__dates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2);
+    margin-block: var(--s3) var(--s4);
+    color: var(--amber);
+    font-weight: var(--fw-semi);
+  }
+
+  .app--cards .selectionbar {
+    box-shadow: 0 -3px 14px rgb(0 0 0 / 5%);
+  }
+
+  .cards-editor-preview {
+    display: none;
+  }
+
+  .cards-editor-preview__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: var(--fs-sm);
+  }
+
+  /* A tray surrounding the existing preview, without styling the page itself. */
+  .cards-editor-preview__body {
+    padding: 18px;
+    min-width: 0;
+    background: var(--surface-2);
+  }
+
+  .actionmenu__sheet,
+  .viewmenu__panel {
+    border-radius: 14px;
+  }
+
+  .actionmenu__items {
+    border-radius: 9px;
+  }
+}
+
+@media screen and (max-width: 619px) {
+  .app--cards .main {
+    padding-block-start: 16px;
+  }
+
+  .app--cards .card__head,
+  .app--cards .card__toggle {
+    padding-inline: 16px;
+  }
+
+  .app--cards .card__body {
+    padding: 16px;
+  }
+
+  .app--cards .topbar {
+    gap: 7px;
+  }
+
+  .app--cards .topbar__icon {
+    width: 40px;
+    height: 44px;
+  }
+
+  .app--cards .btn--sm,
+  .app--cards .filterbar__chip,
+  .app--cards .sectionrail__chip {
+    min-height: 44px;
+  }
+
+  .app--cards .filterbar__chip--icon {
+    inline-size: 44px;
+  }
+
+  .app--cards .rowbtn {
+    block-size: 44px;
+  }
+
+  .app--cards .row-item {
+    padding: 12px;
+  }
+
+  .app--cards .field__hint {
+    font-size: var(--fs-sm);
+  }
+}
+
+@media screen and (min-width: 1100px) {
+  .app--cards {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .app--cards .cards-sidebar {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 35;
+    width: var(--cards-sidebar-width);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px 12px;
+    border-inline-end: 1px solid var(--line);
+    background: var(--surface);
+    overflow-y: auto;
+  }
+
+  /* In English the sidebar occupies the same physical edge as the macOS
+     traffic lights. Start its contents below that native title-bar area. */
+  :root[data-desktop='true'][dir='ltr'] .app--cards .cards-sidebar {
+    padding-block-start: 56px;
+  }
+
+  .app--cards .cards-content {
+    width: calc(100% - var(--cards-sidebar-width));
+    margin-inline-start: var(--cards-sidebar-width);
+  }
+
+  .app--cards .cards-sidebar__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-inline: 8px;
+    font-size: var(--fs-lg);
+    font-weight: 650;
+    color: var(--ink);
+  }
+
+  .app--cards .cards-sidebar__brand svg {
+    flex: none;
+  }
+
+  .app--cards .cards-sidebar__project {
+    display: grid;
+    gap: 7px;
+    padding-inline: 6px;
+    color: var(--muted);
+    font-size: var(--fs-sm);
+  }
+
+  .app--cards .cards-sidebar__project select {
+    min-width: 0;
+    padding-inline: 10px;
+    color: var(--ink);
+    font-size: var(--fs-md);
+  }
+
+  .app--cards .cards-sidebar__note {
+    display: block;
+    margin-block-start: auto;
+    padding: 16px 8px 0;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: var(--fs-xs);
+    line-height: 1.5;
+  }
+
+  .app--cards .cards-sidebar .nav {
+    position: static;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px;
+    min-height: 0;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface-2);
+  }
+
+  .app--cards .cards-sidebar .nav__item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 10px;
+    min-height: 46px;
+    padding: 10px 12px;
+    text-align: start;
+    font-size: var(--fs-md);
+  }
+
+  .app--cards .cards-sidebar .nav__item[aria-current='page'] {
+    background: var(--surface);
+    box-shadow: 0 0 0 1px var(--line), var(--shadow);
+  }
+
+  .app--cards .cards-sidebar .nav__item--new {
+    order: 10;
+    margin-block-start: 10px;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .app--cards .main,
+  .app--cards .actionbar__inner,
+  .app--cards .sectionrail {
+    max-width: var(--cards-content-width);
+    padding-inline: 28px;
+  }
+
+  .app--cards .main {
+    max-width: 1040px;
+    padding-block-start: 28px;
+    padding-block-end: 64px;
+  }
+
+  .app--cards:is([data-section='entry'], [data-section='contacts']) .main {
+    max-width: var(--cards-content-width);
+  }
+
+  .app--cards:is([data-section='settings'], [data-section='projects']) .main {
+    max-width: 900px;
+  }
+
+  .app--cards .topbar {
+    padding-inline: 28px;
+  }
+
+  .app--cards .selectionbar {
+    inset-inline-start: var(--cards-sidebar-width);
+    bottom: 0;
+    padding: 14px 28px;
+  }
+
+  .app--cards .has-selectionbar {
+    padding-block-end: 130px;
+  }
+
+  .app--cards.app--preview .cards-content {
+    width: 100%;
+    margin-inline-start: 0;
+  }
+
+  .app--cards.app--preview .cards-sidebar {
+    display: none;
+  }
+
+  .app--cards.app--preview .main {
+    max-width: 900px;
+  }
+}
+
+@media screen and (min-width: 1200px) {
+  .cards-editor-grid {
+    display: grid;
+    grid-template-columns: minmax(380px, 1fr) minmax(0, 0.95fr);
+    align-items: start;
+    gap: 24px;
+  }
+
+  .cards-editor-preview {
+    position: sticky;
+    top: calc(var(--chrome-height, 194px) + 16px);
+    display: block;
+    min-width: 0;
+    max-height: calc(100dvh - var(--chrome-height, 194px) - 32px);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: auto;
+  }
+}
+
+@media screen and (prefers-reduced-motion: reduce) {
+  .app--cards .card__caret,
+  .app--cards .btn,
+  .app--cards .todaycard {
+    transition: none;
+  }
+}

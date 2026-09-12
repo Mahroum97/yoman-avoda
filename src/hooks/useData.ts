@@ -1,7 +1,7 @@
 /** Live views over IndexedDB. Every hook re-renders when the data changes. */
 import { useEffect } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import type { Contact, Preset, PresetKind, Project } from '../types';
+import type { Contact, DiaryEntry, Preset, PresetKind, Project } from '../types';
 import { ACTIVE_PROJECT_KEY, db, getSetting, setSetting, trashedEntries } from '../db';
 
 export function useProjects(): Project[] | undefined {
@@ -127,6 +127,40 @@ export function useContacts(): Contact[] | undefined {
   );
 }
 
-export function useEntry(id?: number) {
-  return useLiveQuery(async () => (id === undefined ? undefined : db.entries.get(id)), [id]);
+export type RoutedEntryState =
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'missing' }
+  | { kind: 'orphaned'; entry: DiaryEntry }
+  | { kind: 'deleted'; entry: DiaryEntry; project: Project }
+  | { kind: 'found'; entry: DiaryEntry; project: Project };
+
+const IDLE_ENTRY: RoutedEntryState = { kind: 'idle' };
+const LOADING_ENTRY: RoutedEntryState = { kind: 'loading' };
+
+/**
+ * Resolves a routed page and its owner as one state.
+ *
+ * Looking them up independently let a stale URL load Project A's page while
+ * the shell and every exporter still received active Project B. The stable uid
+ * check is deliberate: numeric ids are local to a device, so an inconsistent
+ * id/uid pair is unsafe to print under either project's name.
+ */
+export function useRoutedEntry(id?: number): RoutedEntryState {
+  const result = useLiveQuery<RoutedEntryState>(async () => {
+    if (id === undefined) return IDLE_ENTRY;
+    const entry = await db.entries.get(id);
+    if (!entry) return { kind: 'missing' };
+
+    const project = await db.projects.get(entry.projectId);
+    if (!project || (entry.projectUid && project.uid !== entry.projectUid)) {
+      return { kind: 'orphaned', entry };
+    }
+    return entry.deletedAt === undefined
+      ? { kind: 'found', entry, project }
+      : { kind: 'deleted', entry, project };
+  }, [id]);
+
+  if (id === undefined) return IDLE_ENTRY;
+  return result ?? LOADING_ENTRY;
 }

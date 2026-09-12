@@ -135,6 +135,7 @@ export async function rewritePhotosAsBytes(): Promise<{ pages: number; lost: num
 
   const { db } = await import('../db');
   const { logger } = await import('./log');
+  const { refreshEntryRevisionContent } = await import('../sync/revision');
   const log = logger('photos');
 
   try {
@@ -143,11 +144,50 @@ export async function rewritePhotosAsBytes(): Promise<{ pages: number; lost: num
       const entry = await db.entries.get(id);
       if (!entry?.photos?.some((photo) => photo.blob)) continue;
 
-      const photos = await storablePhotos(entry.photos);
-      const lost = photos.filter((photo) => !photo.bytes && photo.blob).length;
-      await db.entries.put({ ...entry, photos });
-      result.pages += 1;
-      result.lost += lost;
+      /*
+       * Reading a legacy Blob may take long enough for the page to be edited in
+       * the meantime. Never put `entry` back afterwards: it is a stale snapshot
+       * of every text field and of the whole photo list. Convert outside the
+       * transaction, then re-read and patch only the storage wrapper of photos
+       * that are still present and still legacy.
+       */
+      const converted = await Promise.all(
+        entry.photos
+          .filter((photo) => photo.blob && !(photo.bytes && photo.bytes.byteLength > 0))
+          .map(async (photo) => [photo.id, await photoBytes(photo)] as const),
+      );
+      const bytesById = new Map(converted.filter((item): item is readonly [string, Uint8Array] => item[1] !== null));
+      const attemptedIds = new Set(converted.map(([photoId]) => photoId));
+
+      await db.transaction('rw', db.entries, async () => {
+        const current = await db.entries.get(id);
+        if (!current) return;
+        let changed = false;
+        let lost = 0;
+        const photos = current.photos.map((photo) => {
+          if (!attemptedIds.has(photo.id) || !photo.blob || (photo.bytes?.byteLength ?? 0) > 0) {
+            return photo;
+          }
+          const bytes = bytesById.get(photo.id);
+          if (!bytes) {
+            lost += 1;
+            return photo;
+          }
+          changed = true;
+          // Keep the current caption and metadata; only the byte wrapper came
+          // from the older snapshot that was converted above.
+          return { ...photo, bytes, blob: undefined };
+        });
+        if (changed) {
+          const revised = { ...current, photos };
+          await db.entries.update(id, {
+            photos,
+            syncRevision: refreshEntryRevisionContent(revised, current.syncRevision),
+          });
+        }
+        result.pages += 1;
+        result.lost += lost;
+      });
     }
     try {
       localStorage.setItem(CONVERTED_KEY, String(Date.now()));

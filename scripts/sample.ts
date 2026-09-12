@@ -11,8 +11,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
 import { Packer } from 'docx';
 import { buildEntryDoc, buildRangeDoc } from '../src/docx/build';
-import { buildContactsPdf, buildEntryPdf, buildRangePdf } from '../src/pdf/build';
+import { buildContactsPdf, buildEntryPdf, buildRangePdf, buildSummaryPdf } from '../src/pdf/build';
 import { buildRangeWorkbook } from '../src/xlsx/export';
+import { buildSummaryWorkbook } from '../src/xlsx/summaryReport';
 import { LANGUAGES, STRINGS } from '../src/i18n/strings';
 import type { DiaryEntry, Project } from '../src/types';
 
@@ -132,6 +133,7 @@ const logoDataUrl = `data:image/png;base64,${logoPng.toString('base64')}`;
 
 const project: Project = {
   id: 1,
+  uid: 'sample-project',
   name: 'מגדלי הים התיכון',
   address: 'רחוב הרצל 15, חיפה',
   company: 'מחרום בנייה והנדסה בע"מ',
@@ -142,6 +144,8 @@ const project: Project = {
 function sampleEntry(date: string, index: number): DiaryEntry {
   return {
     id: index,
+    uid: `sample-entry-${index}`,
+    projectUid: project.uid,
     projectId: 1,
     date,
     weather: 'בהיר, 31°C',
@@ -207,6 +211,16 @@ async function main(): Promise<void> {
   };
 
   const entry = sampleEntry('2026-07-31', 1);
+
+  for (const language of LANGUAGES) {
+    const strings = STRINGS[language];
+    const scope = { kind: 'trades' as const };
+    await writeFile(`tmp/sample-summary-${language}.pdf`,
+      await buildSummaryPdf([entry], project, entry.date, entry.date, { fontBytes, logoDataUrl, strings, scope }));
+    await writeFile(`tmp/sample-summary-${language}.xlsx`, Buffer.from(await (
+      await buildSummaryWorkbook([entry], project, entry.date, entry.date, strings, scope)
+    ).arrayBuffer()));
+  }
 
   // One page per language, so the three can be compared side by side.
   for (const language of LANGUAGES) {

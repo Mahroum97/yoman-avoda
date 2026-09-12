@@ -24,10 +24,11 @@ import { useEscape } from '../hooks/useEscape';
 import { navigate } from '../hooks/useRoute';
 import { PhotoSheet, SheetPreview } from '../components/SheetPreview';
 import { SheetScaler } from '../components/SheetScaler';
-import { EmptyState } from '../components/ui';
+import { Card, EmptyState } from '../components/ui';
 import { canShareFiles } from '../lib/save';
 import { photoPageCount } from '../lib/photoPages';
 import { Icon } from '../components/Icon';
+import { reportConflictState } from '../lib/reportConflicts';
 
 /**
  * How many days are drawn.
@@ -37,6 +38,11 @@ import { Icon } from '../components/Icon';
  * never truncated, and the heading says how many of the days are shown.
  */
 const MAX_SHEETS = 12;
+
+/** Sheets one day contributes: the form, and however many its photos need. */
+function dayPageCount(entry: DiaryEntry, includePhotos: boolean): number {
+  return 1 + (includePhotos ? photoPageCount(entry.photos?.length ?? 0) : 0);
+}
 
 export function ReportPreviewScreen({
   project,
@@ -75,13 +81,37 @@ export function ReportPreviewScreen({
 
   const canShare = useMemo(() => canShareFiles(), []);
   const shown = useMemo(() => (entries ?? []).slice(0, MAX_SHEETS), [entries]);
+  const conflicts = useMemo(
+    () => reportConflictState(entries ?? []),
+    [entries],
+  );
+  const conflictDates = conflicts.dates;
+  const reportsBlocked = conflictDates.length > 0;
 
-  /** Sheets one day contributes: the form, and however many its photos need. */
-  const dayPages = (entry: DiaryEntry) =>
-    1 + (includePhotos ? photoPageCount(entry.photos.length) : 0);
+  /*
+   * Without a summary, every visible number can be the real global number in
+   * the generated report. The total includes days beyond the DOM preview cap.
+   *
+   * With a summary, its page count belongs to the PDF renderer's measured
+   * pagination plan. Reimplementing that cover here would make a fourth
+   * renderer, while restarting each day at page 1 is actively misleading, so
+   * those HTML sheets deliberately leave the page-number slots blank.
+   */
+  const previewPages = useMemo(() => {
+    const total = (entries ?? []).reduce(
+      (sum, entry) => sum + dayPageCount(entry, includePhotos),
+      0,
+    );
+    let next = 1;
+    return shown.map((entry) => {
+      const current = next;
+      next += dayPageCount(entry, includePhotos);
+      return { entry, page: current, pages: total };
+    });
+  }, [entries, shown, includePhotos]);
 
   const build = async (deliver: 'save' | 'share') => {
-    if (!entries?.length) return;
+    if (!entries?.length || reportsBlocked) return;
     setBusy(deliver === 'share' ? 'share' : 'pdf');
     try {
       const { exportRangePdf } = await import('../pdf/export');
@@ -117,7 +147,7 @@ export function ReportPreviewScreen({
         <button
           type="button"
           className="btn btn--sm btn--primary"
-          disabled={busy !== null || entries.length === 0}
+          disabled={busy !== null || entries.length === 0 || reportsBlocked}
           onClick={() => void build('save')}
         >
           {busy === 'pdf' ? (
@@ -133,7 +163,7 @@ export function ReportPreviewScreen({
           <button
             type="button"
             className="btn btn--sm"
-            disabled={busy !== null || entries.length === 0}
+            disabled={busy !== null || entries.length === 0 || reportsBlocked}
             onClick={() => void build('share')}
           >
             {busy === 'share' ? (
@@ -158,25 +188,51 @@ export function ReportPreviewScreen({
         </div>
       </div>
 
-      {entries.length === 0 ? (
+      {reportsBlocked ? (
+        <div className="report-conflict" role="alert">
+          <Card title={
+            conflicts.hasDeletion && !conflicts.hasRevision
+              ? t.syncDeletionConflictNotice
+              : conflicts.hasRevision && !conflicts.hasDeletion
+                ? t.syncConflictNotice
+                : t.syncConflictLabel
+          }>
+            {conflicts.hasRevision && <p>{t.syncConflictBody}</p>}
+            {conflicts.hasDeletion && <p>{t.syncDeletionConflictBody}</p>}
+            <p className="report-conflict__dates">
+              {conflictDates.map((date) => (
+                <bdi dir="ltr" key={date}>{formatDdMmYyyy(date)}</bdi>
+              ))}
+            </p>
+            <button type="button" className="btn" onClick={() => navigate('/')}>
+              <Icon name="diary" size={17} />
+              {t.navDiary}
+            </button>
+          </Card>
+        </div>
+      ) : entries.length === 0 ? (
         <EmptyState icon="reports" title={t.noEntriesInRange} />
       ) : (
         <SheetScaler>
-          {shown.map((entry) => (
+          {previewPages.map(({ entry, page, pages }) => (
             <div key={entry.id ?? entry.uid}>
               <SheetPreview
                 entry={entry}
                 project={project}
                 companyLogo={logoDataUrl}
-                pages={dayPages(entry)}
+                page={page}
+                pages={pages}
+                showPageNumbers={!includeSummary}
                 themeId={themeId}
               />
-              {includePhotos && entry.photos.length > 0 && (
+              {includePhotos && (entry.photos?.length ?? 0) > 0 && (
                 <PhotoSheet
                   entry={entry}
                   project={project}
                   companyLogo={logoDataUrl}
-                  pages={dayPages(entry)}
+                  firstPage={page + 1}
+                  pages={pages}
+                  showPageNumbers={!includeSummary}
                   themeId={themeId}
                 />
               )}

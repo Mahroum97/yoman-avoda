@@ -332,6 +332,30 @@ p {
   min-width: 0;
 }
 
+/*
+ * The Electron window uses an inset title bar: macOS draws its traffic lights
+ * over the renderer. The web toolbar therefore keeps every control at the
+ * physical right and leaves the left title-bar area empty and draggable.
+ * The native window already identifies the app, so its repeated web logo and
+ * title are hidden; project context remains in the desktop sidebar/screens.
+ */
+:root[data-desktop='true'] .topbar {
+  direction: ltr;
+  justify-content: flex-end;
+  padding-inline-start: 88px;
+  -webkit-app-region: drag;
+}
+
+:root[data-desktop='true'] .topbar__logo,
+:root[data-desktop='true'] .topbar__grow {
+  display: none;
+}
+
+:root[data-desktop='true'] .topbar__icon,
+:root[data-desktop='true'] .topbar__undo {
+  -webkit-app-region: no-drag;
+}
+
 .topbar__icon {
   display: grid;
   place-items: center;
@@ -377,8 +401,8 @@ p {
   bottom: 0;
   z-index: 20;
   display: grid;
-  /* Six: diary, reports, projects, suppliers, settings, new. */
-  grid-template-columns: repeat(6, 1fr);
+  /* Five: diary, reports, projects, suppliers and new. Settings is above. */
+  grid-template-columns: repeat(5, 1fr);
   background: var(--topbar);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -463,7 +487,7 @@ p {
 .card {
   /* Clear of the sticky bars when a section is opened from the rail and
      scrolled to — without this the heading lands underneath them. */
-  scroll-margin-top: 132px;
+  scroll-margin-top: calc(var(--chrome-height, 132px) + var(--s3));
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -3305,24 +3329,23 @@ label.btn {
   cursor: pointer;
 }
 
-/*
- * The display button carries the mode it is in.
- *
- * On the black theme the usual pale wash reads as a foreign light square on a
- * pure-black bar, so it is drawn as an outline instead; on the light theme the
- * amber ring says "this is a control", not a stray icon.
- */
-.topbar__icon--theme[data-mode='black'] {
-  background: transparent;
+/* Settings stays at the physical upper-right in both writing directions. */
+.topbar__icon--settings {
+  order: 10;
+}
+
+[dir='rtl'] .topbar__icon--settings {
+  order: -10;
+}
+
+/* The Mac toolbar uses a physical left-to-right control lane even in Hebrew. */
+:root[data-desktop='true'] .topbar__icon--settings {
+  order: 10;
+}
+
+.topbar__icon--settings[aria-current='page'] {
+  background: var(--accent-soft);
   border-color: var(--line-strong);
-}
-
-.topbar__icon--theme[data-mode='auto'] {
-  border-style: dashed;
-}
-
-.topbar__icon--theme:active {
-  transform: scale(0.94);
 }
 
 /* ------------------------------------------------------- סל מחיקה */
@@ -3710,6 +3733,9 @@ label.btn {
      guess where the button is. */
   position: fixed;
   z-index: 45;
+  /* Keep the last actions reachable on a short screen or above the keyboard. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--s3);
   border: 1px solid var(--line);
   border-radius: var(--radius);

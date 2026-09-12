@@ -2,7 +2,7 @@
  * Site photos for one diary page. The URLs behind the thumbnails come from
  * `usePhotoUrls`, which is where the rules about them live.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type { Photo } from '../types';
 import { formatBytes, prepareImage } from '../lib/images';
 import { photoSize } from '../lib/photoData';
@@ -22,7 +22,17 @@ export function PhotoGrid({
 }) {
   const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const latest = useRef(photos);
+  latest.current = photos;
   const { urls, retry } = usePhotoUrls(photos);
+
+  // Update the ref in the same event as the parent callback. Image preparation
+  // is asynchronous, so another edit can otherwise happen before props return.
+  const change = (next: Photo[]) => {
+    latest.current = next;
+    onChange(next);
+  };
 
   /**
    * Each picked file is prepared on its own.
@@ -34,7 +44,8 @@ export function PhotoGrid({
    * message says how many did not.
    */
   const add = async (files: FileList | null) => {
-    if (!files?.length) return;
+    if (!files?.length || busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
     try {
       const added: Photo[] = [];
@@ -55,9 +66,13 @@ export function PhotoGrid({
           failed += 1;
         }
       }
-      if (added.length > 0) onChange([...photos, ...added]);
+      // Merge into what exists *now*, after preparation, rather than the props
+      // captured when the picker opened. Captions, removals and another batch
+      // completed during that wait must all survive.
+      if (added.length > 0) change([...latest.current, ...added]);
       if (failed > 0) onError(t.photosSkipped(failed));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -80,6 +95,7 @@ export function PhotoGrid({
             type="file"
             accept="image/*"
             multiple
+            disabled={busy}
             className="sr-only"
             onChange={(e) => {
               void add(e.target.files);
@@ -95,6 +111,7 @@ export function PhotoGrid({
             type="file"
             accept="image/*"
             capture="environment"
+            disabled={busy}
             className="sr-only"
             onChange={(e) => {
               void add(e.target.files);
@@ -124,8 +141,8 @@ export function PhotoGrid({
                   value={photo.caption}
                   placeholder={t.phCaption}
                   onChange={(e) =>
-                    onChange(
-                      photos.map((p) =>
+                    change(
+                      latest.current.map((p) =>
                         p.id === photo.id ? { ...p, caption: e.target.value } : p,
                       ),
                     )
@@ -135,7 +152,7 @@ export function PhotoGrid({
                   type="button"
                   className="btn btn--sm btn--danger"
                   aria-label={t.deletePhoto}
-                  onClick={() => onChange(photos.filter((p) => p.id !== photo.id))}
+                  onClick={() => change(latest.current.filter((p) => p.id !== photo.id))}
                 >
                   <Icon name="close" size={16} />
                 </button>

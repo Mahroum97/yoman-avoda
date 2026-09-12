@@ -22,6 +22,11 @@ export interface Project {
   company: string;
   archived: boolean;
   createdAt: number;
+  /**
+   * Last change to the project details, used to resolve sync conflicts.
+   * Optional because projects in older backups and sync payloads predate it.
+   */
+  updatedAt?: number;
 }
 
 /** צוות הנהלה — one line in the management-team columns. */
@@ -40,6 +45,32 @@ export interface ContractorRow {
   trade: string;
   /** כמות עובדים */
   workers: string;
+  /** Stable address-book identity; never infer this from the trade. */
+  contractorUid?: string;
+  /** Name when recorded, retained even after the contact is renamed/deleted. */
+  contractorName?: string;
+}
+
+/** Delivery-note quantities received on the diary date. Never execution/pour quantities. */
+export interface MaterialDelivery {
+  id: string;
+  material: 'concrete' | 'steel';
+  quantity: string;
+  unit: 'm3' | 'kg' | 'tonne';
+  supplierUid?: string;
+  supplierName: string;
+  deliveryNote: string;
+  /** Concrete grade, or steel diameter/type. */
+  specification: string;
+  location: string;
+  notes: string;
+}
+
+export interface DeliveryLedger {
+  version: 1;
+  rows: MaterialDelivery[];
+  /** Explicit confirmation that all concrete/steel deliveries for this day are entered. */
+  reviewed: boolean;
 }
 
 /** ציוד — one line in the equipment columns. */
@@ -122,6 +153,8 @@ export interface DiaryEntry {
    * or a device that has not been updated, simply has nothing to say here.
    */
   receivedToday?: string;
+  /** Optional structured delivery notes; old free text and casting data remain untouched. */
+  deliveryLedger?: DeliveryLedger;
   /** חתימת מפקח — PNG data URL */
   supervisorSignature: string;
   /** חתימת מנ"ע — PNG data URL */
@@ -151,6 +184,20 @@ export interface DiaryEntry {
    * arriving from a device that has not been updated — is simply not in it.
    */
   deletedAt?: number;
+  /**
+   * Another device independently created a different page for this same
+   * project/date. Both records are retained until the user chooses between
+   * them; this marker lets either copy remain editable meanwhile.
+   */
+  syncConflict?: boolean;
+  /** Why resolution is required; deletion conflicts can have one live row. */
+  syncConflictKind?: 'revision' | 'deletion';
+  /** Links preserved alternatives even when one revision changed the date. */
+  syncConflictGroup?: string;
+  /** Original UID shared by every causally-conflicting branch. */
+  syncConflictRoot?: string;
+  /** Encoded content fingerprint and per-device causal version vector. */
+  syncRevision?: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -222,6 +269,8 @@ export interface Tombstone {
   uid: string;
   table: TombstoneTable;
   deletedAt: number;
+  /** Causal deletion head for entry tombstones (protocol v5 and later). */
+  entryRevision?: string;
 }
 
 /** Every table whose deletions have to travel. */

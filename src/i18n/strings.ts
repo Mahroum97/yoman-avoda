@@ -52,6 +52,8 @@ export interface Strings {
   edit: string;
   add: string;
   loading: string;
+  working: string;
+  retry: string;
   back: string;
   backToReports: string;
   print: string;
@@ -77,6 +79,10 @@ export interface Strings {
   noDescription: string;
   statusDraft: string;
   statusSigned: string;
+  cardsRecentDays: string;
+  cardsLivePreview: string;
+  cardsPreviewHint: string;
+  cardsExpandPreview: string;
 
   /* entry editor */
   sectionProjectDate: string;
@@ -120,6 +126,21 @@ export interface Strings {
   unsavedNote: string;
   entryExists: string;
   entryExistsBody: string;
+  entryMissingTitle: string;
+  entryMissingBody: string;
+  entryInTrashTitle: string;
+  entryInTrashBody: string;
+  entryOwnerMissingTitle: string;
+  entryOwnerMissingBody: string;
+  entryRestoreFailed: string;
+  entrySaveFailed: string;
+  entrySaveFailedBody: string;
+  entryDeleteFailed: string;
+  syncConflictLabel: string;
+  syncConflictNotice: string;
+  syncConflictBody: string;
+  syncDeletionConflictNotice: string;
+  syncDeletionConflictBody: string;
   previewButton: string;
   exportPdf: string;
   shareButton: string;
@@ -228,6 +249,7 @@ export interface Strings {
   trashRestored: (n: number) => string;
   trashPurged: (n: number) => string;
   trashClash: string;
+  trashActionFailed: string;
   confirmPurge: (n: number) => string;
   backToDiary: string;
 
@@ -245,10 +267,17 @@ export interface Strings {
   projectUpdated: string;
   projectDeleted: string;
   projectNameRequired: string;
+  projectSaveFailed: string;
+  projectDeleteFailed: string;
+  projectSwitchFailed: string;
   confirmDeleteProject: (name: string, count: number) => string;
   startTitle: string;
   startBody: string;
   startAction: string;
+  setupDiaryBody: string;
+  setupReportsBody: string;
+  setupNewBody: string;
+  setupChooseProjectBody: string;
 
   /* ספקים וקבלנים — the site's address book */
   contactsTitle: string;
@@ -259,6 +288,12 @@ export interface Strings {
   searchContacts: string;
   contactsCount: (n: number) => string;
   contactDeleted: string;
+  contactRestored: string;
+  contactAddFailed: string;
+  contactSaveFailed: string;
+  contactSaveFailedBody: string;
+  contactDeleteFailed: string;
+  contactRestoreFailed: string;
   contactNo: string;
   labelContactName: string;
   labelContactTrade: string;
@@ -279,6 +314,7 @@ export interface Strings {
   contactsImported: (added: number, updated: number) => string;
   contactsImportEmpty: string;
   contactsImportFailed: string;
+  contactsExportFailed: string;
   contactsNothingToExport: string;
 
   /* reports */
@@ -306,6 +342,78 @@ export interface Strings {
   statSigned: string;
   statPhotos: string;
   summaryTrades: string;
+  summaryExport: string;
+  summaryExportHint: string;
+  summaryDailyDetails: string;
+  summaryParsedValue: string;
+  summaryNumberRule: string;
+  summaryNoType: string;
+  reportContractorName: string;
+  reportChooseContact: string;
+  reportManualName: string;
+  reportUnassignedContractor: string;
+  reportInvalidQuantity: string;
+  reportWorkersInteger: string;
+  materialLedgerHint: string;
+  materialConcrete: string;
+  materialSteel: string;
+  materialKind: string;
+  materialUnit: string;
+  materialUnitHint: string;
+  materialUnitM3: string;
+  materialUnitKg: string;
+  materialUnitTonne: string;
+  materialSupplier: string;
+  materialReference: string;
+  materialDescription: string;
+  materialNotes: string;
+  materialLocation: string;
+  materialAdd: string;
+  materialReviewed: string;
+  materialNewContractor: string;
+  materialSaveContractor: string;
+  materialSupplierRequired: string;
+  materialNoteRequired: string;
+  quantityReportsTitle: string;
+  quantityReportsHint: string;
+  quantityDeliveryLedger: string;
+  quantityConcreteReceived: string;
+  quantitySteelReceived: string;
+  quantityContractorLabor: (name: string) => string;
+  quantityUnassignedContractors: string;
+  quantityKnownSubtotal: string;
+  quantityNoKnownTotal: string;
+  quantityDailyWorkers: string;
+  unitKilograms: string;
+  unitWorkerDays: string;
+  quantitySourceRows: string;
+  quantityCountedRows: string;
+  quantityIssues: string;
+  quantityIncluded: string;
+  quantityExcluded: string;
+  labelSupplier: string;
+  labelDeliveryNote: string;
+  labelSpecification: string;
+  labelLocation: string;
+  labelOriginalQuantity: string;
+  labelSourceDay: string;
+  quantityExportTitle: string;
+  quantityIssueLedgerUnreviewed: string;
+  quantityIssueHistoricalText: string;
+  quantityIssueQuantityMissing: string;
+  quantityIssueQuantityInvalid: string;
+  quantityIssueQuantityAmbiguous: string;
+  quantityIssueUnitMismatch: string;
+  quantityIssueSupplierMissing: string;
+  quantityIssueDeliveryNoteMissing: string;
+  quantityIssueDuplicateTicket: string;
+  quantityIssueContractorUnassigned: string;
+  quantityMaterialRule: string;
+  quantityLaborRule: string;
+  quantityOpenDay: string;
+  quantityPeriodTotal: string;
+  quantityNoData: string;
+  quantityReportSelection: string;
   summaryEquipment: string;
   summaryConcrete: string;
   unitWorkers: string;
@@ -587,6 +695,8 @@ const he: Strings = {
   edit: 'ערוך',
   add: 'הוסף',
   loading: 'טוען…',
+  working: 'מבצע…',
+  retry: 'נסה שוב',
   back: 'חזרה לעריכה',
   backToReports: 'חזרה לדוחות',
   print: 'הדפס',
@@ -609,6 +719,10 @@ const he: Strings = {
   noDescription: 'ללא תיאור עבודה',
   statusDraft: 'טיוטה',
   statusSigned: 'פעיל',
+  cardsRecentDays: 'ימים אחרונים',
+  cardsLivePreview: 'תצוגת דוח',
+  cardsPreviewHint: 'מתעדכנת לפי הדף הפתוח',
+  cardsExpandPreview: 'הגדל',
 
   sectionProjectDate: 'פרויקט ותאריך',
   sectionManagement: 'צוות הנהלה',
@@ -620,7 +734,7 @@ const he: Strings = {
   sectionReceivedToday: 'התקבל היום',
   sectionSignatures: 'חתימות',
   sectionPhotos: 'תמונות מהאתר',
-  hintProjectDate: 'שם הפרויקט, הכתובת ושם החברה נלקחים מהפרויקט הפעיל ומודפסים בראש הדף.',
+  hintProjectDate: 'שם הפרויקט, הכתובת ושם החברה נלקחים מהפרויקט שאליו שייך הדף ומודפסים בראשו.',
   hintManagement: 'השמות והתפקידים שנרשמים בעמודות הימניות של הטבלה.',
   hintContractors: 'מקצוע וכמות העובדים שהגיעו מכל קבלן.',
   hintEquipment: 'סוג הציוד, הכמות ושעות העבודה.',
@@ -649,6 +763,21 @@ const he: Strings = {
   unsavedNote: 'לא נשמר',
   entryExists: 'קיים כבר יומן לתאריך הזה',
   entryExistsBody: 'בחר תאריך אחר כדי לשמור את הדף.',
+  entryMissingTitle: 'הדף לא נמצא',
+  entryMissingBody: 'הקישור מפנה לדף שאינו קיים עוד. לא נוצר דף חדש.',
+  entryInTrashTitle: 'הדף נמצא בסל המחיקה',
+  entryInTrashBody: 'הדף נמחק מהיומן. אפשר לשחזר אותו כאן או לחזור ליומן.',
+  entryOwnerMissingTitle: 'הפרויקט של הדף לא נמצא',
+  entryOwnerMissingBody: 'לא ניתן לפתוח או לייצא את הדף בלי פרטי הפרויקט שלו.',
+  entryRestoreFailed: 'השחזור נכשל. הדף נשאר בסל המחיקה.',
+  entrySaveFailed: 'היומן לא נשמר',
+  entrySaveFailedBody: 'העריכה נשארה על המסך. נסה שוב לפני היציאה מהדף.',
+  entryDeleteFailed: 'המחיקה נכשלה. הדף נשאר ביומן.',
+  syncConflictLabel: 'התנגשות סנכרון',
+  syncConflictNotice: 'התנגשות סנכרון · שתי הגרסאות נשמרו',
+  syncConflictBody: 'שתי גרסאות של דף יומן נשמרו. בדוק את שתיהן והעבר את הגרסה שאינך צריך לסל המחיקה לפני הפקת דוח.',
+  syncDeletionConflictNotice: 'התנגשות סנכרון · המחיקה דורשת בדיקה',
+  syncDeletionConflictBody: 'מכשיר אחר מחק את הדף בזמן שהעותק הזה נערך. בדוק אותו, ואז שמור כדי להשאיר את העבודה או העבר אותו לסל המחיקה כדי לאשר את המחיקה לפני הפקת דוח.',
   previewButton: 'תצוגה מקדימה',
   exportPdf: 'הפק PDF',
   shareButton: 'שתף',
@@ -754,6 +883,7 @@ const he: Strings = {
   trashRestored: (n) => (n === 1 ? 'היומן שוחזר' : `${n} יומנים שוחזרו`),
   trashPurged: (n) => (n === 1 ? 'היומן נמחק לצמיתות' : `${n} יומנים נמחקו לצמיתות`),
   trashClash: 'כבר קיים יומן לתאריך הזה — מחק אותו קודם או שנה את התאריך',
+  trashActionFailed: 'הפעולה נעצרה. הרישומים שעדיין מוצגים נשארו בסל המחיקה.',
   confirmPurge: (n) =>
     n === 1
       ? 'למחוק את היומן לצמיתות? אי אפשר לבטל את זה.'
@@ -772,6 +902,9 @@ const he: Strings = {
   projectUpdated: 'הפרויקט עודכן',
   projectDeleted: 'הפרויקט נמחק',
   projectNameRequired: 'חובה להזין שם פרויקט',
+  projectSaveFailed: 'הפרויקט לא נשמר. הפרטים שהזנת נשארו בטופס.',
+  projectDeleteFailed: 'הפרויקט לא נמחק.',
+  projectSwitchFailed: 'לא הצלחתי לעבור לפרויקט.',
   confirmDeleteProject: (name, count) =>
     count > 0
       ? `למחוק את "${name}" ואת ${count} רישומי היומן שלו? הפעולה אינה הפיכה.`
@@ -779,6 +912,10 @@ const he: Strings = {
   startTitle: 'בואו נתחיל',
   startBody: 'כדי לנהל יומן עבודה צריך קודם להגדיר פרויקט אחד.',
   startAction: 'הגדרת פרויקט',
+  setupDiaryBody: 'היומן מציג את ימי העבודה של הפרויקט שלך. כדי להתחיל, צור פרויקט או שחזר גיבוי קיים.',
+  setupReportsBody: 'הדוחות מרכזים נתונים מתוך יומן הפרויקט. כדי להתחיל, צור פרויקט או שחזר גיבוי קיים.',
+  setupNewBody: 'כל דף יומי שייך לפרויקט. צור פרויקט כדי לפתוח דף חדש, או שחזר גיבוי קיים.',
+  setupChooseProjectBody: 'בחר פרויקט פעיל במסך הפרויקטים כדי להמשיך.',
 
   contactsTitle: 'ספקים וקבלנים',
   contactsBlurb: 'רשימת אנשי הקשר של האתר — נשמרת במכשיר ומסתנכרנת עם שאר המכשירים.',
@@ -788,6 +925,12 @@ const he: Strings = {
   searchContacts: 'חיפוש בשם, תחום, טלפון…',
   contactsCount: (n) => (n === 1 ? 'רשומה אחת' : `${n} רשומות`),
   contactDeleted: 'השורה נמחקה',
+  contactRestored: 'השורה שוחזרה',
+  contactAddFailed: 'השורה החדשה לא נוצרה.',
+  contactSaveFailed: 'השינויים באנשי הקשר לא נשמרו',
+  contactSaveFailedBody: 'הטקסט שהזנת נשאר בטבלה. נסה שוב לפני היציאה מהמסך.',
+  contactDeleteFailed: 'השורה לא נמחקה.',
+  contactRestoreFailed: 'השחזור נכשל. אפשר לנסות שוב.',
   contactNo: 'מס׳',
   labelContactName: 'שם קבלן או ספק',
   labelContactTrade: 'תחום התעסקות',
@@ -811,6 +954,7 @@ const he: Strings = {
       : `יובאו ${added} רשומות, ${updated} עודכנו`,
   contactsImportEmpty: 'לא נמצאו רשומות בקובץ',
   contactsImportFailed: 'לא הצלחתי לקרוא את הקובץ',
+  contactsExportFailed: 'ייצוא רשימת אנשי הקשר נכשל',
   contactsNothingToExport: 'אין עדיין מה לייצא',
 
   reportsTitle: 'דוח מרוכז',
@@ -836,6 +980,78 @@ const he: Strings = {
   statSigned: 'יומנים חתומים',
   statPhotos: 'תמונות',
   summaryTrades: 'סה"כ עובדים לפי מקצוע',
+  summaryExport: 'סיכום נפרד לשליחה',
+  summaryExportHint: 'בחרו טבלת סיכום: עובדים, ציוד או בטון. כל טבלה יוצאת בקובץ נפרד, עם כל השורות והפירוט היומי שלה.',
+  summaryDailyDetails: 'פירוט לפי יום',
+  summaryParsedValue: 'ערך לחישוב',
+  summaryNumberRule: 'הסיכומים מחברים את המספר הראשון בכל שדה. הטקסט המקורי מופיע בפירוט. שעות ציוד מחוברות כפי שנרשמו, ללא הכפלה בכמות. ימים נספרים פעם אחת לכל תאריך.',
+  summaryNoType: 'ללא ציון סוג',
+  reportContractorName: 'שם הקבלן / החברה',
+  reportChooseContact: 'בחירה מאנשי הקשר',
+  reportManualName: 'הקלדה ידנית',
+  reportUnassignedContractor: 'לא שויך קבלן — בחרו שם כדי לכלול בדוח קבלן',
+  reportInvalidQuantity: 'יש להזין מספר מדויק, ללא טווח או תיאור. אפשר להשתמש בנקודה עשרונית.',
+  reportWorkersInteger: 'מספר העובדים צריך להיות מספר שלם שאינו שלילי',
+  materialLedgerHint: 'אספקות שהתקבלו בתאריך היומן לפי תעודות משלוח. כמויות יציקה שבוצעו והערות חופשיות אינן נספרות כאן.',
+  materialConcrete: 'בטון',
+  materialSteel: 'ברזל',
+  materialKind: 'חומר',
+  materialUnit: 'יחידה',
+  materialUnitHint: 'שינוי חומר או יחידה מנקה את הכמות. יש להזין אותה מחדש לפי תעודת המשלוח.',
+  materialUnitM3: 'מ״ק',
+  materialUnitKg: 'ק״ג',
+  materialUnitTonne: 'טון',
+  materialSupplier: 'ספק',
+  materialReference: 'מספר תעודת משלוח',
+  materialDescription: 'סוג / מפרט החומר',
+  materialNotes: 'הערות למשלוח',
+  materialLocation: 'בניין / קומה / אזור',
+  materialAdd: 'הוספת תעודת משלוח',
+  materialReviewed: 'בדקתי שכל אספקות הבטון והברזל ליום זה רשומות כאן',
+  materialNewContractor: 'קבלן חדש',
+  materialSaveContractor: 'שמירת הקבלן ובחירה',
+  materialSupplierRequired: 'חסר שם הספק',
+  materialNoteRequired: 'חסר מספר תעודת משלוח',
+  quantityReportsTitle: 'דוחות כמויות וקבלנים',
+  quantityReportsHint: 'משלוחי בטון, משלוחי ברזל ודוח עובדים נפרד לכל קבלן, לתקופה שנבחרה. כל סכום כולל פירוט לפי יום.',
+  quantityDeliveryLedger: 'תעודות משלוח — בטון וברזל',
+  quantityConcreteReceived: 'בטון שהתקבל באתר',
+  quantitySteelReceived: 'ברזל שהתקבל באתר',
+  quantityContractorLabor: (name) => `דוח עובדים — ${name}`,
+  quantityUnassignedContractors: 'עובדים ללא שיוך לקבלן',
+  quantityKnownSubtotal: 'סכום הרשומות התקינות — נדרשת השלמה',
+  quantityNoKnownTotal: 'אין נתונים תקינים לחישוב',
+  quantityDailyWorkers: 'עובדים ביום',
+  unitKilograms: 'ק״ג',
+  unitWorkerDays: 'ימי־עובד',
+  quantitySourceRows: 'רשומות מקור',
+  quantityCountedRows: 'רשומות שנכללו בחישוב',
+  quantityIssues: 'רישומים שדורשים בדיקה',
+  quantityIncluded: 'נכלל בחישוב',
+  quantityExcluded: 'לא נכלל בחישוב',
+  labelSupplier: 'ספק',
+  labelDeliveryNote: 'תעודת משלוח',
+  labelSpecification: 'סוג / מפרט',
+  labelLocation: 'בניין / קומה / אזור',
+  labelOriginalQuantity: 'כמות כפי שנרשמה',
+  labelSourceDay: 'יום ביומן',
+  quantityExportTitle: 'דוח כמויות לתקופה',
+  quantityIssueLedgerUnreviewed: 'רשימת המשלוחים ליום זה טרם נבדקה כשלמה',
+  quantityIssueHistoricalText: 'קיים רישום אספקות בטקסט חופשי שטרם הושלם לפי תעודות משלוח',
+  quantityIssueQuantityMissing: 'חסרה כמות',
+  quantityIssueQuantityInvalid: 'הכמות אינה מספר מדויק ותקין',
+  quantityIssueQuantityAmbiguous: 'מפריד המספר עמום — יש לתקן את הכמות',
+  quantityIssueUnitMismatch: 'היחידה אינה מתאימה לחומר',
+  quantityIssueSupplierMissing: 'חסר שם ספק',
+  quantityIssueDeliveryNoteMissing: 'חסר מספר תעודת משלוח',
+  quantityIssueDuplicateTicket: 'תעודת משלוח כפולה לכאורה — הרשומות הוצאו מהסכום עד לבדיקה',
+  quantityIssueContractorUnassigned: 'לא נבחר קבלן מזוהה לשורת העובדים',
+  quantityMaterialRule: 'נספרות רק אספקות מתועדות לפי תעודת משלוח, ספק וכמות תקינה. ברזל מחושב בק״ג: טון אחד = 1,000 ק״ג. רישומים עמומים או כפולים מוצגים לבדיקה ואינם נספרים. כמויות ביצוע אינן נכללות.',
+  quantityLaborRule: 'סכום העובדים בכל יום הוא מספר העובדים שנרשם לקבלן באותו יום. הסכום לתקופה הוא ימי־עובד, ולא מספר אנשים ייחודיים. 5 עובדים במשך 20 ימים = 100 ימי־עובד. רישומים חסרים אינם נחשבים לאפס.',
+  quantityOpenDay: 'פתיחת היום לתיקון',
+  quantityPeriodTotal: 'סה״כ לתקופה',
+  quantityNoData: 'לא תועדו נתונים מסוג זה בתקופה שנבחרה',
+  quantityReportSelection: 'הרשימה לייצוא',
   summaryEquipment: 'שעות ציוד לפי סוג',
   summaryConcrete: 'בטון לפי סוג',
   unitWorkers: 'עובדים',
@@ -1141,6 +1357,8 @@ const ar: Strings = {
   edit: 'تعديل',
   add: 'إضافة',
   loading: 'جارٍ التحميل…',
+  working: 'جارٍ التنفيذ…',
+  retry: 'إعادة المحاولة',
   back: 'العودة للتحرير',
   backToReports: 'العودة إلى التقارير',
   print: 'طباعة',
@@ -1172,6 +1390,10 @@ const ar: Strings = {
   noDescription: 'بدون وصف للعمل',
   statusDraft: 'مسودة',
   statusSigned: 'فعال',
+  cardsRecentDays: 'الأيام الأخيرة',
+  cardsLivePreview: 'معاينة التقرير',
+  cardsPreviewHint: 'تتحدّث حسب الصفحة المفتوحة',
+  cardsExpandPreview: 'تكبير',
 
   sectionProjectDate: 'المشروع والتاريخ',
   sectionManagement: 'طاقم الإدارة',
@@ -1183,7 +1405,7 @@ const ar: Strings = {
   sectionReceivedToday: 'ما تم استلامه اليوم',
   sectionSignatures: 'التواقيع',
   sectionPhotos: 'صور من الموقع',
-  hintProjectDate: 'اسم المشروع والعنوان واسم الشركة تؤخذ من المشروع النشط وتُطبع أعلى الصفحة.',
+  hintProjectDate: 'يؤخذ اسم المشروع والعنوان واسم الشركة من المشروع الذي تتبعه الصفحة وتُطبع في أعلاها.',
   hintManagement: 'الأسماء والوظائف التي تُسجَّل في أعمدة الجدول.',
   hintContractors: 'المهنة وعدد العمال الذين حضروا من كل مقاول.',
   hintEquipment: 'نوع المعدات والكمية وساعات العمل.',
@@ -1212,6 +1434,21 @@ const ar: Strings = {
   unsavedNote: 'لم يُحفظ',
   entryExists: 'يوجد سجل لهذا التاريخ بالفعل',
   entryExistsBody: 'اختر تاريخًا آخر لحفظ الصفحة.',
+  entryMissingTitle: 'لم يتم العثور على الصفحة',
+  entryMissingBody: 'يشير الرابط إلى صفحة لم تعد موجودة. لم يتم إنشاء صفحة جديدة.',
+  entryInTrashTitle: 'الصفحة موجودة في سلة المحذوفات',
+  entryInTrashBody: 'حُذفت الصفحة من السجل. يمكنك استعادتها هنا أو العودة إلى السجل.',
+  entryOwnerMissingTitle: 'تعذّر العثور على مشروع الصفحة',
+  entryOwnerMissingBody: 'لا يمكن فتح الصفحة أو تصديرها من دون بيانات مشروعها.',
+  entryRestoreFailed: 'فشلت الاستعادة. بقيت الصفحة في سلة المحذوفات.',
+  entrySaveFailed: 'لم يتم حفظ السجل',
+  entrySaveFailedBody: 'بقيت تعديلاتك على الشاشة. حاول مرة أخرى قبل مغادرة الصفحة.',
+  entryDeleteFailed: 'فشل الحذف. بقيت الصفحة في السجل.',
+  syncConflictLabel: 'تعارض مزامنة',
+  syncConflictNotice: 'تعارض مزامنة · تم حفظ النسختين',
+  syncConflictBody: 'تم حفظ نسختين من صفحة في السجل. راجع النسختين وانقل النسخة التي لا تحتاجها إلى سلة المحذوفات قبل إنشاء تقرير.',
+  syncDeletionConflictNotice: 'تعارض مزامنة · الحذف يحتاج إلى مراجعة',
+  syncDeletionConflictBody: 'حذف جهاز آخر هذه الصفحة أثناء تعديل هذه النسخة. راجعها، ثم احفظها للاحتفاظ بالعمل أو انقلها إلى سلة المحذوفات لتأكيد الحذف قبل إنشاء تقرير.',
   previewButton: 'معاينة',
   exportPdf: 'إنشاء PDF',
   shareButton: 'مشاركة',
@@ -1319,6 +1556,7 @@ const ar: Strings = {
   trashRestored: (n) => (n === 1 ? 'تمت استعادة السجل' : `تمت استعادة ${n} سجلات`),
   trashPurged: (n) => (n === 1 ? 'حُذف السجل نهائيًا' : `حُذفت ${n} سجلات نهائيًا`),
   trashClash: 'يوجد سجل بهذا التاريخ — احذفه أولاً أو غيّر التاريخ',
+  trashActionFailed: 'توقفت العملية. السجلات التي ما زالت ظاهرة بقيت في سلة المحذوفات.',
   confirmPurge: (n) =>
     n === 1
       ? 'حذف السجل نهائيًا؟ لا يمكن التراجع عن ذلك.'
@@ -1337,6 +1575,9 @@ const ar: Strings = {
   projectUpdated: 'تم تحديث المشروع',
   projectDeleted: 'تم حذف المشروع',
   projectNameRequired: 'يجب إدخال اسم المشروع',
+  projectSaveFailed: 'لم يتم حفظ المشروع. بقيت التفاصيل التي أدخلتها في النموذج.',
+  projectDeleteFailed: 'لم يتم حذف المشروع.',
+  projectSwitchFailed: 'تعذّر الانتقال إلى المشروع.',
   confirmDeleteProject: (name, count) =>
     count > 0
       ? `هل تريد حذف "${name}" و${count} من سجلاته؟ لا يمكن التراجع عن هذا.`
@@ -1344,6 +1585,10 @@ const ar: Strings = {
   startTitle: 'لنبدأ',
   startBody: 'لإدارة سجل العمل يجب أولًا تعريف مشروع واحد.',
   startAction: 'تعريف مشروع',
+  setupDiaryBody: 'يعرض السجل أيام العمل في مشروعك. للبدء، أنشئ مشروعًا أو استعد نسخة احتياطية موجودة.',
+  setupReportsBody: 'تجمع التقارير البيانات من سجل المشروع. للبدء، أنشئ مشروعًا أو استعد نسخة احتياطية موجودة.',
+  setupNewBody: 'كل صفحة يومية تتبع مشروعًا. أنشئ مشروعًا لفتح صفحة جديدة، أو استعد نسخة احتياطية موجودة.',
+  setupChooseProjectBody: 'اختر مشروعًا نشطًا من شاشة المشاريع للمتابعة.',
 
   contactsTitle: 'الموردون والمقاولون',
   contactsBlurb: 'دفتر عناوين الموقع — يُحفظ في الجهاز ويتزامن مع بقية الأجهزة.',
@@ -1353,6 +1598,12 @@ const ar: Strings = {
   searchContacts: 'بحث بالاسم أو المجال أو الهاتف…',
   contactsCount: (n) => (n === 1 ? 'سجل واحد' : `${n} سجلات`),
   contactDeleted: 'تم حذف الصف',
+  contactRestored: 'تمت استعادة الصف',
+  contactAddFailed: 'تعذّر إنشاء الصف الجديد.',
+  contactSaveFailed: 'لم يتم حفظ تغييرات جهات الاتصال',
+  contactSaveFailedBody: 'بقي النص الذي أدخلته في الجدول. حاول مرة أخرى قبل مغادرة الشاشة.',
+  contactDeleteFailed: 'لم يتم حذف الصف.',
+  contactRestoreFailed: 'فشلت الاستعادة. يمكنك المحاولة مرة أخرى.',
   contactNo: 'رقم',
   labelContactName: 'اسم المقاول أو المورد',
   labelContactTrade: 'مجال العمل',
@@ -1376,6 +1627,7 @@ const ar: Strings = {
       : `تم استيراد ${added} سجلات وتحديث ${updated}`,
   contactsImportEmpty: 'لم يتم العثور على سجلات في الملف',
   contactsImportFailed: 'تعذّرت قراءة الملف',
+  contactsExportFailed: 'فشل تصدير قائمة جهات الاتصال',
   contactsNothingToExport: 'لا يوجد ما يُصدَّر بعد',
 
   reportsTitle: 'تقرير مجمّع',
@@ -1402,6 +1654,78 @@ const ar: Strings = {
   statSigned: 'سجلات موقّعة',
   statPhotos: 'الصور',
   summaryTrades: 'إجمالي العمال حسب المهنة',
+  summaryExport: 'ملخص منفصل للمشاركة',
+  summaryExportHint: 'اختر جدول ملخص: العمال أو المعدات أو الخرسانة. يُصدَّر كل جدول في ملف منفصل مع جميع صفوفه وتفاصيله اليومية.',
+  summaryDailyDetails: 'التفاصيل حسب اليوم',
+  summaryParsedValue: 'القيمة المحسوبة',
+  summaryNumberRule: 'تجمع الملخصات أول رقم في كل حقل. يظهر النص الأصلي في التفاصيل. تجمع ساعات المعدات كما سُجلت دون ضربها في الكمية. يُحسب كل تاريخ مرة واحدة.',
+  summaryNoType: 'نوع غير محدد',
+  reportContractorName: 'اسم المقاول / الشركة',
+  reportChooseContact: 'اختيار من جهات الاتصال',
+  reportManualName: 'إدخال يدوي',
+  reportUnassignedContractor: 'لم يُحدد المقاول — اختر اسمًا لإدراجه في تقرير المقاول',
+  reportInvalidQuantity: 'أدخل رقمًا دقيقًا دون نطاق أو وصف. يمكن استخدام النقطة العشرية.',
+  reportWorkersInteger: 'يجب أن يكون عدد العمال عددًا صحيحًا غير سالب',
+  materialLedgerHint: 'المواد المستلمة في تاريخ اليومية وفق سندات التسليم. لا تُحسب هنا كميات الصب المنفذة أو الملاحظات الحرة.',
+  materialConcrete: 'خرسانة',
+  materialSteel: 'حديد',
+  materialKind: 'المادة',
+  materialUnit: 'الوحدة',
+  materialUnitHint: 'تغيير المادة أو الوحدة يمسح الكمية. أعد إدخالها وفق سند التسليم.',
+  materialUnitM3: 'م³',
+  materialUnitKg: 'كغ',
+  materialUnitTonne: 'طن',
+  materialSupplier: 'المورّد',
+  materialReference: 'رقم سند التسليم',
+  materialDescription: 'نوع / مواصفات المادة',
+  materialNotes: 'ملاحظات التسليم',
+  materialLocation: 'المبنى / الطابق / المنطقة',
+  materialAdd: 'إضافة سند تسليم',
+  materialReviewed: 'راجعت أن جميع توريدات الخرسانة والحديد لهذا اليوم مسجلة هنا',
+  materialNewContractor: 'مقاول جديد',
+  materialSaveContractor: 'حفظ المقاول واختياره',
+  materialSupplierRequired: 'اسم المورّد مفقود',
+  materialNoteRequired: 'رقم سند التسليم مفقود',
+  quantityReportsTitle: 'تقارير الكميات والمقاولين',
+  quantityReportsHint: 'توريدات الخرسانة والحديد وتقرير عمال منفصل لكل مقاول خلال الفترة المختارة، مع تفاصيل كل يوم.',
+  quantityDeliveryLedger: 'سندات التسليم — الخرسانة والحديد',
+  quantityConcreteReceived: 'الخرسانة المستلمة في الموقع',
+  quantitySteelReceived: 'الحديد المستلم في الموقع',
+  quantityContractorLabor: (name) => `تقرير العمال — ${name}`,
+  quantityUnassignedContractors: 'عمال دون مقاول محدد',
+  quantityKnownSubtotal: 'مجموع السجلات الصحيحة — يلزم استكمال البيانات',
+  quantityNoKnownTotal: 'لا توجد بيانات صحيحة للحساب',
+  quantityDailyWorkers: 'العمال في اليوم',
+  unitKilograms: 'كغ',
+  unitWorkerDays: 'أيام عمل العمال',
+  quantitySourceRows: 'سجلات المصدر',
+  quantityCountedRows: 'السجلات المشمولة بالحساب',
+  quantityIssues: 'سجلات تحتاج إلى مراجعة',
+  quantityIncluded: 'مشمول بالحساب',
+  quantityExcluded: 'غير مشمول بالحساب',
+  labelSupplier: 'المورّد',
+  labelDeliveryNote: 'سند التسليم',
+  labelSpecification: 'النوع / المواصفات',
+  labelLocation: 'المبنى / الطابق / المنطقة',
+  labelOriginalQuantity: 'الكمية كما سُجلت',
+  labelSourceDay: 'يوم اليومية',
+  quantityExportTitle: 'تقرير كميات الفترة',
+  quantityIssueLedgerUnreviewed: 'لم تُراجع قائمة توريدات هذا اليوم للتأكد من اكتمالها',
+  quantityIssueHistoricalText: 'توجد توريدات مسجلة كنص حر لم تُستكمل وفق سندات التسليم',
+  quantityIssueQuantityMissing: 'الكمية مفقودة',
+  quantityIssueQuantityInvalid: 'الكمية ليست رقمًا دقيقًا وصحيحًا',
+  quantityIssueQuantityAmbiguous: 'فاصل الرقم ملتبس — يجب تصحيح الكمية',
+  quantityIssueUnitMismatch: 'الوحدة لا تناسب المادة',
+  quantityIssueSupplierMissing: 'اسم المورّد مفقود',
+  quantityIssueDeliveryNoteMissing: 'رقم سند التسليم مفقود',
+  quantityIssueDuplicateTicket: 'سند تسليم مكرر محتمل — استُبعدت السجلات من المجموع حتى المراجعة',
+  quantityIssueContractorUnassigned: 'لم يُختر مقاول محدد لسطر العمال',
+  quantityMaterialRule: 'تُحسب التوريدات الموثقة بسند تسليم ومورّد وكمية صحيحة فقط. يُحسب الحديد بالكيلوغرام: طن واحد = 1,000 كغ. السجلات الملتبسة أو المكررة تُعرض للمراجعة ولا تُحسب. كميات التنفيذ غير مشمولة.',
+  quantityLaborRule: 'العدد اليومي هو مجموع العمال المسجلين للمقاول في ذلك اليوم. مجموع الفترة يمثل أيام عمل العمال وليس عدد أشخاص مختلفين. 5 عمال خلال 20 يومًا = 100 يوم عمل. البيانات المفقودة لا تُعامل كصفر.',
+  quantityOpenDay: 'فتح اليوم للتصحيح',
+  quantityPeriodTotal: 'مجموع الفترة',
+  quantityNoData: 'لم تُسجل بيانات من هذا النوع خلال الفترة المختارة',
+  quantityReportSelection: 'القائمة للتصدير',
   summaryEquipment: 'ساعات المعدات حسب النوع',
   summaryConcrete: 'الخرسانة حسب النوع',
   unitWorkers: 'عمال',
@@ -1734,6 +2058,8 @@ const en: Strings = {
   edit: 'Edit',
   add: 'Add',
   loading: 'Loading…',
+  working: 'Working…',
+  retry: 'Try again',
   back: 'Back to editing',
   backToReports: 'Back to reports',
   print: 'Print',
@@ -1756,6 +2082,10 @@ const en: Strings = {
   noDescription: 'No work description',
   statusDraft: 'Draft',
   statusSigned: 'Active',
+  cardsRecentDays: 'Recent days',
+  cardsLivePreview: 'Report preview',
+  cardsPreviewHint: 'Updates from the open page',
+  cardsExpandPreview: 'Expand',
 
   sectionProjectDate: 'Project and date',
   sectionManagement: 'Management team',
@@ -1768,7 +2098,7 @@ const en: Strings = {
   sectionSignatures: 'Signatures',
   sectionPhotos: 'Site photos',
   hintProjectDate:
-    'The project name, address and company are taken from the active project and printed at the top of the page.',
+    "The project name, address and company are taken from this page's project and printed at the top.",
   hintManagement: 'The names and roles recorded in the table columns.',
   hintContractors: 'Trade and the number of workers each contractor brought.',
   hintEquipment: 'Equipment type, quantity and working hours.',
@@ -1797,6 +2127,21 @@ const en: Strings = {
   unsavedNote: 'unsaved',
   entryExists: 'An entry already exists for this date',
   entryExistsBody: 'Choose another date to save this page.',
+  entryMissingTitle: 'Page not found',
+  entryMissingBody: 'This link points to a page that no longer exists. No new page was created.',
+  entryInTrashTitle: 'This page is in the Trash',
+  entryInTrashBody: 'The page was removed from the diary. You can restore it here or return to the diary.',
+  entryOwnerMissingTitle: "This page's project is missing",
+  entryOwnerMissingBody: 'The page cannot be opened or exported without its project details.',
+  entryRestoreFailed: 'Restore failed. The page is still in the Trash.',
+  entrySaveFailed: 'The entry was not saved',
+  entrySaveFailedBody: 'Your edits are still on screen. Try again before leaving this page.',
+  entryDeleteFailed: 'Delete failed. The page is still in the diary.',
+  syncConflictLabel: 'Sync conflict',
+  syncConflictNotice: 'Sync conflict · both versions were kept',
+  syncConflictBody: 'Two versions of a diary page were preserved. Review both and move the version you do not need to the Trash before creating a report.',
+  syncDeletionConflictNotice: 'Sync conflict · deletion needs review',
+  syncDeletionConflictBody: 'Another device deleted this page while this copy was edited. Review it, then save it to keep the work or move it to the Trash to confirm the deletion before creating a report.',
   previewButton: 'Preview',
   exportPdf: 'Create PDF',
   shareButton: 'Share',
@@ -1899,6 +2244,7 @@ const en: Strings = {
   trashRestored: (n) => (n === 1 ? 'Page restored' : `${n} pages restored`),
   trashPurged: (n) => (n === 1 ? 'Page deleted for good' : `${n} pages deleted for good`),
   trashClash: 'There is already a page for that date — delete it first, or change the date',
+  trashActionFailed: 'The action stopped. Any pages still shown remain in the Trash.',
   confirmPurge: (n) =>
     n === 1
       ? 'Delete this page for good? This cannot be undone.'
@@ -1917,6 +2263,9 @@ const en: Strings = {
   projectUpdated: 'Project updated',
   projectDeleted: 'Project deleted',
   projectNameRequired: 'A project name is required',
+  projectSaveFailed: 'The project was not saved. Your details are still in the form.',
+  projectDeleteFailed: 'The project was not deleted.',
+  projectSwitchFailed: 'Could not switch to that project.',
   confirmDeleteProject: (name, count) =>
     count > 0
       ? `Delete "${name}" and its ${count} diary entries? This cannot be undone.`
@@ -1924,6 +2273,10 @@ const en: Strings = {
   startTitle: "Let's start",
   startBody: 'To keep a work diary you first need to set up a project.',
   startAction: 'Set up a project',
+  setupDiaryBody: 'Your diary shows the working days for your project. Create a project or restore an existing backup to get started.',
+  setupReportsBody: 'Reports summarize data from your project diary. Create a project or restore an existing backup to get started.',
+  setupNewBody: 'Each daily entry belongs to a project. Create a project to open a new entry, or restore an existing backup.',
+  setupChooseProjectBody: 'Choose an active project on the Projects screen to continue.',
 
   contactsTitle: 'Suppliers & contractors',
   contactsBlurb: 'The site address book — kept on this device and synced with the others.',
@@ -1934,6 +2287,12 @@ const en: Strings = {
   searchContacts: 'Search by name, trade, phone…',
   contactsCount: (n) => (n === 1 ? '1 record' : `${n} records`),
   contactDeleted: 'Row deleted',
+  contactRestored: 'Row restored',
+  contactAddFailed: 'The new row could not be created.',
+  contactSaveFailed: 'Contact changes were not saved',
+  contactSaveFailedBody: 'Your text is still in the table. Try again before leaving this screen.',
+  contactDeleteFailed: 'The row was not deleted.',
+  contactRestoreFailed: 'Restore failed. You can try again.',
   contactNo: 'No.',
   labelContactName: 'Contractor or supplier',
   labelContactTrade: 'Field of work',
@@ -1957,6 +2316,7 @@ const en: Strings = {
       : `Imported ${added} records, updated ${updated}`,
   contactsImportEmpty: 'No records found in that file',
   contactsImportFailed: 'That file could not be read',
+  contactsExportFailed: 'The contact list could not be exported',
   contactsNothingToExport: 'Nothing to export yet',
 
   reportsTitle: 'Combined report',
@@ -1982,6 +2342,78 @@ const en: Strings = {
   statSigned: 'Signed entries',
   statPhotos: 'Photos',
   summaryTrades: 'Workers by trade',
+  summaryExport: 'Share a separate summary',
+  summaryExportHint: 'Choose a summary table: workers, equipment or concrete. Each table exports as a separate file with all its rows and daily details.',
+  summaryDailyDetails: 'Daily details',
+  summaryParsedValue: 'Calculated value',
+  summaryNumberRule: 'Totals add the first number in each field. Original text is included in the details. Equipment hours are added as recorded, without multiplying by quantity. Each date is counted once.',
+  summaryNoType: 'Type not specified',
+  reportContractorName: 'Contractor / company name',
+  reportChooseContact: 'Choose from contacts',
+  reportManualName: 'Enter manually',
+  reportUnassignedContractor: 'No contractor assigned — choose a name to include this in a contractor report',
+  reportInvalidQuantity: 'Enter an exact number without a range or description. A decimal point is supported.',
+  reportWorkersInteger: 'Worker count must be a nonnegative whole number',
+  materialLedgerHint: 'Deliveries received on the diary date, based on delivery notes. Executed pours and free-text notes are not counted here.',
+  materialConcrete: 'Concrete',
+  materialSteel: 'Steel',
+  materialKind: 'Material',
+  materialUnit: 'Unit',
+  materialUnitHint: 'Changing the material or unit clears the quantity. Re-enter it from the delivery note.',
+  materialUnitM3: 'm³',
+  materialUnitKg: 'kg',
+  materialUnitTonne: 'tonne',
+  materialSupplier: 'Supplier',
+  materialReference: 'Delivery note number',
+  materialDescription: 'Material type / specification',
+  materialNotes: 'Delivery notes',
+  materialLocation: 'Building / floor / area',
+  materialAdd: 'Add delivery note',
+  materialReviewed: 'I checked that all concrete and steel deliveries for this day are recorded here',
+  materialNewContractor: 'New contractor',
+  materialSaveContractor: 'Save and select contractor',
+  materialSupplierRequired: 'Supplier name is missing',
+  materialNoteRequired: 'Delivery note number is missing',
+  quantityReportsTitle: 'Quantity and contractor reports',
+  quantityReportsHint: 'Concrete deliveries, steel deliveries and a separate labor report for each contractor during the selected period, with daily detail.',
+  quantityDeliveryLedger: 'Delivery notes — concrete and steel',
+  quantityConcreteReceived: 'Concrete received on site',
+  quantitySteelReceived: 'Steel received on site',
+  quantityContractorLabor: (name) => `Labor report — ${name}`,
+  quantityUnassignedContractors: 'Workers with no assigned contractor',
+  quantityKnownSubtotal: 'Valid-record subtotal — information is incomplete',
+  quantityNoKnownTotal: 'No valid data to calculate',
+  quantityDailyWorkers: 'Workers per day',
+  unitKilograms: 'kg',
+  unitWorkerDays: 'worker-days',
+  quantitySourceRows: 'Source records',
+  quantityCountedRows: 'Records included in calculation',
+  quantityIssues: 'Records needing review',
+  quantityIncluded: 'Included in calculation',
+  quantityExcluded: 'Excluded from calculation',
+  labelSupplier: 'Supplier',
+  labelDeliveryNote: 'Delivery note',
+  labelSpecification: 'Type / specification',
+  labelLocation: 'Building / floor / area',
+  labelOriginalQuantity: 'Quantity as recorded',
+  labelSourceDay: 'Diary date',
+  quantityExportTitle: 'Period quantity report',
+  quantityIssueLedgerUnreviewed: 'The delivery list for this day has not been reviewed for completeness',
+  quantityIssueHistoricalText: 'Free-text deliveries have not been reconciled with delivery notes',
+  quantityIssueQuantityMissing: 'Quantity is missing',
+  quantityIssueQuantityInvalid: 'Quantity is not an exact valid number',
+  quantityIssueQuantityAmbiguous: 'Number separator is ambiguous — correct the quantity',
+  quantityIssueUnitMismatch: 'Unit does not match the material',
+  quantityIssueSupplierMissing: 'Supplier name is missing',
+  quantityIssueDeliveryNoteMissing: 'Delivery note number is missing',
+  quantityIssueDuplicateTicket: 'Possible duplicate delivery note — records are excluded pending review',
+  quantityIssueContractorUnassigned: 'No identified contractor was selected for this worker row',
+  quantityMaterialRule: 'Only deliveries with a delivery note, supplier and valid quantity are counted. Steel is calculated in kilograms: one tonne = 1,000 kg. Ambiguous or duplicate records are shown for review and excluded. Execution quantities are not included.',
+  quantityLaborRule: 'Daily headcount is the sum recorded for the contractor on that date. The period total is worker-days, not unique people. 5 workers over 20 days = 100 worker-days. Missing records are not treated as zero.',
+  quantityOpenDay: 'Open day to correct',
+  quantityPeriodTotal: 'Period total',
+  quantityNoData: 'No data of this type was recorded in the selected period',
+  quantityReportSelection: 'List to export',
   summaryEquipment: 'Equipment hours by type',
   summaryConcrete: 'Concrete by grade',
   unitWorkers: 'workers',

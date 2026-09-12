@@ -6,6 +6,7 @@ import { initNative } from './lib/native';
 import { installGlobalLogHandlers, logger } from './lib/log';
 import { isDesktop, isIos, isNativeApp } from './lib/save';
 import './styles/global.css';
+import './styles/cards.css';
 
 // First, before anything else can fail: from here on a crash leaves a trace on
 // the device instead of vanishing into a console nobody can open on site.

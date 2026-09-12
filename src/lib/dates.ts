@@ -65,6 +65,12 @@ export function monthRange(iso: string): { from: string; to: string } {
   return { from: isoDate(from), to: isoDate(to) };
 }
 
+/** Move by calendar months from day one, so 31 May - 1 month is April. */
+export function shiftedMonthRange(iso: string, months: number): { from: string; to: string } {
+  const date = parseIso(iso);
+  return monthRange(isoDate(new Date(date.getFullYear(), date.getMonth() + months, 1)));
+}
+
 export function addDays(iso: string, days: number): string {
   const d = parseIso(iso);
   d.setDate(d.getDate() + days);

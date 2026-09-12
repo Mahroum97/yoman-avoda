@@ -1,8 +1,9 @@
 /** Combined report over a period: summaries plus one page per diary day. */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
 import type { DiaryEntry, Project } from '../types';
 import { entriesInRange } from '../db';
-import { formatDdMmYyyy, isoDate, monthRange } from '../lib/dates';
+import { addDays, formatDdMmYyyy, isoDate, monthRange, shiftedMonthRange } from '../lib/dates';
 import { formatNum, summarise } from '../docx/summary';
 import { photoPageCount } from '../lib/photoPages';
 import { useCompanyLogo } from '../hooks/useBranding';
@@ -13,19 +14,9 @@ import { navigate } from '../hooks/useRoute';
 import { canShareFiles, type ExportResult } from '../lib/save';
 import { useEditorActions } from '../hooks/editorActionsContext';
 import { Icon } from '../components/Icon';
-
-/** The same day of the month, `by` months away. */
-function shiftedMonth(iso: string, by: number): string {
-  const date = new Date(`${iso}T00:00:00`);
-  date.setMonth(date.getMonth() + by);
-  return date.toISOString().slice(0, 10);
-}
-
-function daysAgo(n: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - n);
-  return date.toISOString().slice(0, 10);
-}
+import { SummaryExportCard } from '../components/SummaryExportCard';
+import { QuantityReportsPanel } from '../components/QuantityReportsPanel';
+import { reportConflictState } from '../lib/reportConflicts';
 
 export function ReportsScreen({ project }: { project: Project }) {
   const toast = useToast();
@@ -36,30 +27,34 @@ export function ReportsScreen({ project }: { project: Project }) {
   const [to, setTo] = useState(initial.to);
   const [includePhotos, setIncludePhotos] = useState(false);
   const [includeSummary, setIncludeSummary] = useState(true);
-  const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
-  const [busy, setBusy] = useState<'pdf' | 'image' | 'word' | 'excel' | 'share' | null>(null);
+  const [busy, setBusy] = useState<'pdf' | 'image' | 'word' | 'excel' | 'share' | 'summary' | 'quantity' | null>(null);
   const canShare = useMemo(() => canShareFiles(), []);
   const { publishPage } = useEditorActions();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (project.id === undefined || from > to) {
-        setEntries([]);
-        return;
-      }
-      const rows = await entriesInRange(project.id, from, to);
-      if (!cancelled) setEntries(rows);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [project.id, from, to]);
+  // A query can still hold the previous result while its next range loads.
+  // Bind records to the requested project and dates before enabling exports.
+  const rangeKey = JSON.stringify([project.uid, project.id, from, to]);
+  const loaded = useLiveQuery(async () => ({
+    key: rangeKey,
+    rows: project.id === undefined || !from || !to || from > to
+      ? []
+      : await entriesInRange(project.id, from, to),
+  }), [project.uid, project.id, from, to]);
+  const entries: DiaryEntry[] | null = loaded?.key === rangeKey ? loaded.rows : null;
+  const conflicts = useMemo(
+    () => reportConflictState(entries ?? []),
+    [entries],
+  );
+  const conflictDates = conflicts.dates;
+  const reportsBlocked = conflictDates.length > 0;
 
-  const stats = useMemo(() => (entries ? summarise(entries) : null), [entries]);
+  const stats = useMemo(
+    () => (entries && !reportsBlocked ? summarise(entries, t.summaryNoType) : null),
+    [entries, reportsBlocked, t],
+  );
 
   const download = async (format: 'pdf' | 'image' | 'word' | 'excel') => {
-    if (!entries?.length) return;
+    if (!entries?.length || reportsBlocked) return;
     setBusy(format);
     try {
       const options = { includePhotos, includeSummary };
@@ -92,7 +87,7 @@ export function ReportsScreen({ project }: { project: Project }) {
 
   /** The finished report, handed to the share sheet instead of a save dialog. */
   const shareReport = async () => {
-    if (!entries?.length) return;
+    if (!entries?.length || reportsBlocked) return;
     setBusy('share');
     try {
       const { exportRangePdf } = await import('../pdf/export');
@@ -110,6 +105,7 @@ export function ReportsScreen({ project }: { project: Project }) {
   };
 
   const openPreview = () => {
+    if (!entries?.length || busy || reportsBlocked) return;
     const q = new URLSearchParams({
       from,
       to,
@@ -144,7 +140,7 @@ export function ReportsScreen({ project }: { project: Project }) {
     latest.current = { download, shareReport, openPreview };
   });
 
-  const count = entries?.length ?? 0;
+  const count = reportsBlocked ? 0 : entries?.length ?? 0;
   useEffect(() => {
     const none = busy !== null || count === 0;
     publishPage({
@@ -222,9 +218,8 @@ export function ReportsScreen({ project }: { project: Project }) {
   }, [publishPage, t, busy, count, canShare]);
 
   const shiftMonth = (delta: number) => {
-    const base = new Date(from);
-    base.setMonth(base.getMonth() + delta);
-    const range = monthRange(isoDate(base));
+    if (!from) return;
+    const range = shiftedMonthRange(from, delta);
     setFrom(range.from);
     setTo(range.to);
   };
@@ -255,8 +250,8 @@ export function ReportsScreen({ project }: { project: Project }) {
         <div className="rangebar">
           {([
             [t.thisMonth, () => monthRange(isoDate())],
-            [t.lastMonth, () => monthRange(shiftedMonth(isoDate(), -1))],
-            [t.lastSevenDays, () => ({ from: daysAgo(6), to: isoDate() })],
+            [t.lastMonth, () => shiftedMonthRange(isoDate(), -1)],
+            [t.lastSevenDays, () => ({ from: addDays(isoDate(), -6), to: isoDate() })],
           ] as const).map(([label, range]) => {
             const { from: rFrom, to: rTo } = range();
             return (
@@ -323,6 +318,42 @@ export function ReportsScreen({ project }: { project: Project }) {
         </label>
       </Card>
 
+      {reportsBlocked && (
+        <div className="report-conflict" role="alert">
+          <Card title={
+            conflicts.hasDeletion && !conflicts.hasRevision
+              ? t.syncDeletionConflictNotice
+              : conflicts.hasRevision && !conflicts.hasDeletion
+                ? t.syncConflictNotice
+                : t.syncConflictLabel
+          }>
+            {conflicts.hasRevision && <p>{t.syncConflictBody}</p>}
+            {conflicts.hasDeletion && <p>{t.syncDeletionConflictBody}</p>}
+            <p className="report-conflict__dates">
+              {conflictDates.map((date) => (
+                <bdi dir="ltr" key={date}>{formatDdMmYyyy(date)}</bdi>
+              ))}
+            </p>
+            <button type="button" className="btn" onClick={() => navigate('/')}>
+              <Icon name="diary" size={17} />
+              {t.navDiary}
+            </button>
+          </Card>
+        </div>
+      )}
+
+      {!reportsBlocked && entries && entries.length > 0 && <SummaryExportCard
+        key={rangeKey} entries={entries} project={project} from={from} to={to}
+        logoDataUrl={logoDataUrl} busy={busy !== null}
+        onBusy={value => setBusy(value ? 'summary' : null)}
+      />}
+
+      {!reportsBlocked && entries && entries.length > 0 && <QuantityReportsPanel
+        key={`quantity:${rangeKey}`} entries={entries} project={project} from={from} to={to}
+        logoDataUrl={logoDataUrl} busy={busy !== null}
+        onBusy={value => setBusy(value ? 'quantity' : null)}
+      />}
+
       {stats && entries && (
         <Card title={t.periodSummary}>
           {entries.length === 0 ? (
@@ -334,7 +365,7 @@ export function ReportsScreen({ project }: { project: Project }) {
                   (includeSummary ? 1 : 0) +
                     entries.length +
                     (includePhotos
-                      ? entries.reduce((sum, e) => sum + photoPageCount(e.photos.length), 0)
+                      ? entries.reduce((sum, e) => sum + photoPageCount(e.photos?.length ?? 0), 0)
                       : 0),
                 )}
               </p>
@@ -359,7 +390,7 @@ export function ReportsScreen({ project }: { project: Project }) {
       )}
 
 
-      {entries && entries.length > 0 && (
+      {!reportsBlocked && entries && entries.length > 0 && (
         <p className="muted small" style={{ marginBottom: 32 }}>
           {t.reportCovers(
             formatDdMmYyyy(entries[0].date),
@@ -375,7 +406,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <div className="muted small">{label}</div>
-      <div style={{ fontSize: '1.4rem', fontWeight: 700 }}>{value}</div>
+      <div style={{ fontSize: '1.4rem', fontWeight: 700 }}><bdi dir="ltr">{value}</bdi></div>
     </div>
   );
 }

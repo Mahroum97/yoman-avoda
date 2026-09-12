@@ -12,6 +12,7 @@ import {
   type SyncExchange,
   type SyncManifest,
   type SyncPayload,
+  type SyncRequest,
   type SyncResponse,
 } from './protocol';
 import {
@@ -19,9 +20,13 @@ import {
   buildManifest,
   collectEntryChunk,
   collectMeta,
+  countPayload,
   type ApplyResult,
+  type SyncCounts,
 } from './store';
 import { logger } from '../lib/log';
+import { flushPendingWrites } from '../lib/pendingWrites';
+import { rewritePhotosAsBytes } from '../lib/photoData';
 
 /**
  * Entries requested per round when pulling.
@@ -140,46 +145,63 @@ async function post(peer: Peer, body: SyncExchange): Promise<SyncResponse> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ROUND_TIMEOUT_MS);
 
-  let response: Response;
   try {
-    response = await fetch(`${baseUrl(peer.address)}/sync`, {
+    const response = await fetch(`${baseUrl(peer.address)}/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Yoman-Code': peer.code },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
+
+    if (response.status === 401) throw new Error('BAD_CODE');
+    if (!response.ok) throw new Error(`HTTP_${response.status}`);
+
+    // Keep the timeout alive while the response body is read too. `fetch`
+    // resolves as soon as the headers arrive; a connection that stalls halfway
+    // through a photo-filled JSON body must not leave the app spinning forever.
+    const answer = (await response.json()) as SyncResponse;
+    if (answer.version !== SYNC_PROTOCOL_VERSION) throw new Error('VERSION_MISMATCH');
+    return answer;
   } catch (error) {
     // An abort and a refused connection both land here, and they mean very
     // different things to someone standing on a site with a phone.
     if ((error as DOMException)?.name === 'AbortError') throw new Error('TIMEOUT');
+    if (
+      error instanceof Error &&
+      (error.message === 'BAD_CODE' ||
+        error.message === 'VERSION_MISMATCH' ||
+        error.message.startsWith('HTTP_'))
+    ) {
+      throw error;
+    }
     throw new Error('UNREACHABLE');
   } finally {
     clearTimeout(timer);
   }
-
-  if (response.status === 401) throw new Error('BAD_CODE');
-  if (!response.ok) throw new Error(`HTTP_${response.status}`);
-
-  const answer = (await response.json()) as SyncResponse;
-  if (answer.version !== SYNC_PROTOCOL_VERSION) throw new Error('VERSION_MISMATCH');
-  return answer;
 }
 
 export interface SyncOutcome {
   received: ApplyResult;
-  sent: { projects: number; entries: number };
+  sent: SyncCounts;
   peerName: string;
 }
 
 /** Checks an address before pairing, so a typo is caught immediately. */
 export async function probe(address: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8_000);
   try {
-    const response = await fetch(`${baseUrl(address)}/sync/hello`, { method: 'GET' });
+    const response = await fetch(`${baseUrl(address)}/sync/hello`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
     if (!response.ok) return false;
     const body = (await response.json()) as { app?: string };
     return body.app === 'yoman-avoda';
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -216,14 +238,18 @@ async function runSyncGuarded(
   // devices, a network, and a merge, and the user only ever sees the result.
   // Record counts at each step — never the records themselves.
   const done = log.time('sync');
-  const manifest = await buildManifest(deviceName());
-  log.info('sync started', {
-    projects: manifest.projects.length,
-    entries: manifest.entries.length,
-    tombstones: manifest.tombstones.length,
-  });
-
   try {
+    // A manifest built while an editor still owns a debounced revision can let
+    // a peer's older whole record win before the local change exists in
+    // IndexedDB. Commit all mounted drafts before taking the revision inventory.
+    await flushPendingWrites();
+    await rewritePhotosAsBytes();
+    const manifest = await buildManifest(deviceName());
+    log.info('sync started', {
+      projects: manifest.projects.length,
+      entries: manifest.entries.length,
+      tombstones: manifest.tombstones.length,
+    });
     const outcome = await runSync(peer, manifest, done, onProgress);
     clearFailure();
     return outcome;
@@ -243,6 +269,12 @@ const EMPTY_PAYLOAD: SyncPayload = {
   presets: [],
   settings: [],
   tombstones: [],
+};
+
+const EMPTY_REQUEST: SyncRequest = {
+  projects: [],
+  entries: [],
+  settings: [],
 };
 
 async function runSync(
@@ -269,12 +301,25 @@ async function runSync(
     pushEntries: totalOut,
   });
 
-  const received: ApplyResult = { projects: 0, entries: 0, contacts: 0, deleted: 0 };
+  const received: ApplyResult = {
+    projects: 0,
+    entries: 0,
+    contacts: 0,
+    presets: 0,
+    settings: 0,
+    tombstones: 0,
+    deleted: 0,
+    conflicts: 0,
+  };
   const add = (part: ApplyResult) => {
     received.projects += part.projects;
     received.entries += part.entries;
     received.contacts += part.contacts;
+    received.presets += part.presets;
+    received.settings += part.settings;
+    received.tombstones += part.tombstones;
     received.deleted += part.deleted;
+    received.conflicts += part.conflicts;
   };
 
   // Round 2 — pull. Projects, contacts, presets, tombstones and settings are
@@ -283,6 +328,8 @@ async function runSync(
     toPull.projects.length ||
     toPull.settings.length ||
     toPull.contacts?.length ||
+    toPull.presets ||
+    toPull.tombstones ||
     totalIn
   ) {
     const meta = await post(peer, {
@@ -315,15 +362,24 @@ async function runSync(
   }
 
   // Round 3 — push, the same way round.
-  const sent = { projects: 0, entries: 0 };
+  const sent: SyncCounts = {
+    projects: 0,
+    entries: 0,
+    contacts: 0,
+    presets: 0,
+    settings: 0,
+    tombstones: 0,
+  };
   if (
     wanted.projects.length ||
     wanted.settings.length ||
     wanted.contacts?.length ||
+    wanted.presets ||
+    wanted.tombstones ||
     totalOut
   ) {
     const meta = await collectMeta(wanted);
-    sent.projects = meta.projects.length;
+    Object.assign(sent, countPayload(meta));
     await post(peer, { manifest, payload: meta });
 
     let index = 0;
@@ -348,9 +404,17 @@ async function runSync(
     receivedProjects: received.projects,
     receivedEntries: received.entries,
     receivedContacts: received.contacts,
+    receivedPresets: received.presets,
+    receivedSettings: received.settings,
+    receivedTombstones: received.tombstones,
     deleted: received.deleted,
+    conflicts: received.conflicts,
     sentProjects: sent.projects,
     sentEntries: sent.entries,
+    sentContacts: sent.contacts,
+    sentPresets: sent.presets,
+    sentSettings: sent.settings,
+    sentTombstones: sent.tombstones,
   });
   return { received, sent, peerName: hello.deviceName };
 }
@@ -360,6 +424,34 @@ async function runSync(
  * Only the Mac app runs this, but the logic is identical on both sides.
  */
 export async function answerExchange(exchange: SyncExchange): Promise<SyncResponse> {
+  /*
+   * Refuse a mismatched protocol before applying what it carried.
+   *
+   * Version 1 also had a `manifest` and `payload`, so without this guard an old
+   * phone can push its whole unchunked payload into a version 2 Mac before the
+   * response tells it that the versions differ. Returning an empty, current
+   * response lets a current caller report VERSION_MISMATCH and keeps an older
+   * caller (which did not inspect the version) from being invited to push.
+   */
+  if (exchange.manifest?.version !== SYNC_PROTOCOL_VERSION) {
+    log.warn('refused sync protocol mismatch', {
+      peerVersion: exchange.manifest?.version ?? null,
+      version: SYNC_PROTOCOL_VERSION,
+    });
+    return {
+      version: SYNC_PROTOCOL_VERSION,
+      deviceName: deviceName(),
+      wanted: EMPTY_REQUEST,
+      payload: EMPTY_PAYLOAD,
+    };
+  }
+
+  // The Mac can be editing while it hosts a phone-initiated sync. Its pending
+  // React draft is just as invisible to a manifest as the caller's, so commit
+  // it before accepting a payload or advertising the host's revisions.
+  await flushPendingWrites();
+  await rewritePhotosAsBytes();
+
   // Whatever they delivered goes in first, so our reply reflects it.
   const received = exchange.payload ? await applyPayload(exchange.payload) : null;
   if (received) {
@@ -367,7 +459,11 @@ export async function answerExchange(exchange: SyncExchange): Promise<SyncRespon
       entries: received.entries,
       projects: received.projects,
       contacts: received.contacts,
+      presets: received.presets,
+      settings: received.settings,
+      tombstones: received.tombstones,
       deleted: received.deleted,
+      conflicts: received.conflicts,
     });
   }
 

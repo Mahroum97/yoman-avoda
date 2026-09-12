@@ -1,0 +1,33 @@
+/* Neutral hierarchy; color identifies invalid input or records needing review. */
+.quantity-reports { display: grid; gap: 16px; }
+.quantity-input-issue { color: var(--danger); }
+.quantity-confirmation { display: flex; align-items: flex-start; gap: 10px; }
+.quantity-confirmation input { width: 20px; height: 20px; min-height: 20px; margin-top: 3px; flex-shrink: 0; accent-color: var(--ink); }
+.quantity-ledger .row-item, .contractor-editor .row-item { background: var(--surface); }
+.stepper--neutral .stepper__btn { background: var(--surface-2); color: var(--ink); }
+.stepper--neutral .stepper__btn:hover:not(:disabled) { background: var(--line); }
+.quantity-report-total { display: grid; gap: 5px; padding-block: 14px; border-block: 1px solid var(--line); }
+.quantity-report-total strong { font-size: 1.6rem; }
+.quantity-report-total strong span { font-size: 1rem; font-weight: 500; }
+.quantity-primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.quantity-review { border-inline-start: 3px solid light-dark(#805113, #e3b96b); padding-inline-start: 12px; }
+.quantity-review > summary { color: light-dark(#805113, #e3b96b); font-weight: 600; }
+.quantity-reports summary { cursor: pointer; padding-block: 8px; }
+.quantity-review ul { padding-inline-start: 18px; }
+.quantity-review li { margin-block: 8px; }
+.quantity-review li .btn { display: inline-flex; margin-inline-start: 8px; }
+.quantity-daily table { border-collapse: collapse; width: 100%; text-align: start; }
+.quantity-daily th, .quantity-daily td { border-bottom: 1px solid var(--line); padding: 10px 8px; text-align: start; }
+.quantity-daily th { background: var(--surface-2); }
+.quantity-source { border-top: 1px solid var(--line); }
+.quantity-source dl { display: grid; gap: 8px; margin: 8px 0; }
+.quantity-source dl > div { display: grid; grid-template-columns: minmax(100px, 1fr) minmax(0, 2fr); gap: 12px; }
+.quantity-source dt { color: var(--muted); }
+.quantity-source dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.quantity-reports select { min-width: 0; max-width: 100%; }
+@media (max-width: 620px) {
+  .quantity-review li .btn { margin-inline-start: 0; }
+  .quantity-reports .btn-row { flex-wrap: wrap; }
+  .quantity-source dl > div { grid-template-columns: 1fr; gap: 3px; }
+  .quantity-ledger input, .contractor-editor input { min-width: 0; }
+}

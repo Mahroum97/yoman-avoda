@@ -64,3 +64,14 @@ the Dock with its menu bar up and *no window at all* — nothing on screen and n
 written down. `createWindow` now carries an eight-second fallback that shows the window
 regardless, plus `did-fail-load` and `render-process-gone` handlers that put the reason on
 screen. An empty window that can be reloaded from the menu beats no window.
+
+## Disposable workflow regressions
+
+Browser UI checks use a fresh Playwright context and synthetic IndexedDB only. Set
+`YOMAN_PLAYWRIGHT_PATH` to the bundled runtime and `YOMAN_BASE_URL` when Vite is not on
+5173. `check-report-ui.mjs`, `check-quantity-ui.mjs`, `check-route-errors.mjs`,
+`check-mutation-failures.mjs`, `check-cards-workspace.mjs`, `check-empty-navigation.mjs`
+and `check-mobile-taps.mjs` exercise the visible workflows. `check-storage.mjs`,
+`check-causal-sync.mjs` and `check-causal-conflict-ui.mjs` cover backup, schema-v8
+migration, multi-peer causal branches, deletion conflicts and explicit resolution.
+Never point any of them at an installed diary profile or physical device.

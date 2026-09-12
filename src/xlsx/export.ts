@@ -18,6 +18,7 @@ import { rangeFileName } from '../docx/build';
 import { saveBlob, type ExportResult } from '../lib/save';
 import { logger, fileKind } from '../lib/log';
 import { buildWorkbook, type Cell, type Sheet } from './workbook';
+import { assertNoReportConflicts } from '../lib/reportConflicts';
 
 const log = logger('xlsx');
 
@@ -70,7 +71,7 @@ function daysSheet(entries: DiaryEntry[], t: Strings): Sheet {
       entry.casting?.concreteType ?? '',
       num(entry.casting?.concreteQty),
       entry.photos?.length ?? 0,
-      entry.status === 'signed' ? t.statusSigned : t.statusDraft,
+      entry.status === 'signed' || entry.managerSignature?.trim() ? t.statusSigned : t.statusDraft,
       (entry.receivedToday ?? '').replace(/\r/g, ''),
       (entry.supervisorNotes ?? '').replace(/\r/g, ''),
     ]);
@@ -85,7 +86,7 @@ function daysSheet(entries: DiaryEntry[], t: Strings): Sheet {
 }
 
 function summarySheet(entries: DiaryEntry[], project: Project, t: Strings): Sheet {
-  const s = summarise(entries);
+  const s = summarise(entries, t.summaryNoType);
   const rows: Cell[][] = [[t.xlsxSummaryTitle, '', '']];
 
   const blank = () => rows.push(['', '', '']);
@@ -128,6 +129,7 @@ export async function buildRangeWorkbook(
   project: Project,
   t: Strings,
 ): Promise<Blob> {
+  assertNoReportConflicts(entries);
   // Oldest first: a spreadsheet is read downwards.
   const ordered = [...entries].sort((a, b) => a.date.localeCompare(b.date));
   return buildWorkbook([daysSheet(ordered, t), summarySheet(ordered, project, t)], t.dir === 'rtl');

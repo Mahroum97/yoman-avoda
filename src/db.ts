@@ -28,6 +28,19 @@ import {
   storablePhotos,
 } from './lib/photoData';
 import { isoDate } from './lib/dates';
+import { SYNCED_SETTINGS } from './sync/protocol';
+import { preserveReportFields } from './lib/reportFields';
+import { flushPendingWrites } from './lib/pendingWrites';
+import {
+  advanceEntryRevision,
+  compareEntryRevisions,
+  entryRevisionContent,
+  legacyEntryRevision,
+  mergeEquivalentEntryRevisions,
+  revisionWinner,
+  stableConflictBranchUid,
+  validatedEntryRevision,
+} from './sync/revision';
 
 /** Small key/value bag for app state that must outlive a reload. */
 export interface Setting {
@@ -156,12 +169,66 @@ class YomanDb extends Dexie {
       tombstones: '&uid, table, deletedAt',
       logs: '++id, at, level',
     });
+
+    // v7 gives projects a real modification stamp. Using `createdAt` for the
+    // sync manifest made every later name/address/company edit invisible, and
+    // also made a restored project lose to a deletion made after its creation.
+    this.version(7)
+      .stores({
+        projects: '++id, &uid, name, archived, createdAt, updatedAt, [uid+updatedAt]',
+        entries:
+          '++id, &uid, projectUid, projectId, date, [projectId+date], status, updatedAt, [uid+updatedAt]',
+        contacts: '++id, &uid, name, trade, updatedAt, [uid+updatedAt]',
+        presets: '++id, kind, [kind+value], uses',
+        settings: 'key',
+        tombstones: '&uid, table, deletedAt',
+        logs: '++id, at, level',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('projects')
+          .toCollection()
+          .modify((project: Project) => {
+            project.updatedAt ??= project.createdAt;
+          }),
+      );
+
+    // v8 gives each entry a causal revision. The compound index keeps sync's
+    // manifest on index keys: even after adding vector metadata, inventorying
+    // the diary must never deserialize the photographs in each record.
+    this.version(8)
+      .stores({
+        projects: '++id, &uid, name, archived, createdAt, updatedAt, [uid+updatedAt]',
+        entries:
+          '++id, &uid, projectUid, projectId, date, [projectId+date], status, updatedAt, [uid+updatedAt], [uid+updatedAt+syncRevision]',
+        contacts: '++id, &uid, name, trade, updatedAt, [uid+updatedAt]',
+        presets: '++id, kind, [kind+value], uses',
+        settings: 'key',
+        tombstones: '&uid, table, deletedAt',
+        logs: '++id, at, level',
+      })
+      .upgrade((tx) =>
+        tx
+          .table('entries')
+          .toCollection()
+          .modify((entry: DiaryEntry) => {
+            entry.syncRevision ??= legacyEntryRevision(entry);
+          }),
+      );
   }
 }
 
 export const db = new YomanDb();
 
 const log = logger('db');
+
+/**
+ * A local write must advance from the record it replaces, even when the clock
+ * moved backwards or restore deliberately stamped data past a known future
+ * tombstone. Raw `Date.now()` would make the first edit after that look older.
+ */
+const nextUpdatedAt = (...known: (number | undefined)[]): number =>
+  Math.max(Date.now(), ...known.filter((value): value is number => Number.isFinite(value))) + 1;
 
 /*
  * The database failing to open used to be completely silent.
@@ -250,7 +317,10 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
 }
 
 export async function setSetting(key: string, value: unknown): Promise<void> {
-  await db.settings.put({ key, value, updatedAt: Date.now() });
+  await db.transaction('rw', db.settings, async () => {
+    const current = await db.settings.get(key);
+    await db.settings.put({ key, value, updatedAt: nextUpdatedAt(current?.updatedAt) });
+  });
 }
 
 export const ACTIVE_PROJECT_KEY = 'activeProjectId';
@@ -258,21 +328,48 @@ export const ACTIVE_PROJECT_KEY = 'activeProjectId';
 /* ------------------------------------------------------------------ projects */
 
 export async function createProject(
-  data: Omit<Project, 'id' | 'uid' | 'createdAt' | 'archived'>,
+  data: Omit<Project, 'id' | 'uid' | 'createdAt' | 'updatedAt' | 'archived'>,
 ): Promise<number> {
-  const id = await db.projects.add({
-    ...data,
-    uid: newUid(),
-    archived: false,
-    createdAt: Date.now(),
-  } as Project);
-  // First project becomes the active one, so the app is usable immediately.
-  const active = await getSetting<number | null>(ACTIVE_PROJECT_KEY, null);
-  if (active === null) await setSetting(ACTIVE_PROJECT_KEY, id);
+  const now = Date.now();
+  let id = 0;
+  await db.transaction('rw', db.projects, db.settings, async () => {
+    id = await db.projects.add({
+      ...data,
+      uid: newUid(),
+      archived: false,
+      createdAt: now,
+      updatedAt: now,
+    } as Project);
+    // First project becomes active in the same commit. If settings storage
+    // fails, the project add rolls back and retry cannot create a duplicate.
+    const active = await db.settings.get(ACTIVE_PROJECT_KEY);
+    if (!active || active.value === null) {
+      await db.settings.put({
+        key: ACTIVE_PROJECT_KEY,
+        value: id,
+        updatedAt: nextUpdatedAt(active?.updatedAt),
+      });
+    }
+  });
   // Not the name: a project name is site data, and it is the same name the
   // export file names are built from, which `fileKind` already redacts.
   log.info('project created', { projects: await db.projects.count() });
   return id;
+}
+
+/** Updates project details with a stamp that remains monotonic after restore. */
+export async function updateProject(
+  id: number,
+  changes: Pick<Project, 'name' | 'address' | 'company'>,
+): Promise<void> {
+  await db.transaction('rw', db.projects, async () => {
+    const current = await db.projects.get(id);
+    if (!current) return;
+    await db.projects.update(id, {
+      ...changes,
+      updatedAt: nextUpdatedAt(current.updatedAt, current.createdAt),
+    });
+  });
 }
 
 /** Deletes a project and every diary page under it. */
@@ -300,11 +397,26 @@ export async function deleteProject(id: number): Promise<void> {
   await db.transaction('rw', db.projects, db.entries, db.settings, db.tombstones, async () => {
     const project = await db.projects.get(id);
     const entries = await db.entries.where('projectId').equals(id).toArray();
-    const now = Date.now();
+    const now = nextUpdatedAt(
+      project?.updatedAt,
+      project?.createdAt,
+      ...entries.map((entry) => entry.updatedAt),
+    );
     // Record the deletions before removing them, so the other device follows.
     await db.tombstones.bulkPut([
       ...(project ? [{ uid: project.uid, table: 'projects' as const, deletedAt: now }] : []),
-      ...entries.map((entry) => ({ uid: entry.uid, table: 'entries' as const, deletedAt: now })),
+      ...entries.map((entry) => {
+        const deleted = { ...entry, deletedAt: now, updatedAt: now };
+        return {
+          uid: entry.uid,
+          table: 'entries' as const,
+          deletedAt: now,
+          entryRevision: advanceEntryRevision(
+            deleted,
+            validatedEntryRevision(entry),
+          ),
+        };
+      }),
     ]);
     await db.entries.where('projectId').equals(id).delete();
     await db.projects.delete(id);
@@ -399,7 +511,74 @@ export function statusFor(entry: DiaryEntry): DiaryEntry['status'] {
   return entry.managerSignature?.trim() ? 'signed' : entry.status;
 }
 
-export async function saveEntry(entry: DiaryEntry): Promise<number> {
+/** A save would create two live pages for one project and date. */
+export class EntryDateConflictError extends Error {
+  readonly date: string;
+
+  constructor(date: string) {
+    super(`קיים כבר יומן לתאריך ${date}`);
+    this.name = 'EntryDateConflictError';
+    this.date = date;
+  }
+}
+
+/** A stale editor tried to write a page that has since been deleted for good. */
+export class EntryUnavailableError extends Error {
+  constructor() {
+    super('היומן אינו זמין עוד');
+    this.name = 'EntryUnavailableError';
+  }
+}
+
+export interface SavedEntryResult {
+  id: number;
+  uid: string;
+  updatedAt: number;
+  syncRevision: string;
+  syncConflict: boolean;
+  syncConflictKind?: 'revision' | 'deletion';
+  syncConflictGroup?: string;
+  syncConflictRoot?: string;
+  /** A changed stored revision was retained as a second marked page. */
+  conflictPreserved: boolean;
+}
+
+interface RevisionExpectation {
+  /** `null` means this editor expects that its new UID does not exist yet. */
+  updatedAt: number | null;
+  /** Causal head loaded/adopted by the editor; null means a new legacy-free row. */
+  syncRevision?: string | null;
+}
+
+async function putStableConflictBranch(
+  branch: DiaryEntry,
+  rootUid: string,
+  group: string,
+): Promise<DiaryEntry> {
+  const syncRevision = validatedEntryRevision(branch);
+  const uid = stableConflictBranchUid(rootUid, syncRevision);
+  const held = await db.entries.where('uid').equals(uid).first();
+  if (held && validatedEntryRevision(held) !== syncRevision) {
+    throw new Error('CONFLICT_UID_COLLISION');
+  }
+  const record: DiaryEntry = {
+    ...branch,
+    id: held?.id,
+    uid,
+    syncRevision,
+    syncConflict: true,
+    syncConflictKind: 'revision',
+    syncConflictGroup: group,
+    syncConflictRoot: rootUid,
+  };
+  record.id = await db.entries.put(record);
+  return record;
+}
+
+async function persistEntry(
+  entry: DiaryEntry,
+  expectation: RevisionExpectation | null,
+): Promise<SavedEntryResult> {
   const toSave: DiaryEntry = {
     ...entry,
     // Photographs are written as bytes, never as Blobs — a page saved on a
@@ -409,18 +588,267 @@ export async function saveEntry(entry: DiaryEntry): Promise<number> {
     status: statusFor(entry),
     updatedAt: Date.now(),
   };
-  const id = await db.entries.put(toSave);
-  await learnPresets(toSave);
+  let id = 0;
+  let saved = toSave;
+  let conflictPreserved = false;
+  let resolvedDeletionRevision: string | undefined;
+  await db.transaction('rw', db.projects, db.entries, db.tombstones, async () => {
+    /*
+     * A page may already have been saved while this caller was waiting behind
+     * an earlier autosave. Match its stable uid before deciding that an absent
+     * numeric id means "new"; otherwise two first saves either collide on the
+     * uid index or create a second live page for the date.
+     */
+    const [project, byUid, byId, tombstone] = await Promise.all([
+      db.projects.get(toSave.projectId),
+      db.entries.where('uid').equals(toSave.uid).first(),
+      toSave.id === undefined ? undefined : db.entries.get(toSave.id),
+      db.tombstones.get(toSave.uid),
+    ]);
+
+    if (!project || (toSave.projectUid && project.uid !== toSave.projectUid)) {
+      throw new EntryUnavailableError();
+    }
+    if (byId && byId.uid !== toSave.uid) throw new EntryUnavailableError();
+    const current = byUid ?? byId;
+
+    if (tombstone?.table === 'entries') {
+      if (!current) throw new EntryUnavailableError();
+      const currentRevision = validatedEntryRevision(current);
+      if (tombstone.entryRevision) {
+        const deletionOrder = compareEntryRevisions(
+          currentRevision,
+          tombstone.entryRevision,
+        );
+        if (deletionOrder === 'remote-ahead' || deletionOrder === 'same') {
+          throw new EntryUnavailableError();
+        }
+        // Saving a branch concurrent with a permanent deletion is the user's
+        // explicit choice to keep it. Join the deletion clock into the new head
+        // and remove the obsolete tombstone so it cannot suppress that choice.
+        resolvedDeletionRevision = tombstone.entryRevision;
+        await db.tombstones.delete(toSave.uid);
+      } else if (current.updatedAt <= tombstone.deletedAt) {
+        throw new EntryUnavailableError();
+      } else {
+        await db.tombstones.delete(toSave.uid);
+      }
+    }
+
+    if (expectation) {
+      if (!current && expectation.updatedAt !== null) {
+        throw new EntryUnavailableError();
+      }
+      if (current?.deletedAt !== undefined && toSave.deletedAt === undefined) {
+        throw new EntryUnavailableError();
+      }
+    }
+
+    /*
+     * The lookup and put share one read-write transaction. Two windows can both
+     * pass the editor's friendly pre-check; IndexedDB serialises these store
+     * transactions, so the second one sees what the first committed and stops.
+     * Trashed pages are excluded deliberately: writing that date again while
+     * the old page remains recoverable is supported.
+     */
+    const clash = await db.entries
+      .where({ projectId: toSave.projectId, date: toSave.date })
+      .filter((other) => other.uid !== toSave.uid && other.deletedAt === undefined)
+      .first();
+    // Sync keeps two independently-created pages instead of deleting either.
+    // Those marked copies remain editable until one is moved to the trash;
+    // an ordinary attempt to create a duplicate date is still refused.
+    if (
+      clash &&
+      !(current?.syncConflict && clash.syncConflict)
+    ) {
+      throw new EntryDateConflictError(toSave.date);
+    }
+
+    saved = preserveReportFields(current?.id === undefined ? toSave : { ...toSave, id: current.id }, current);
+    saved = {
+      ...saved,
+      // A stale snapshot and undo must not lower a status already committed.
+      status: current?.status === 'signed' ? 'signed' : saved.status,
+      // These are merge metadata, not editable form fields. A queued UI
+      // snapshot must not resurrect a marker that another operation resolved.
+      syncConflict: current ? current.syncConflict : saved.syncConflict,
+      syncConflictKind: current ? current.syncConflictKind : saved.syncConflictKind,
+      syncConflictGroup: current ? current.syncConflictGroup : saved.syncConflictGroup,
+      syncConflictRoot: current ? current.syncConflictRoot : saved.syncConflictRoot,
+      updatedAt: nextUpdatedAt(current?.updatedAt, saved.updatedAt),
+    };
+    // A stale editor must not bring a page back out of the trash. Restoration
+    // has its own checked path (`restoreFromTrash`) that removes this marker.
+    if (current?.deletedAt !== undefined && saved.deletedAt === undefined) {
+      saved = { ...saved, deletedAt: current.deletedAt };
+    }
+    if (resolvedDeletionRevision && saved.syncConflictGroup === `deletion:${toSave.uid}`) {
+      saved = {
+        ...saved,
+        syncConflict: false,
+        syncConflictKind: undefined,
+        syncConflictGroup: undefined,
+        syncConflictRoot: undefined,
+      };
+    }
+
+    const currentRevision = current ? validatedEntryRevision(current) : undefined;
+    const changedBehindEditor =
+      !!expectation &&
+      current !== undefined &&
+      (expectation.updatedAt === null ||
+        current.updatedAt !== expectation.updatedAt ||
+        (expectation.syncRevision !== undefined &&
+          (expectation.syncRevision === null ||
+            compareEntryRevisions(expectation.syncRevision, currentRevision) !== 'same')));
+    const revisionBase = changedBehindEditor
+      ? expectation?.syncRevision ?? toSave.syncRevision
+      : currentRevision ?? toSave.syncRevision;
+    saved.syncRevision = advanceEntryRevision(
+      saved,
+      revisionBase,
+      undefined,
+      [resolvedDeletionRevision],
+    );
+
+    if (changedBehindEditor && current && currentRevision) {
+      const relation = compareEntryRevisions(currentRevision, saved.syncRevision);
+      const sameContent =
+        entryRevisionContent(currentRevision) === entryRevisionContent(saved.syncRevision);
+      const merged = sameContent
+        ? mergeEquivalentEntryRevisions(currentRevision, saved.syncRevision)
+        : null;
+      if (relation === 'remote-ahead') {
+        // The candidate causally descends from the stored head; only its wall
+        // clock stamp changed behind the editor, so this is an ordinary save.
+      } else if (merged) {
+        saved = {
+          ...saved,
+          id: current.id,
+          uid: current.uid,
+          syncRevision: merged,
+          syncConflict: current.syncConflict || saved.syncConflict,
+          syncConflictKind:
+            current.syncConflictKind ?? saved.syncConflictKind,
+          syncConflictGroup: current.syncConflictGroup ?? saved.syncConflictGroup,
+          syncConflictRoot: current.syncConflictRoot ?? saved.syncConflictRoot,
+        };
+      } else {
+        const rootUid = current.syncConflictRoot ?? current.uid;
+        const group = current.syncConflictGroup ?? `revision:${rootUid}`;
+        const winner = revisionWinner(currentRevision, saved.syncRevision);
+        if (winner === 'local') {
+          const main: DiaryEntry = {
+            ...current,
+            syncRevision: currentRevision,
+            syncConflict: true,
+            syncConflictKind: 'revision',
+            syncConflictGroup: group,
+            syncConflictRoot: rootUid,
+            updatedAt: nextUpdatedAt(current.updatedAt, saved.updatedAt),
+          };
+          await db.entries.put(main);
+          saved = await putStableConflictBranch(saved, rootUid, group);
+        } else {
+          await putStableConflictBranch(current, rootUid, group);
+          saved = {
+            ...saved,
+            id: current.id,
+            uid: current.uid,
+            syncConflict: true,
+            syncConflictKind: 'revision',
+            syncConflictGroup: group,
+            syncConflictRoot: rootUid,
+          };
+        }
+        conflictPreserved = true;
+      }
+    }
+    id = await db.entries.put(saved);
+  });
+  await learnPresets(saved);
   // The date, the counts and the status — never a word of what was written on
   // the page. This is the line that answers "I filled it in and it was gone
   // the next morning": either it is here, or the save never happened.
   log.info('page saved', {
-    date: toSave.date,
-    photos: toSave.photos.length,
-    status: toSave.status,
+    date: saved.date,
+    photos: saved.photos.length,
+    status: saved.status,
     isNew: entry.id === undefined,
+    conflictPreserved,
   });
-  return id;
+  if (conflictPreserved) {
+    log.warn('saved both revisions after the page changed behind an editor');
+  }
+  return {
+    id,
+    uid: saved.uid,
+    updatedAt: saved.updatedAt,
+    syncRevision: saved.syncRevision!,
+    syncConflict: !!saved.syncConflict,
+    syncConflictKind: saved.syncConflictKind,
+    syncConflictGroup: saved.syncConflictGroup,
+    syncConflictRoot: saved.syncConflictRoot,
+    conflictPreserved,
+  };
+}
+
+/** Ordinary internal save used when the caller does not own a loaded revision. */
+export async function saveEntry(entry: DiaryEntry): Promise<number> {
+  return (await persistEntry(entry, null)).id;
+}
+
+/**
+ * Saves an editor draft with optimistic revision checking.
+ *
+ * On a mismatch the stored revision is first preserved as a marked conflict
+ * page, then the visible draft is committed and this result reports it. The
+ * caller updates its expected stamp only after this promise succeeds.
+ */
+export async function saveEntryChecked(
+  entry: DiaryEntry,
+  expectedUpdatedAt: number | null,
+  expectedSyncRevision?: string | null,
+): Promise<SavedEntryResult> {
+  return persistEntry(entry, {
+    updatedAt: expectedUpdatedAt,
+    syncRevision: expectedSyncRevision,
+  });
+}
+
+/** Clears the warning once only one live version of a project/date remains. */
+async function clearResolvedEntryConflict(
+  entry: Pick<DiaryEntry, 'projectId' | 'date' | 'syncConflictGroup'>,
+  after?: number,
+): Promise<void> {
+  const live = entry.syncConflictGroup
+    ? await db.entries
+        .where('projectId')
+        .equals(entry.projectId)
+        .filter(
+          (candidate) =>
+            candidate.deletedAt === undefined &&
+            candidate.syncConflictGroup === entry.syncConflictGroup,
+        )
+        .toArray()
+    : await db.entries
+        .where({ projectId: entry.projectId, date: entry.date })
+        .filter((candidate) => candidate.deletedAt === undefined)
+        .toArray();
+  if (
+    live.length !== 1 ||
+    !live[0].syncConflict ||
+    live[0].syncConflictKind === 'deletion' ||
+    live[0].id === undefined
+  ) {
+    return;
+  }
+  await db.entries.update(live[0].id, {
+    syncConflict: false,
+    syncConflictKind: undefined,
+    updatedAt: nextUpdatedAt(live[0].updatedAt, after),
+  });
 }
 
 /**
@@ -433,10 +861,20 @@ export async function saveEntry(entry: DiaryEntry): Promise<number> {
  * seconds of not noticing.
  */
 export async function deleteEntry(id: number): Promise<void> {
-  const entry = await db.entries.get(id);
+  let entry: DiaryEntry | undefined;
+  await db.transaction('rw', db.entries, async () => {
+    entry = await db.entries.get(id);
+    if (!entry) return;
+    const now = nextUpdatedAt(entry.updatedAt, entry.deletedAt);
+    const deleted: DiaryEntry = { ...entry, deletedAt: now, updatedAt: now };
+    deleted.syncRevision = advanceEntryRevision(
+      deleted,
+      validatedEntryRevision(entry),
+    );
+    await db.entries.put(deleted);
+    await clearResolvedEntryConflict(entry, now);
+  });
   if (!entry) return;
-  const now = Date.now();
-  await db.entries.update(id, { deletedAt: now, updatedAt: now });
   // Logged here rather than at the button, so a page trashed from the editor
   // leaves the same trace as one swiped away in the list. Deleting from the
   // editor used to leave none at all.
@@ -454,9 +892,25 @@ export async function purgeEntry(id: number): Promise<void> {
   await db.transaction('rw', db.entries, db.tombstones, async () => {
     const entry = await db.entries.get(id);
     if (entry) {
-      await db.tombstones.put({ uid: entry.uid, table: 'entries', deletedAt: Date.now() });
+      const existingStone = await db.tombstones.get(entry.uid);
+      const deletedAt = nextUpdatedAt(entry.updatedAt, entry.deletedAt, existingStone?.deletedAt);
+      const deleted = { ...entry, deletedAt, updatedAt: deletedAt };
+      await db.tombstones.put({
+        uid: entry.uid,
+        table: 'entries',
+        deletedAt,
+        entryRevision: advanceEntryRevision(
+          deleted,
+          validatedEntryRevision(entry),
+          undefined,
+          [existingStone?.entryRevision],
+        ),
+      });
     }
     await db.entries.delete(id);
+    if (entry) {
+      await clearResolvedEntryConflict(entry, entry.updatedAt);
+    }
     gone = entry;
   });
   if (gone) {
@@ -482,6 +936,23 @@ export async function trashedEntries(projectId?: number): Promise<DiaryEntry[]> 
     .sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0));
 }
 
+async function liveConflictPeers(entry: DiaryEntry): Promise<DiaryEntry[]> {
+  if (!entry.syncConflictGroup) return [];
+  return db.entries
+    .where('projectId')
+    .equals(entry.projectId)
+    .filter(
+      (candidate) =>
+        candidate.uid !== entry.uid &&
+        candidate.deletedAt === undefined &&
+        candidate.syncConflictGroup === entry.syncConflictGroup,
+    )
+    .toArray();
+}
+
+const conflictGroupFor = (...uids: string[]): string =>
+  `conflict:${[...uids].sort().join(':')}`;
+
 /**
  * Takes a page back out of the trash.
  *
@@ -497,11 +968,24 @@ export async function restoreFromTrash(id: number): Promise<void> {
       .where({ projectId: entry.projectId, date: entry.date })
       .filter((e) => e.uid !== entry.uid && e.deletedAt === undefined)
       .first();
-    if (clash) throw new Error(`קיים כבר יומן לתאריך ${entry.date}`);
+    const related = await liveConflictPeers(entry);
+    if (clash || related.length > 0) throw new EntryDateConflictError(entry.date);
     // `deletedAt: undefined` would be dropped by IndexedDB's structured clone
     // rather than removed, so the field is deleted from a copy of the record.
     const { deletedAt: _gone, ...rest } = entry;
-    await db.entries.put({ ...rest, updatedAt: Date.now() });
+    const restored: DiaryEntry = {
+      ...rest,
+      syncConflict: false,
+      syncConflictKind: undefined,
+      syncConflictGroup: undefined,
+      syncConflictRoot: undefined,
+      updatedAt: nextUpdatedAt(entry.updatedAt),
+    };
+    restored.syncRevision = advanceEntryRevision(
+      restored,
+      validatedEntryRevision(entry),
+    );
+    await db.entries.put(restored);
   });
   log.info('page restored from trash');
 }
@@ -522,12 +1006,53 @@ export async function restoreEntry(entry: DiaryEntry): Promise<void> {
     // back on top of it would break the invariant the whole editor relies on.
     const clash = await db.entries
       .where({ projectId: entry.projectId, date: entry.date })
+      .filter((other) => other.uid !== entry.uid && other.deletedAt === undefined)
       .first();
-    if (clash && clash.uid !== entry.uid) {
-      throw new Error(`קיים כבר יומן לתאריך ${entry.date}`);
+    const related = await liveConflictPeers(entry);
+    const clashIsRelated = !!clash && related.some((peer) => peer.uid === clash.uid);
+    if (
+      (!entry.syncConflict && (clash || related.length > 0)) ||
+      (clash && entry.syncConflictGroup && !clashIsRelated)
+    ) {
+      throw new EntryDateConflictError(entry.date);
     }
+    const peers = [...related];
+    if (clash && !peers.some((peer) => peer.uid === clash.uid)) peers.push(clash);
+    const conflictGroup =
+      peers.length > 0
+        ? entry.syncConflictGroup ??
+          peers.find((peer) => peer.syncConflictGroup)?.syncConflictGroup ??
+          conflictGroupFor(entry.uid, ...peers.map((peer) => peer.uid))
+        : undefined;
+    for (const peer of peers) {
+      if (peer.id === undefined) continue;
+      await db.entries.update(peer.id, {
+        syncConflict: true,
+        syncConflictKind: 'revision',
+        syncConflictGroup: conflictGroup,
+        updatedAt: nextUpdatedAt(peer.updatedAt, entry.updatedAt),
+      });
+    }
+    const tombstone = await db.tombstones.get(entry.uid);
     await db.tombstones.delete(entry.uid);
-    await db.entries.put({ ...entry, updatedAt: Date.now() });
+    const restored: DiaryEntry = {
+      ...entry,
+      syncConflict: peers.length > 0,
+      syncConflictKind: peers.length > 0 ? 'revision' : undefined,
+      syncConflictGroup: conflictGroup,
+      updatedAt: nextUpdatedAt(
+        entry.updatedAt,
+        ...peers.map((peer) => peer.updatedAt),
+        tombstone?.deletedAt,
+      ),
+    };
+    restored.syncRevision = advanceEntryRevision(
+      restored,
+      validatedEntryRevision(entry),
+      undefined,
+      [tombstone?.entryRevision],
+    );
+    await db.entries.put(restored);
   });
   log.info('page restored by undo', { date: entry.date });
 }
@@ -540,7 +1065,20 @@ export async function restoreEntry(entry: DiaryEntry): Promise<void> {
  * being rewritten because a flag moved.
  */
 export async function setEntryPinned(id: number, pinned: boolean): Promise<void> {
-  await db.entries.update(id, { pinned, updatedAt: Date.now() });
+  await db.transaction('rw', db.entries, async () => {
+    const entry = await db.entries.get(id);
+    if (!entry) return;
+    const updated: DiaryEntry = {
+      ...entry,
+      pinned,
+      updatedAt: nextUpdatedAt(entry.updatedAt),
+    };
+    updated.syncRevision = advanceEntryRevision(
+      updated,
+      validatedEntryRevision(entry),
+    );
+    await db.entries.put(updated);
+  });
 }
 
 export async function entriesInRange(
@@ -600,7 +1138,23 @@ export const contactIsBlank = (contact: Contact): boolean =>
   !`${contact.name}${contact.trade}${contact.phone}${contact.projects}${contact.notes}`.trim();
 
 export async function saveContact(contact: Contact): Promise<number> {
-  return db.contacts.put({ ...contact, updatedAt: Date.now() });
+  let id = 0;
+  await db.transaction('rw', db.contacts, db.tombstones, async () => {
+    const [byUid, byId, tombstone] = await Promise.all([
+      db.contacts.where('uid').equals(contact.uid).first(),
+      contact.id === undefined ? undefined : db.contacts.get(contact.id),
+      db.tombstones.get(contact.uid),
+    ]);
+    if (tombstone?.table === 'contacts') throw new EntryUnavailableError();
+    if (byId && byId.uid !== contact.uid) throw new EntryUnavailableError();
+    const current = byUid ?? byId;
+    id = await db.contacts.put({
+      ...contact,
+      ...(current?.id === undefined ? {} : { id: current.id }),
+      updatedAt: nextUpdatedAt(current?.updatedAt, contact.updatedAt),
+    });
+  });
+  return id;
 }
 
 /** Deletes one line, recording it so the deletion syncs instead of coming back. */
@@ -608,7 +1162,11 @@ export async function deleteContact(id: number): Promise<void> {
   await db.transaction('rw', db.contacts, db.tombstones, async () => {
     const contact = await db.contacts.get(id);
     if (contact) {
-      await db.tombstones.put({ uid: contact.uid, table: 'contacts', deletedAt: Date.now() });
+      await db.tombstones.put({
+        uid: contact.uid,
+        table: 'contacts',
+        deletedAt: nextUpdatedAt(contact.updatedAt),
+      });
     }
     await db.contacts.delete(id);
   });
@@ -664,7 +1222,7 @@ export async function importContacts(rows: ContactDraft[]): Promise<ImportContac
           phone: phone || match.phone,
           projects: (row.projects ?? '').trim() || match.projects,
           notes: (row.notes ?? '').trim() || match.notes,
-          updatedAt: Date.now(),
+          updatedAt: nextUpdatedAt(match.updatedAt),
         };
         await db.contacts.put(merged);
         Object.assign(match, merged);
@@ -698,8 +1256,16 @@ export async function restoreContact(contact: Contact): Promise<void> {
     // The tombstone goes with it, exactly as in `restoreEntry`: left behind, it
     // would let the other device delete the line again on the next sync, having
     // outlived the undo.
+    const [current, tombstone] = await Promise.all([
+      db.contacts.where('uid').equals(contact.uid).first(),
+      db.tombstones.get(contact.uid),
+    ]);
     await db.tombstones.delete(contact.uid);
-    await db.contacts.put({ ...contact, updatedAt: Date.now() });
+    await db.contacts.put({
+      ...contact,
+      ...(current?.id === undefined ? {} : { id: current.id }),
+      updatedAt: nextUpdatedAt(contact.updatedAt, current?.updatedAt, tombstone?.deletedAt),
+    });
   });
 }
 
@@ -760,6 +1326,11 @@ interface BackupFile {
   projects: Project[];
   presets: Preset[];
   /**
+   * Diary-owned settings (logo, document look and saved signatures).
+   * Optional so backups from before settings were included still restore.
+   */
+  settings?: Setting[];
+  /**
    * Optional, and `BACKUP_VERSION` deliberately does not move for it.
    *
    * Bumping the version would make every older build *refuse* the file — the
@@ -775,13 +1346,150 @@ interface BackupFile {
   })[];
 }
 
-export async function backupToJson(): Promise<string> {
-  const [projects, entries, presets, contacts] = await Promise.all([
-    db.projects.toArray(),
-    db.entries.toArray(),
-    db.presets.toArray(),
-    db.contacts.toArray(),
-  ]);
+interface BackupStateRows {
+  projects: Project[];
+  entries: DiaryEntry[];
+  presets: Preset[];
+  contacts: Contact[];
+  settings: Setting[];
+  tombstones: Tombstone[];
+}
+
+interface BackupState {
+  projects: [string, number][];
+  entries: [string, number, string][];
+  contacts: [string, number][];
+  presets: [number, number, number][];
+  settings: [string, number][];
+  tombstones: [string, number, string][];
+}
+
+/**
+ * Compact identity-and-revision fingerprint for the exact state a backup saw.
+ *
+ * Values and photo bytes stay out of this string. Every production mutation
+ * advances its record stamp, while identities and counts make deletion visible.
+ * Preset ids are local but stable between backups on this device, which is all
+ * this comparison needs. Keeping the canonical rows rather than a lossy maximum
+ * also detects changes to an older record when another record has a future stamp.
+ */
+function backupStateSignature(state: BackupState): string {
+  const ordered = <T extends [string | number, ...(string | number)[]]>(values: T[]): T[] =>
+    values.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  return JSON.stringify({
+    projects: ordered(state.projects),
+    entries: ordered(state.entries),
+    contacts: ordered(state.contacts),
+    presets: ordered(state.presets),
+    settings: ordered(state.settings),
+    tombstones: ordered(state.tombstones),
+  });
+}
+
+function backupStateFromRows(rows: BackupStateRows): BackupState {
+  return {
+    projects: rows.projects.map((project) => [
+      project.uid,
+      project.updatedAt ?? project.createdAt,
+    ]),
+    entries: rows.entries.map((entry) => [
+      entry.uid,
+      entry.updatedAt,
+      entry.syncRevision ?? legacyEntryRevision(entry),
+    ]),
+    contacts: rows.contacts.map((contact) => [contact.uid, contact.updatedAt]),
+    presets: rows.presets.map((preset) => [preset.id ?? 0, preset.uses, preset.updatedAt]),
+    settings: rows.settings.map((setting) => [setting.key, setting.updatedAt ?? 0]),
+    tombstones: rows.tombstones.map((stone) => [
+      `${stone.table}:${stone.uid}`,
+      stone.deletedAt,
+      stone.entryRevision ?? '',
+    ]),
+  };
+}
+
+async function readBackupRows(): Promise<BackupStateRows> {
+  /*
+   * One readonly transaction gives the file and its fingerprint the same point
+   * in time. Photo conversion happens after it commits, over structured clones;
+   * a later edit therefore produces a different current fingerprint instead of
+   * being accidentally marked as part of the file already on disk.
+   */
+  return db.transaction(
+    'r',
+    [db.projects, db.entries, db.presets, db.contacts, db.settings, db.tombstones],
+    async () => {
+      const [projects, entries, presets, contacts, settings, tombstones] = await Promise.all([
+        db.projects.toArray(),
+        db.entries.toArray(),
+        db.presets.toArray(),
+        db.contacts.toArray(),
+        db.settings.where('key').anyOf([...SYNCED_SETTINGS]).toArray(),
+        db.tombstones.toArray(),
+      ]);
+      return { projects, entries, presets, contacts, settings, tombstones };
+    },
+  );
+}
+
+/** The database fingerprint used to decide whether an automatic copy is due. */
+export async function currentBackupStateSignature(): Promise<string> {
+  /*
+   * Keep this path cheap: unlike a backup itself, checking for change must not
+   * deserialize every photograph. The three large/synced tables expose exactly
+   * the identity-and-stamp pairs this signature needs through compound indexes.
+   */
+  return db.transaction(
+    'r',
+    [db.projects, db.entries, db.presets, db.contacts, db.settings, db.tombstones],
+    async () => {
+      const [projectKeys, entryKeys, contactKeys, presets, settings, tombstones] =
+        await Promise.all([
+          db.projects.orderBy('[uid+updatedAt]').keys(),
+          db.entries.orderBy('[uid+updatedAt+syncRevision]').keys(),
+          db.contacts.orderBy('[uid+updatedAt]').keys(),
+          db.presets.toArray(),
+          db.settings.where('key').anyOf([...SYNCED_SETTINGS]).toArray(),
+          db.tombstones.toArray(),
+        ]);
+      const stamps = (keys: unknown[]) =>
+        (keys as [IDBValidKey, IDBValidKey][]).map(([uid, updatedAt]) => [
+          String(uid),
+          Number(updatedAt),
+        ] as [string, number]);
+      const entryStamps = (entryKeys as unknown as [IDBValidKey, IDBValidKey, IDBValidKey][])
+        .map(([uid, updatedAt, syncRevision]) => [
+          String(uid),
+          Number(updatedAt),
+          String(syncRevision),
+        ] as [string, number, string]);
+      return backupStateSignature({
+        projects: stamps(projectKeys),
+        entries: entryStamps,
+        contacts: stamps(contactKeys),
+        settings: settings.map((setting) => [setting.key, setting.updatedAt ?? 0]),
+        tombstones: tombstones.map((stone) => [
+          `${stone.table}:${stone.uid}`,
+          stone.deletedAt,
+          stone.entryRevision ?? '',
+        ]),
+        presets: presets.map((preset) => [preset.id ?? 0, preset.uses, preset.updatedAt]),
+      });
+    },
+  );
+}
+
+export interface BackupSnapshot {
+  json: string;
+  /** Fingerprint of the exact transaction represented by `json`. */
+  stateSignature: string;
+}
+
+/** Builds one coherent backup after first committing every mounted editor. */
+export async function createBackupSnapshot(options: { flush?: boolean } = {}): Promise<BackupSnapshot> {
+  if (options.flush !== false) await flushPendingWrites();
+  const rows = await readBackupRows();
+  const { projects, entries, presets, contacts, settings } = rows;
 
   const serialisedEntries = await Promise.all(
     entries.map(async (entry) => ({
@@ -808,6 +1516,7 @@ export async function backupToJson(): Promise<string> {
     projects,
     presets,
     contacts,
+    settings,
     entries: serialisedEntries,
   };
   const json = JSON.stringify(file);
@@ -815,10 +1524,15 @@ export async function backupToJson(): Promise<string> {
     projects: projects.length,
     entries: entries.length,
     contacts: contacts.length,
+    settings: settings.length,
     photos: serialisedEntries.reduce((n, e) => n + e.photos.length, 0),
     bytes: json.length,
   });
-  return json;
+  return { json, stateSignature: backupStateSignature(backupStateFromRows(rows)) };
+}
+
+export async function backupToJson(): Promise<string> {
+  return (await createBackupSnapshot()).json;
 }
 
 export interface RestoreResult {
@@ -933,6 +1647,39 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
     'rw',
     [db.projects, db.entries, db.contacts, db.presets, db.settings, db.tombstones],
     async () => {
+      /*
+       * A device clock can move backwards, and a peer deletion can carry a
+       * timestamp ahead of this device's `Date.now()`. Restore must still be a
+       * later write than every mutation this device already knows about, or the
+       * next merge can immediately delete what was just restored. Read the
+       * maxima inside this transaction, before clearing anything, and advance
+       * one tick past both the local diary and the backup itself.
+       */
+      const [lastProject, localEntries, lastContact, localTombstones, localSettings] = await Promise.all([
+        db.projects.orderBy('updatedAt').reverse().first(),
+        db.entries.toArray(),
+        db.contacts.orderBy('updatedAt').reverse().first(),
+        db.tombstones.toArray(),
+        db.settings.where('key').anyOf([...SYNCED_SETTINGS]).toArray(),
+      ]);
+      const backupMax = Math.max(
+        0,
+        ...parsed.projects.map((project) => project.updatedAt ?? project.createdAt ?? 0),
+        ...entries.map((entry) => entry.updatedAt ?? 0),
+        ...(parsed.contacts ?? []).map((contact) => contact.updatedAt ?? 0),
+        ...(parsed.settings ?? []).map((setting) => setting.updatedAt ?? 0),
+      );
+      const restoredAt =
+        Math.max(
+          Date.now(),
+          backupMax,
+          lastProject?.updatedAt ?? lastProject?.createdAt ?? 0,
+          ...localEntries.map((entry) => entry.updatedAt ?? 0),
+          lastContact?.updatedAt ?? 0,
+          ...localTombstones.map((stone) => stone.deletedAt ?? 0),
+          ...localSettings.map((setting) => setting.updatedAt ?? 0),
+        ) + 1;
+
       await Promise.all([
         db.projects.clear(),
         db.entries.clear(),
@@ -956,11 +1703,19 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
       ]);
       // Backups written before sync existed have no uids; mint them on the way
       // in so a restored diary can still take part in syncing.
+      // Every restored record gets the same fresh stamp: restore is the last
+      // write, including for project details that older backups did not stamp.
       const uidByProjectId = new Map<number | undefined, string>();
+      const localEntryByUid = new Map(localEntries.map((entry) => [entry.uid, entry]));
+      const localEntryStoneByUid = new Map(
+        localTombstones
+          .filter((stone) => stone.table === 'entries')
+          .map((stone) => [stone.uid, stone]),
+      );
       const projects = parsed.projects.map((project) => {
         const uid = project.uid ?? newUid();
         uidByProjectId.set(project.id, uid);
-        return { ...project, uid };
+        return { ...project, uid, updatedAt: restoredAt };
       });
       await db.projects.bulkAdd(projects);
       /*
@@ -973,14 +1728,26 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
        * that tombstone and is deleted all over again. Stamping is what makes the
        * restore the last write, which is what the user just asked it to be.
        */
-      const restoredAt = Date.now();
       await db.entries.bulkAdd(
-        entries.map((entry) => ({
-          ...entry,
-          uid: entry.uid ?? newUid(),
-          projectUid: entry.projectUid || uidByProjectId.get(entry.projectId) || '',
-          updatedAt: restoredAt,
-        })),
+        entries.map((entry) => {
+          const restoredUid = entry.uid ?? newUid();
+          const restored: DiaryEntry = {
+            ...entry,
+            uid: restoredUid,
+            projectUid: entry.projectUid || uidByProjectId.get(entry.projectId) || '',
+            updatedAt: restoredAt,
+          };
+          restored.syncRevision = advanceEntryRevision(
+            restored,
+            entry.syncRevision,
+            undefined,
+            [
+              localEntryByUid.get(restoredUid)?.syncRevision,
+              localEntryStoneByUid.get(restoredUid)?.entryRevision,
+            ],
+          );
+          return restored;
+        }),
       );
       await db.presets.bulkAdd(parsed.presets);
       // Stamped afresh like the pages, and for the same reason: the peer still
@@ -993,6 +1760,27 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
           updatedAt: restoredAt,
         })),
       );
+      // Restore diary-owned settings while leaving this device's local choices
+      // (active project, view, pairing and similar state) alone. Unknown keys in
+      // a hand-edited backup are ignored rather than gaining a restore path.
+      if (parsed.settings !== undefined) {
+        const backedByKey = new Map(
+          parsed.settings
+            .filter((setting) => (SYNCED_SETTINGS as readonly string[]).includes(setting.key))
+            .map((setting) => [setting.key, setting] as const),
+        );
+        // Presence of the array marks the new backup shape. A missing key in
+        // that array means the backed-up diary used its default/cleared value;
+        // write an explicit null so an older value on this device cannot leak
+        // into the restored diary or return from the peer on the next sync.
+        await db.settings.bulkPut(
+          SYNCED_SETTINGS.map((key) => ({
+            key,
+            value: backedByKey.get(key)?.value ?? null,
+            updatedAt: restoredAt,
+          })),
+        );
+      }
       const first = parsed.projects.find((p) => !p.archived) ?? parsed.projects[0];
       await setSetting(ACTIVE_PROJECT_KEY, first?.id ?? null);
     },
@@ -1002,6 +1790,7 @@ export async function restoreFromJson(json: string): Promise<RestoreResult> {
     projects: parsed.projects.length,
     entries: entries.length,
     contacts: parsed.contacts?.length ?? 0,
+    settings: parsed.settings?.length ?? 0,
     presets: parsed.presets.length,
   });
   return { projects: parsed.projects.length, entries: entries.length };

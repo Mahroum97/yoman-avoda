@@ -28,6 +28,7 @@ import { CELL_MARGIN, bar, labelledLine } from './blocks';
 import { entryPage, photoAppendix } from './entryPage';
 import { summarise, formatNum, type Tally } from './summary';
 import { wordFontFamily, type Script } from '../fonts';
+import { assertNoReportConflicts } from '../lib/reportConflicts';
 
 /**
  * Which of the two typeface slots a report in this language is set in.
@@ -128,13 +129,15 @@ export async function buildEntryDoc(
   options: EntryDocOptions = {},
 ): Promise<Document> {
   const t = options.strings ?? currentStrings();
+  const includePhotos = options.includePhotos ?? true;
+  const images = includePhotos ? await loadPhotos([entry]) : new Map();
+  // The theme is module state: set it only after asynchronous image reads,
+  // immediately before the synchronous build, so parallel exports cannot mix it.
   setDocDirection(t.dir);
   // Named, not embedded: a .docx carries the family name and Word substitutes
   // if the reader has not got it. The PDF is the copy that always looks right.
   setDocFont(options.fontFamily ?? wordFontFamily(scriptOf(t)));
   setDocPalette(docTheme(options.themeId ?? DEFAULT_DOC_THEME));
-  const includePhotos = options.includePhotos ?? true;
-  const images = includePhotos ? await loadPhotos([entry]) : new Map();
   const sections: ISectionOptions[] = [
     { properties: pageProperties, children: entryPage(entry, project, t) },
   ];
@@ -226,7 +229,7 @@ function coverPage(
   to: string,
   t: Strings,
 ): (Table | Paragraph)[] {
-  const stats = summarise(entries);
+  const stats = summarise(entries, t.summaryNoType);
   const half = Math.floor(CONTENT_WIDTH / 2);
 
   const facts: [string, string][] = [
@@ -294,15 +297,16 @@ export async function buildRangeDoc(
   to: string,
   options: RangeDocOptions = {},
 ): Promise<Document> {
+  assertNoReportConflicts(entries);
   const t = options.strings ?? currentStrings();
+  const includePhotos = options.includePhotos ?? false;
+  const includeSummary = options.includeSummary ?? true;
+  const images = includePhotos ? await loadPhotos(entries) : new Map();
   setDocDirection(t.dir);
   // Named, not embedded: a .docx carries the family name and Word substitutes
   // if the reader has not got it. The PDF is the copy that always looks right.
   setDocFont(options.fontFamily ?? wordFontFamily(scriptOf(t)));
   setDocPalette(docTheme(options.themeId ?? DEFAULT_DOC_THEME));
-  const includePhotos = options.includePhotos ?? false;
-  const includeSummary = options.includeSummary ?? true;
-  const images = includePhotos ? await loadPhotos(entries) : new Map();
 
   const sections: ISectionOptions[] = [];
   if (includeSummary) {

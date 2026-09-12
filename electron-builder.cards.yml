@@ -1,0 +1,22 @@
+extends: electron-builder.yml
+
+# The Cards edition stays beside the existing diary instead of replacing it.
+appId: com.akhutaba.yoman.cards.mac
+productName: יומן עבודה כרטיס
+extraMetadata:
+  productName: יומן עבודה כרטיס
+
+directories:
+  output: release-cards
+  buildResources: build
+
+dmg:
+  title: יומן עבודה כרטיס
+  contents:
+    - x: 140
+      y: 190
+      type: file
+    - x: 400
+      y: 190
+      type: link
+      path: /Applications

@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
     />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#f4f4f3" />
     <meta
       name="description"
       content="יומן עבודה לאתרי בנייה — רישום יומי של עובדים, ציוד ויציקות והפקת דוח Word"
@@ -34,7 +34,7 @@
           }
           root.dataset.theme = theme;
           // Must match STRIP_COLOUR in src/hooks/useTheme.ts.
-          var strips = { light: '#ffffff', dark: '#16293f', black: '#000000' };
+          var strips = { light: '#f4f4f3', dark: '#191919', black: '#000000' };
           var strip = document.querySelector('meta[name="theme-color"]');
           if (strip) strip.setAttribute('content', strips[theme]);
 

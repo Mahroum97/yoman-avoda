@@ -15,6 +15,7 @@ export type ThemePreference = 'light' | 'dark' | 'black' | 'auto';
 export type Theme = 'light' | 'dark' | 'black';
 
 export const THEME_KEY = 'yoman-theme';
+const THEME_EVENT = 'yoman-theme-change';
 
 const DARK_QUERY = '(prefers-color-scheme: dark)';
 
@@ -42,8 +43,8 @@ function resolve(preference: ThemePreference): Theme {
  * pre-paint script in index.html so the strip is right on the very first frame.
  */
 export const STRIP_COLOUR: Record<Theme, string> = {
-  light: '#ffffff',
-  dark: '#16293f',
+  light: '#f4f4f3',
+  dark: '#191919',
   black: '#000000',
 };
 
@@ -75,13 +76,22 @@ export function useTheme() {
     return () => media.removeEventListener('change', onChange);
   }, [preference]);
 
+  // Settings owns the visible picker while the shell owns the keyboard
+  // shortcut. Keep every mounted hook on the same preference.
+  useEffect(() => {
+    const onChange = () => setPreferenceState(readPreference());
+    window.addEventListener(THEME_EVENT, onChange);
+    return () => window.removeEventListener(THEME_EVENT, onChange);
+  }, []);
+
   const setPreference = useCallback((next: ThemePreference) => {
     if (next === 'auto') localStorage.removeItem(THEME_KEY);
     else localStorage.setItem(THEME_KEY, next);
     setPreferenceState(next);
+    window.dispatchEvent(new Event(THEME_EVENT));
   }, []);
 
-  /** Cycles בוקר → לילה → שחור → אוטומטי, for the one-tap button in the top bar. */
+  /** Cycles בוקר → לילה → שחור → אוטומטי for the keyboard shortcut. */
   const cycle = useCallback(() => {
     const order: ThemePreference[] = ['light', 'dark', 'black', 'auto'];
     setPreference(order[(order.indexOf(preference) + 1) % order.length]);

@@ -22,11 +22,16 @@ import {
   type PageChrome,
 } from './entryPage';
 import { drawContactsDocument } from './contactsPage';
+import { drawSummaryReport } from './summaryReport';
+import { summaryGroups, summaryScopeName, type SummaryScope } from '../lib/summaryReport';
+import { drawQuantityReport } from './quantityReport';
+import type { QuantityReport } from '../lib/quantityReport';
 import { CONTENT_W, METRICS, PAGE, TYPE, axisFor, paletteFor } from './theme';
 import { DEFAULT_DOC_THEME, docTheme } from '../docTheme';
 import { PHOTOS_PER_PAGE, photoPageCount } from '../lib/photoPages';
 import { photoBytes } from '../lib/photoData';
 import { docFontId } from '../fonts';
+import { assertNoReportConflicts } from '../lib/reportConflicts';
 
 import heeboRegularUrl from '../assets/fonts/heebo-regular.ttf?url';
 import heeboBoldUrl from '../assets/fonts/heebo-bold.ttf?url';
@@ -343,6 +348,38 @@ export async function buildContactsPdf(
 
 /* ------------------------------------------------------------ range report */
 
+export async function buildSummaryPdf(
+  entries: DiaryEntry[], project: Project, from: string, to: string,
+  options: BuildOptions & { scope?: SummaryScope } = {},
+): Promise<Uint8Array> {
+  assertNoReportConflicts(entries);
+  const { doc, fonts, t, colors } = await prepare(options);
+  const groups = summaryGroups(entries, t, options.scope);
+  drawSummaryReport(doc, fonts, groups, project, from, to, summaryScopeName(groups, t, options.scope), {
+    t, colors, generatedAt: new Date(), logo: await embedDataUrl(doc, options.logoDataUrl),
+  });
+  return doc.save();
+}
+
+/** A standalone, auditable quantity report; graphite is its neutral default. */
+export async function buildQuantityReportPdf(
+  report: QuantityReport,
+  project: Project,
+  from: string,
+  to: string,
+  options: BuildOptions = {},
+): Promise<Uint8Array> {
+  const resolved = { ...options, themeId: options.themeId ?? 'graphite' };
+  const { doc, fonts, t, colors } = await prepare(resolved);
+  drawQuantityReport(doc, fonts, report, project, from, to, {
+    t,
+    colors,
+    generatedAt: new Date(),
+    logo: await embedDataUrl(doc, options.logoDataUrl),
+  });
+  return doc.save();
+}
+
 /** One of the three tallies printed under the figures on the cover. */
 interface SummaryTable {
   title: string;
@@ -399,7 +436,9 @@ function planSummary(tables: SummaryTable[]): SummaryChunk[][] {
       const room = Math.floor((SUMMARY_BOTTOM - y - head) / SUMMARY_ROW);
       const left = table.rows.length - index;
       const total = left + 1 <= room;
-      const take = total ? left : room;
+      // If the last data row fills the page exactly, keep it with the total
+      // on the next page; otherwise the loop ends without ever drawing a sum.
+      const take = total ? left : Math.min(left - 1, room);
 
       pages[pages.length - 1].push({ table, from: index, to: index + take, total });
       y += head + SUMMARY_ROW * (take + (total ? 1 : 0)) + METRICS.gap;
@@ -415,11 +454,12 @@ function drawSummaryChunk(p: Painter, chunk: SummaryChunk, t: Strings, top: numb
   const { table } = chunk;
   let y = sectionBar(p, table.title, top);
   const cols = [CONTENT_W * 0.5, CONTENT_W * 0.25, CONTENT_W * 0.25];
-  const edges = [RIGHT, RIGHT - cols[0], RIGHT - cols[0] - cols[1]];
+  const axis = axisFor(p.dir);
+  const centres = [0, cols[0], cols[0] + cols[1]].map((offset, i) => axis.boxX(offset, cols[i]) + cols[i] / 2);
 
   p.rect(LEFT, y, CONTENT_W, SUMMARY_ROW, { fill: p.colors.tintHead });
   [t.detail, table.unit, t.unitDays].forEach((label, i) => {
-    p.textCentreBox(label, edges[i] - cols[i] / 2, y, SUMMARY_ROW, {
+    p.textCentreBox(label, centres[i], y, SUMMARY_ROW, {
       size: TYPE.column,
       bold: true,
       color: p.colors.navy,
@@ -434,7 +474,7 @@ function drawSummaryChunk(p: Painter, chunk: SummaryChunk, t: Strings, top: numb
     // across a break instead of restarting.
     if (index % 2 === 1) p.rect(LEFT, y, CONTENT_W, SUMMARY_ROW, { fill: p.colors.tintRow });
     [row.label, formatNum(row.total), String(row.days)].forEach((value, i) => {
-      p.textCentreBox(value, edges[i] - cols[i] / 2, y, SUMMARY_ROW, {
+      p.textCentreBox(value, centres[i], y, SUMMARY_ROW, {
         size: TYPE.cell,
         maxWidth: cols[i] - 8,
       });
@@ -447,7 +487,7 @@ function drawSummaryChunk(p: Painter, chunk: SummaryChunk, t: Strings, top: numb
     const total = table.rows.reduce((sum, row) => sum + row.total, 0);
     p.rect(LEFT, y, CONTENT_W, SUMMARY_ROW, { fill: p.colors.tintGroup });
     [t.total, formatNum(total), ''].forEach((value, i) => {
-      p.textCentreBox(value, edges[i] - cols[i] / 2, y, SUMMARY_ROW, {
+      p.textCentreBox(value, centres[i], y, SUMMARY_ROW, {
         size: TYPE.cell,
         bold: true,
         color: p.colors.navy,
@@ -478,6 +518,7 @@ function coverHead(
   chrome: PageChrome,
 ): number {
   const t = chrome.t;
+  const axis = axisFor(p.dir);
   let y: number = PAGE.margin;
   y = drawHeaderBand(
     p,
@@ -501,7 +542,7 @@ function coverHead(
   const cardW = (CONTENT_W - gap * (figures.length - 1)) / figures.length;
   const cardH = 46;
   figures.forEach(([label, value], i) => {
-    const x = RIGHT - cardW - i * (cardW + gap);
+    const x = axis.boxX(i * (cardW + gap), cardW);
     p.rect(x, y, cardW, cardH, {
       fill: p.colors.panel,
       stroke: p.colors.line,
@@ -533,13 +574,13 @@ function coverHead(
   });
   let dy = y + 8;
   for (const [label, value] of details) {
-    p.textRight(`${label}:`, RIGHT - 10, dy, {
+    p.textStart(`${label}:`, axis.boxX(10, 0), dy, {
       size: TYPE.label,
       bold: true,
       color: p.colors.navySoft,
     });
     const lw = p.width(`${label}:`, { size: TYPE.label, bold: true });
-    p.textRight(value, RIGHT - 14 - lw, dy - 0.5, {
+    p.textStart(value, axis.boxX(14 + lw, 0), dy - 0.5, {
       size: TYPE.value,
       maxWidth: CONTENT_W - 24 - lw,
     });
@@ -556,6 +597,7 @@ export async function buildRangePdf(
   to: string,
   options: BuildOptions & { includeSummary?: boolean } = {},
 ): Promise<Uint8Array> {
+  assertNoReportConflicts(entries);
   const { doc, fonts, t, dir, colors } = await prepare(options);
   const includePhotos = options.includePhotos ?? false;
   const includeSummary = options.includeSummary ?? true;
@@ -566,7 +608,7 @@ export async function buildRangePdf(
     ? entries.reduce((sum, e) => sum + photoPageCount(e.photos.length), 0)
     : 0;
 
-  const stats = summarise(entries);
+  const stats = summarise(entries, t.summaryNoType);
   const plan = includeSummary
     ? planSummary([
         { title: t.summaryTrades, unit: t.unitWorkers, rows: stats.trades },

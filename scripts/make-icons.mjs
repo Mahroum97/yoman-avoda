@@ -6,7 +6,7 @@
  * Uses headless Chrome (already on any Mac with Chrome installed) rather than
  * adding a native image dependency for something that runs once in a while.
  */
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -83,12 +83,20 @@ async function buildIcns(svg) {
  * background rather than exported from the SVG directly.
  */
 async function buildIosIcon(svg) {
-  const dir = 'ios/App/App/Assets.xcassets/AppIcon.appiconset';
+  const assets = 'ios/App/App/Assets.xcassets';
+  const dir = `${assets}/AppIcon.appiconset`;
   try {
-    await render(svg, { file: 'AppIcon-512@2x.png', size: 1024, padding: 0 }, dir);
+    await access(assets);
   } catch {
     console.log('· iOS project not present, skipping the app icon');
+    return;
   }
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, 'Contents.json'), `${JSON.stringify({
+    images: [{ filename: 'AppIcon-512@2x.png', idiom: 'universal', platform: 'ios', size: '1024x1024' }],
+    info: { author: 'xcode', version: 1 },
+  }, null, 2)}\n`);
+  await render(svg, { file: 'AppIcon-512@2x.png', size: 1024, padding: 0 }, dir);
 }
 
 async function main() {
