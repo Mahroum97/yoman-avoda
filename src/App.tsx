@@ -185,7 +185,7 @@ function Shell() {
               <Icon name="settings" size={20} />
             </button>
             <span className="topbar__logo"><Logo size={30} /></span>
-            <div className="topbar__grow">
+            <div className={`topbar__grow${project ? '' : ' topbar__grow--app'}`} dir={t.dir}>
               <div className="topbar__title">{project ? project.name : t.appName}</div>
               {project?.address && <div className="topbar__sub">{project.address}</div>}
             </div>

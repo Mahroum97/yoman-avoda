@@ -671,6 +671,10 @@ report category or decorative theme. The document keeps its own palette inside
   the traffic lights. When English puts the desktop sidebar on the physical
   left, its contents start below that native title-bar area; Hebrew's right-side
   sidebar needs no offset. The iPhone and browser keep their ordinary header.
+- On the wide website, the sidebar is the one app identity in both directions:
+  the content toolbar hides the repeated logo and app-name fallback, groups
+  Backup and Settings at its physical right, and still shows a real active
+  project name. Narrow browser and phone layouts keep the branded top bar.
 - At 1100px the tabs become the desktop sidebar and `CardsDayNavigation` shows a
   bounded, live list of recent pages. At 1200px `CardsEditorLayout` adds a
   deferred live A4 preview and expanded dialog using the existing

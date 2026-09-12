@@ -48,6 +48,8 @@ try {
   assert(await page.locator('.cards-sidebar').isVisible());
   assert.equal(await page.locator('.cards-sidebar .nav__item').count(), 5);
   assert.equal(await page.locator('.topbar__icon--theme').count(), 0);
+  assert.equal(await page.locator('.topbar__logo').evaluate(el => getComputedStyle(el).display), 'none');
+  assert.equal(await page.locator('.topbar__title').textContent(), 'Cards QA Site');
   assert.equal(await page.locator('.cards-day-item').count(), 2);
   assert.equal(await page.locator('.cards-day-item[aria-current="page"]').count(), 1);
   assert((await page.locator('.cards-day-item[aria-current="page"]').textContent()).includes('11/09/2026'));
@@ -124,6 +126,25 @@ try {
   assert(macBrand && macBrand.y >= 50, 'English sidebar brand overlaps the Mac traffic lights');
   await macPage.screenshot({ path: 'tmp/check-cards-mac-toolbar.png' });
   await macContext.close();
+
+  const rtlContext = await browser.newContext({ viewport: { width: 1320, height: 760 } });
+  await rtlContext.addInitScript(() => {
+    localStorage.setItem('yoman-lang', 'he');
+    localStorage.setItem('yoman-theme', 'dark');
+  });
+  const rtlPage = await rtlContext.newPage();
+  await rtlPage.goto(base);
+  await rtlPage.locator('.cards-sidebar__brand').waitFor();
+  assert.equal(await rtlPage.locator('.topbar__logo').evaluate(el => getComputedStyle(el).display), 'none');
+  assert.equal(await rtlPage.locator('.topbar__grow--app').evaluate(el => getComputedStyle(el).display), 'none');
+  const rtlSettings = await rtlPage.locator('.topbar__icon--settings').boundingBox();
+  const rtlBackup = await rtlPage.locator('.topbar__icon--backup').boundingBox();
+  assert(rtlSettings && rtlBackup && rtlSettings.x > rtlBackup.x,
+    'RTL website does not keep Settings at the upper-right of the content toolbar');
+  assert.equal(await rtlPage.locator('.cards-sidebar__brand').count(), 1,
+    'RTL website repeats the application identity');
+  await rtlPage.screenshot({ path: 'tmp/check-cards-web-rtl.png' });
+  await rtlContext.close();
   console.log('Cards workspace checks passed: neutral app palette, desktop navigation/current state, live shared A4 preview and dialog, phone form/tab controls and no horizontal overflow.');
 } finally {
   await browser.close();
