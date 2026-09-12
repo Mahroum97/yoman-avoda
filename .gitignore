@@ -14,6 +14,9 @@ tmp
 # marks the last push to the devices; local to this machine
 .push-stamp
 
+# local agent configuration; not application source
+.codex/
+
 # native build artefacts (the iOS project itself is committed)
 ios/App/App/public
 ios/App/Pods
