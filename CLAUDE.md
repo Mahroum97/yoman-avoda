@@ -638,43 +638,38 @@ calling — the reason it exists on a phone — the one colour in the row.
 
 ## The Cards workspace is the production interface
 
-`cards.css` supplies neutral application surfaces in every shell. Colour marks
-meaningful state — signed, invalid, needs review or destructive — rather than a
-report category or decorative theme. The document keeps its own palette inside
-`.sheet`; changing the interface must not recolour the A4 deliverable.
+`cards.css` supplies neutral surfaces in every shell; `desktopWorkspace.css`
+implements the approved document-centered desktop layout. Colour marks signed
+pages, invalid data, review and destructive actions. The shared A4 renderer keeps
+its own document palette, typography and dimensions.
 
-- On a phone, `.cards-sidebar { display: contents }` leaves five fixed work
-  tabs at the bottom. Settings is the single control at the physical
-  upper-right in either writing direction; its Appearance card owns the four
-  theme choices, so the app bar does not duplicate them. New is the centre
-  item on the phone because it is the primary action; the desktop sidebar moves
-  that same item to its bottom, after the destinations.
+- Below 1100px, five fixed work tabs stay at the bottom with New in the centre.
+  Settings stays at the physical upper-right in either writing direction, and
+  its Appearance card owns the four theme choices.
+- At 1100px, the same destinations become a horizontal row below the title bar.
+  New moves to the far end. One app identity and active project appear in the
+  title bar, with Settings at the physical right. Electron reserves the left
+  88px for traffic lights and keeps all controls out of the drag region.
+- The desktop diary opens `DesktopDiaryWorkspace`: a dated-page rail at the
+  inline start, the real `SheetPreview` and photo appendix in the centre, and a
+  document inspector with metadata, format selection and delivery at the end.
+  `/preview/:id` resolves the page's own project before showing that workspace.
+  `/?view=list` retains search, sorting, multi-selection and trash workflows.
+- The inspector uses the existing PDF, Word and image exporters. It flushes
+  pending writes and validates the latest page, owner and conflicts before
+  delivery. Format selection is an actual file format, and cancellation must
+  not announce a successful export. Native sharing and saving are distinct.
+- Editing uses the existing queued, autosaving `EntryEditor`. Its day rail and
+  deferred live preview mount only at desktop widths. Expanding the preview
+  uses the same A4 renderer; no fourth document renderer is introduced.
 - The native status bar follows the selected theme. Capacitor's StatusBar plugin
   requires `UIViewControllerBasedStatusBarAppearance = true`; dark and black
-  request `Style.Dark` (light clock/Wi-Fi/battery content), while the light
-  theme requests `Style.Light`. A mutation observer reapplies both foreground
-  style and strip colour whenever `data-theme` changes.
-- The hidden recent-day rail and live preview do not query or render on a phone.
-- Electron's hidden-inset title bar overlays the physical left edge. The Mac
-  toolbar marks that space as a drag region, keeps its buttons at the physical
-  right, and hides the repeated web logo/title. Never place a control beneath
-  the traffic lights. When English puts the desktop sidebar on the physical
-  left, its contents start below that native title-bar area; Hebrew's right-side
-  sidebar needs no offset. The iPhone and browser keep their ordinary header.
-- On the wide website, the sidebar is the one app identity in both directions:
-  the content toolbar hides the repeated logo and app-name fallback, groups
-  Backup and Settings at its physical right, and still shows a real active
-  project name. Narrow browser and phone layouts keep the branded top bar.
-- At 1100px the tabs become the desktop sidebar and `CardsDayNavigation` shows a
-  bounded, live list of recent pages. At 1200px `CardsEditorLayout` adds a
-  deferred live A4 preview and expanded dialog using the existing
-  `SheetPreview`; it is not a fourth document renderer.
+  request `Style.Dark` (light clock/Wi-Fi/battery), while the light theme requests
+  `Style.Light`. The mutation observer reapplies both foreground and strip colour.
 - `electron-builder.cards.yml` packages the separate Mac edition as
   `com.akhutaba.yoman.cards.mac` / `יומן עבודה כרטיס` into `release-cards`.
-  Its Electron user data and automatic-backup folder are selected by that
-  product name, so they do not overwrite the original edition. Both editions
-  still host LAN sync on port 45231; the second one reports `EADDRINUSE` in
-  Settings. Run only one Mac sync host at a time.
+  Its user data and automatic-backup folder remain separate from the original
+  edition. Both host LAN sync on port 45231; run one host at a time.
 
 ## Settings that belong to the device
 

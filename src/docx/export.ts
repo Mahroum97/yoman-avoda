@@ -1,7 +1,7 @@
 /** Turns the built documents into a downloaded .docx file. */
 import { Packer } from 'docx';
 import type { DiaryEntry, Project } from '../types';
-import { saveBlob, type ExportResult } from '../lib/save';
+import { deliverBlob, saveBlob, type Deliver, type ExportResult } from '../lib/save';
 import { currentStrings } from '../i18n/useLanguage';
 import { currentDocThemeId } from '../hooks/useDocTheme';
 import { fileKind, logger } from '../lib/log';
@@ -19,7 +19,7 @@ const log = logger('word');
 export async function exportEntry(
   entry: DiaryEntry,
   project: Project,
-  options?: EntryDocOptions,
+  options?: EntryDocOptions & { deliver?: Deliver },
 ): Promise<ExportResult> {
   const t = options?.strings ?? currentStrings();
   const themeId = options?.themeId ?? (await currentDocThemeId());
@@ -38,7 +38,7 @@ export async function exportEntry(
     done();
     const name = `${entryFileName(entry, project, t)}.docx`;
     log.info('entry docx ready', { kind: fileKind(name), bytes: blob.size });
-    return (await saveBlob(blob, name)) ? name : null;
+    return (await deliverBlob(blob, name, options?.deliver)) ? name : null;
   } catch (error) {
     done('failed');
     log.error('entry docx failed', error);

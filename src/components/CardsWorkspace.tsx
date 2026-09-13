@@ -7,22 +7,11 @@ import { formatDdMmYyyy } from '../lib/dates';
 import { photoPageCount } from '../lib/photoPages';
 import { useDocThemeId } from '../hooks/useDocTheme';
 import { navigate } from '../hooks/useRoute';
+import { useWideScreen } from '../hooks/useWideScreen';
 import { SheetPreview } from './SheetPreview';
 import { SheetScaler } from './SheetScaler';
 import { Icon } from './Icon';
 import '../styles/cardsWorkspace.css';
-
-function useWideScreen(width: number): boolean {
-  const [wide, setWide] = useState(() => window.matchMedia(`(min-width: ${width}px)`).matches);
-  useEffect(() => {
-    const query = window.matchMedia(`(min-width: ${width}px)`);
-    const update = () => setWide(query.matches);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, [width]);
-  return wide;
-}
 
 /** A bounded diary rail; a hidden mobile sidebar must not deserialize photos. */
 export function CardsDayNavigation({ projectId, entryId }: { projectId?: number; entryId?: number }) {
@@ -76,7 +65,9 @@ export function CardsEditorLayout({ children, entry, project, companyLogo }: {
     companyLogo={companyLogo} pages={1 + photoPageCount(deferred.photos?.length ?? 0)} themeId={themeId} /></SheetScaler>;
 
   return (
-    <div className="cards-editor-grid">
+    <div className="cards-editor-shell">
+      <CardsDayNavigation projectId={project.id} entryId={entry.id} />
+      <div className="cards-editor-grid">
       <div className="cards-editor-form">{children}</div>
       {wide && <aside className="cards-editor-preview" aria-label={t.cardsLivePreview}>
         <header className="cards-editor-preview__head">
@@ -93,6 +84,7 @@ export function CardsEditorLayout({ children, entry, project, companyLogo }: {
         </header>
         {preview()}
       </dialog>}
+      </div>
     </div>
   );
 }

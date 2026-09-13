@@ -6,7 +6,12 @@ import { mkdir } from 'node:fs/promises';
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.YOMAN_PLAYWRIGHT_PATH || 'playwright');
 const base = process.env.YOMAN_BASE_URL || 'http://127.0.0.1:5173';
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  ...(process.env.YOMAN_CHROMIUM_PATH
+    ? { executablePath: process.env.YOMAN_CHROMIUM_PATH }
+    : {}),
+});
 
 try {
   const context = await browser.newContext({ viewport: { width: 1320, height: 900 } });
@@ -47,9 +52,21 @@ try {
   assert(await page.locator('.app--cards[data-section="entry"]').isVisible());
   assert(await page.locator('.cards-sidebar').isVisible());
   assert.equal(await page.locator('.cards-sidebar .nav__item').count(), 5);
+  assert.equal(await page.locator('.cards-sidebar .nav').evaluate(element => getComputedStyle(element).flexDirection), 'row');
+  const wideTabs = await page.locator('.cards-sidebar .nav__item').evaluateAll(elements =>
+    elements.map(element => {
+      const box = element.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    }),
+  );
+  assert(wideTabs.every(tab => Math.abs(tab.y - wideTabs[0].y) < 2), 'Desktop tabs are not horizontal');
+  assert(wideTabs[2].x > wideTabs[4].x + wideTabs[4].width,
+    'English New tab is not separated at the far end of the desktop row');
   assert.equal(await page.locator('.topbar__icon--theme').count(), 0);
-  assert.equal(await page.locator('.topbar__logo').evaluate(el => getComputedStyle(el).display), 'none');
+  assert.notEqual(await page.locator('.topbar__logo').evaluate(el => getComputedStyle(el).display), 'none');
+  assert(await page.locator('.topbar__app-name').isVisible());
   assert.equal(await page.locator('.topbar__title').textContent(), 'Cards QA Site');
+  assert.equal(await page.locator('.cards-editor-shell > .cards-day-navigation').count(), 1);
   assert.equal(await page.locator('.cards-day-item').count(), 2);
   assert.equal(await page.locator('.cards-day-item[aria-current="page"]').count(), 1);
   assert((await page.locator('.cards-day-item[aria-current="page"]').textContent()).includes('11/09/2026'));
@@ -115,15 +132,20 @@ try {
   await macPage.goto(base);
   await macPage.locator('.topbar').waitFor();
   assert.equal(await macPage.locator('html').getAttribute('data-desktop'), 'true');
-  assert.equal(await macPage.locator('.topbar__logo').evaluate(el => getComputedStyle(el).display), 'none');
-  assert.equal(await macPage.locator('.topbar__grow').evaluate(el => getComputedStyle(el).display), 'none');
+  assert.notEqual(await macPage.locator('.topbar__logo').evaluate(el => getComputedStyle(el).display), 'none');
+  assert.notEqual(await macPage.locator('.topbar__grow').evaluate(el => getComputedStyle(el).display), 'none');
   const macSettings = await macPage.locator('.topbar__icon--settings').boundingBox();
   const macBackup = await macPage.locator('.topbar__icon--backup').boundingBox();
-  assert(macSettings && macBackup && macSettings.x > 1240 && macBackup.x > 1180,
-    'Mac toolbar controls are not kept at the physical right');
+  assert(macSettings && macBackup && macSettings.x > 1240,
+    'Mac Settings control is not kept at the physical right');
   assert(macSettings.x > macBackup.x, 'Settings is not the upper-right Mac control');
-  const macBrand = await macPage.locator('.cards-sidebar__brand').boundingBox();
-  assert(macBrand && macBrand.y >= 50, 'English sidebar brand overlaps the Mac traffic lights');
+  assert(macBackup.x >= 88, 'Mac Backup control overlaps the traffic-light clearance');
+  const macLogo = await macPage.locator('.topbar__logo').boundingBox();
+  assert(macLogo && macLogo.x + macLogo.width <= macSettings.x,
+    'Mac app identity is not adjacent to the Settings end of the toolbar');
+  const macTopbar = await macPage.locator('.topbar').boundingBox();
+  assert(macTopbar && macTopbar.x === 0 && macTopbar.width === 1320,
+    'Mac top bar does not preserve its full-width drag region');
   await macPage.screenshot({ path: 'tmp/check-cards-mac-toolbar.png' });
   await macContext.close();
 
@@ -134,18 +156,25 @@ try {
   });
   const rtlPage = await rtlContext.newPage();
   await rtlPage.goto(base);
-  await rtlPage.locator('.cards-sidebar__brand').waitFor();
-  assert.equal(await rtlPage.locator('.topbar__logo').evaluate(el => getComputedStyle(el).display), 'none');
-  assert.equal(await rtlPage.locator('.topbar__grow--app').evaluate(el => getComputedStyle(el).display), 'none');
+  await rtlPage.locator('.cards-sidebar .nav').waitFor();
+  assert.notEqual(await rtlPage.locator('.topbar__logo').evaluate(el => getComputedStyle(el).display), 'none');
+  assert.notEqual(await rtlPage.locator('.topbar__grow--app').evaluate(el => getComputedStyle(el).display), 'none');
   const rtlSettings = await rtlPage.locator('.topbar__icon--settings').boundingBox();
   const rtlBackup = await rtlPage.locator('.topbar__icon--backup').boundingBox();
   assert(rtlSettings && rtlBackup && rtlSettings.x > rtlBackup.x,
     'RTL website does not keep Settings at the upper-right of the content toolbar');
-  assert.equal(await rtlPage.locator('.cards-sidebar__brand').count(), 1,
-    'RTL website repeats the application identity');
+  const rtlTabs = await rtlPage.locator('.cards-sidebar .nav__item').evaluateAll(elements =>
+    elements.map(element => {
+      const box = element.getBoundingClientRect();
+      return { x: box.x, y: box.y, width: box.width };
+    }),
+  );
+  assert(rtlTabs.every(tab => Math.abs(tab.y - rtlTabs[0].y) < 2), 'RTL desktop tabs are not horizontal');
+  assert(rtlTabs[2].x + rtlTabs[2].width < rtlTabs[4].x,
+    'RTL New tab is not separated at the far end of the desktop row');
   await rtlPage.screenshot({ path: 'tmp/check-cards-web-rtl.png' });
   await rtlContext.close();
-  console.log('Cards workspace checks passed: neutral app palette, desktop navigation/current state, live shared A4 preview and dialog, phone form/tab controls and no horizontal overflow.');
+  console.log('Cards workspace checks passed: neutral app palette, horizontal desktop navigation/current state, editor day rail, live shared A4 preview and dialog, phone form/tab controls and no horizontal overflow.');
 } finally {
   await browser.close();
 }

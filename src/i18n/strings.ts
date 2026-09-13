@@ -84,6 +84,39 @@ export interface Strings {
   cardsPreviewHint: string;
   cardsExpandPreview: string;
 
+  /* desktop document workspace */
+  desktopRailLabel: string;
+  desktopMonthPicker: string;
+  desktopPreviousMonth: string;
+  desktopNextMonth: string;
+  desktopMonthPages: (n: number) => string;
+  desktopAllPages: string;
+  desktopStatusDraft: string;
+  desktopStatusSigned: string;
+  desktopChooseDay: string;
+  desktopNoPagesTitle: string;
+  desktopNoPagesBody: string;
+  desktopPreviewLabel: string;
+  desktopYourDocument: string;
+  desktopA4Hint: string;
+  desktopPhotos: string;
+  desktopPhotoCount: (n: number) => string;
+  desktopStorage: string;
+  desktopSavedLocally: string;
+  desktopInspectorLabel: string;
+  desktopFileFormat: string;
+  desktopFormatImage: string;
+  desktopDeliverDocument: string;
+  desktopCreateDocument: string;
+  desktopSaveCopy: string;
+  desktopReportsQuestion: string;
+  desktopReportsHint: string;
+  desktopOpenReports: string;
+  desktopEntryChanged: string;
+  desktopConflictExportBody: string;
+  desktopImageFailed: string;
+  desktopExportRefreshFailed: string;
+
   /* entry editor */
   sectionProjectDate: string;
   sectionManagement: string;
@@ -723,6 +756,38 @@ const he: Strings = {
   cardsLivePreview: 'תצוגת דוח',
   cardsPreviewHint: 'מתעדכנת לפי הדף הפתוח',
   cardsExpandPreview: 'הגדל',
+
+  desktopRailLabel: 'דפי היומן לפי חודש',
+  desktopMonthPicker: 'בחירת חודש',
+  desktopPreviousMonth: 'החודש הקודם',
+  desktopNextMonth: 'החודש הבא',
+  desktopMonthPages: (n) => (n === 1 ? 'דף יומן אחד' : `${n} דפי יומן`),
+  desktopAllPages: 'כל הדפים',
+  desktopStatusDraft: 'בעריכה',
+  desktopStatusSigned: 'חתום',
+  desktopChooseDay: 'בחר דף יומן להצגה',
+  desktopNoPagesTitle: 'אין דפי יומן בחודש הזה',
+  desktopNoPagesBody: 'אפשר לעבור לחודש אחר או לפתוח את כל הדפים כדי למצוא יום קיים.',
+  desktopPreviewLabel: 'תצוגת מסמך יומית',
+  desktopYourDocument: 'המסמך שלך',
+  desktopA4Hint: 'תצוגת A4 אמיתית · המסמך המופק תואם לתצוגה',
+  desktopPhotos: 'תמונות',
+  desktopPhotoCount: (n) => (n === 1 ? 'תמונה אחת' : `${n} תמונות`),
+  desktopStorage: 'שמירה',
+  desktopSavedLocally: 'נשמר במכשיר',
+  desktopInspectorLabel: 'פרטי המסמך וייצוא',
+  desktopFileFormat: 'סוג קובץ',
+  desktopFormatImage: 'תמונה',
+  desktopDeliverDocument: 'שליחת המסמך',
+  desktopCreateDocument: 'יצירת המסמך',
+  desktopSaveCopy: 'שמירת עותק',
+  desktopReportsQuestion: 'צריך את הטבלאות המלאות?',
+  desktopReportsHint: 'בדוחות אפשר להפיק טבלאות עובדים, ציוד, בטון וכמויות עם כל השורות.',
+  desktopOpenReports: 'פתיחת דוחות',
+  desktopEntryChanged: 'הדף השתנה או אינו שייך עוד לפרויקט הזה. פתח אותו מחדש לפני הייצוא.',
+  desktopConflictExportBody: 'צריך לפתור את התנגשות הסנכרון בדף הזה לפני שאפשר להפיק ממנו מסמך.',
+  desktopImageFailed: 'ייצוא התמונה נכשל',
+  desktopExportRefreshFailed: 'לא ניתן לקרוא את הגרסה השמורה האחרונה. נסה שוב לפני הייצוא.',
 
   sectionProjectDate: 'פרויקט ותאריך',
   sectionManagement: 'צוות הנהלה',
@@ -1394,6 +1459,38 @@ const ar: Strings = {
   cardsLivePreview: 'معاينة التقرير',
   cardsPreviewHint: 'تتحدّث حسب الصفحة المفتوحة',
   cardsExpandPreview: 'تكبير',
+
+  desktopRailLabel: 'صفحات السجل حسب الشهر',
+  desktopMonthPicker: 'اختيار الشهر',
+  desktopPreviousMonth: 'الشهر السابق',
+  desktopNextMonth: 'الشهر التالي',
+  desktopMonthPages: (n) => (n === 1 ? 'صفحة سجل واحدة' : `${n} صفحات سجل`),
+  desktopAllPages: 'كل الصفحات',
+  desktopStatusDraft: 'قيد التحرير',
+  desktopStatusSigned: 'موقّع',
+  desktopChooseDay: 'اختر صفحة سجل لعرضها',
+  desktopNoPagesTitle: 'لا توجد صفحات سجل في هذا الشهر',
+  desktopNoPagesBody: 'انتقل إلى شهر آخر أو افتح كل الصفحات للعثور على يوم موجود.',
+  desktopPreviewLabel: 'معاينة صفحة السجل',
+  desktopYourDocument: 'مستندك',
+  desktopA4Hint: 'معاينة A4 بالحجم الحقيقي · المستند المنشأ يطابق هذه المعاينة',
+  desktopPhotos: 'الصور',
+  desktopPhotoCount: (n) => (n === 1 ? 'صورة واحدة' : `${n} صور`),
+  desktopStorage: 'الحفظ',
+  desktopSavedLocally: 'محفوظ على الجهاز',
+  desktopInspectorLabel: 'تفاصيل المستند والتصدير',
+  desktopFileFormat: 'نوع الملف',
+  desktopFormatImage: 'صورة',
+  desktopDeliverDocument: 'إرسال المستند',
+  desktopCreateDocument: 'إنشاء المستند',
+  desktopSaveCopy: 'حفظ نسخة',
+  desktopReportsQuestion: 'هل تحتاج إلى الجداول الكاملة؟',
+  desktopReportsHint: 'تتيح التقارير إنشاء جداول العمال والمعدات والخرسانة والكميات بكل الصفوف.',
+  desktopOpenReports: 'فتح التقارير',
+  desktopEntryChanged: 'تغيّرت الصفحة أو لم تعد تتبع هذا المشروع. افتحها مجددًا قبل التصدير.',
+  desktopConflictExportBody: 'يجب حل تعارض المزامنة في هذه الصفحة قبل إنشاء مستند منها.',
+  desktopImageFailed: 'فشل تصدير الصورة',
+  desktopExportRefreshFailed: 'تعذرت قراءة آخر نسخة محفوظة. حاول مرة أخرى قبل التصدير.',
 
   sectionProjectDate: 'المشروع والتاريخ',
   sectionManagement: 'طاقم الإدارة',
@@ -2086,6 +2183,38 @@ const en: Strings = {
   cardsLivePreview: 'Report preview',
   cardsPreviewHint: 'Updates from the open page',
   cardsExpandPreview: 'Expand',
+
+  desktopRailLabel: 'Diary pages by month',
+  desktopMonthPicker: 'Choose month',
+  desktopPreviousMonth: 'Previous month',
+  desktopNextMonth: 'Next month',
+  desktopMonthPages: (n) => `${n} diary ${n === 1 ? 'page' : 'pages'}`,
+  desktopAllPages: 'All pages',
+  desktopStatusDraft: 'Editing',
+  desktopStatusSigned: 'Signed',
+  desktopChooseDay: 'Choose a diary page to preview',
+  desktopNoPagesTitle: 'No diary pages in this month',
+  desktopNoPagesBody: 'Move to another month or open all pages to find an existing day.',
+  desktopPreviewLabel: 'Daily document preview',
+  desktopYourDocument: 'Your document',
+  desktopA4Hint: 'True A4 preview · the generated document matches this view',
+  desktopPhotos: 'Photos',
+  desktopPhotoCount: (n) => `${n} ${n === 1 ? 'photo' : 'photos'}`,
+  desktopStorage: 'Storage',
+  desktopSavedLocally: 'Saved on this device',
+  desktopInspectorLabel: 'Document details and export',
+  desktopFileFormat: 'File format',
+  desktopFormatImage: 'Image',
+  desktopDeliverDocument: 'Send document',
+  desktopCreateDocument: 'Create document',
+  desktopSaveCopy: 'Save a copy',
+  desktopReportsQuestion: 'Need the complete tables?',
+  desktopReportsHint: 'Reports produce complete worker, equipment, concrete and quantity tables with every row.',
+  desktopOpenReports: 'Open reports',
+  desktopEntryChanged: 'This page changed or no longer belongs to this project. Reopen it before exporting.',
+  desktopConflictExportBody: 'Resolve the sync conflict on this page before creating a document from it.',
+  desktopImageFailed: 'Image export failed',
+  desktopExportRefreshFailed: 'The latest saved version could not be read. Try again before exporting.',
 
   sectionProjectDate: 'Project and date',
   sectionManagement: 'Management team',

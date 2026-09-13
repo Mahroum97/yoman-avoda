@@ -11,6 +11,7 @@ import {
   useActiveProject,
   useProjects,
   useRoutedEntry,
+  setActiveProject,
   type RoutedEntryState,
 } from './hooks/useData';
 import { useRoute, navigate } from './hooks/useRoute';
@@ -33,7 +34,8 @@ import { useLanguage } from './i18n/useLanguage';
 import { useAutoSync } from './hooks/useAutoSync';
 import { UndoButtons } from './components/UndoButtons';
 import { PageActionsBar } from './components/PageActions';
-import { CardsDayNavigation } from './components/CardsWorkspace';
+import { useWideScreen } from './hooks/useWideScreen';
+import { DesktopDiaryWorkspace } from './components/DesktopDiaryWorkspace';
 import { useShortcuts, type ShellHandlers } from './hooks/useShortcuts';
 import {
   EditorActionsContext,
@@ -67,6 +69,7 @@ function Shell() {
   const { t } = useLanguage();
   const toast = useToast();
   const route = useRoute();
+  const wide = useWideScreen(1100);
   const projects = useProjects();
   const { project: activeProject, loading } = useActiveProject();
   const { cycle: cycleTheme } = useTheme();
@@ -83,6 +86,24 @@ function Shell() {
       ? routeEntry.project
       : undefined
     : activeProject;
+  const switchingTab = useRef(false);
+  const openTab = async (key: typeof TAB_KEYS[number]) => {
+    if (switchingTab.current) return;
+    switchingTab.current = true;
+    try {
+      // A bookmark can show a page from a different site. Continue in that
+      // visible site when opening its diary, reports or a new day.
+      if ((key === '' || key === 'reports' || key === 'entry-new') &&
+        project?.id !== undefined && project.id !== activeProject?.id) {
+        await setActiveProject(project.id);
+      }
+      navigate(key === 'entry-new' ? '/entry/new' : `/${key}`);
+    } catch {
+      toast.error(t.projectSwitchFailed);
+    } finally {
+      switchingTab.current = false;
+    }
+  };
 
   // Undo and redo live in the bar above, but the history belongs to whichever
   // screen is being edited. It publishes here and the bar reads it.
@@ -113,7 +134,9 @@ function Shell() {
   // Empty installations still respond to every tab. Screen explains the
   // missing project on the requested page instead of silently bouncing back.
 
-  const isPreview = section === 'preview';
+  const isPreview = section === 'preview' && !wide;
+  const documentWorkspace = wide && !!project &&
+    (section === 'preview' || (section === '' && route.query.get('view') !== 'list'));
   const chrome = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -133,36 +156,8 @@ function Shell() {
 
   return (
     <EditorActionsContext.Provider value={registry}>
-    <div className={`app app--cards${isPreview ? ' app--preview' : ''}`} data-section={section}>
-      {!isPreview && (
-        <aside className="cards-sidebar">
-          <div className="cards-sidebar__brand">
-            <Logo size={28} />
-            <span>{t.appName}</span>
-          </div>
-          <nav className="nav" aria-label={t.appName}>
-            {TAB_KEYS.map((key, i) => (
-              <button
-                key={key}
-                type="button"
-                className={`nav__item${key === 'entry-new' ? ' nav__item--new' : ''}`}
-                aria-current={key === 'entry-new'
-                  ? section === 'entry' && route.segments[1] === 'new' ? 'page' : undefined
-                  : section === key ? 'page' : undefined}
-                onClick={() => navigate(key === 'entry-new' ? '/entry/new' : `/${key}`)}
-              >
-                <span className="nav__icon">
-                  <Icon name={TAB_ICONS[i]} size={23} />
-                </span>
-                <span>
-                  {[t.navDiary, t.navReports, t.navNew, t.navProjects, t.navContacts][i]}
-                </span>
-              </button>
-            ))}
-          </nav>
-          <CardsDayNavigation projectId={project?.id} entryId={routeEntryId} />
-        </aside>
-      )}
+    <div className={`app app--cards${isPreview ? ' app--preview' : ''}`} data-section={section}
+      data-workspace={documentWorkspace || undefined}>
       <div className="cards-content">
       {/*
         One sticky element holds both bars, and that is load-bearing twice over.
@@ -186,14 +181,33 @@ function Shell() {
             </button>
             <span className="topbar__logo"><Logo size={30} /></span>
             <div className={`topbar__grow${project ? '' : ' topbar__grow--app'}`} dir={t.dir}>
-              <div className="topbar__title">{project ? project.name : t.appName}</div>
+              <div className="topbar__identity">
+                {project && <><span className="topbar__app-name">{t.appName}</span><span className="topbar__separator" aria-hidden="true">/</span></>}
+                <div className="topbar__title">{project ? project.name : t.appName}</div>
+              </div>
               {project?.address && <div className="topbar__sub">{project.address}</div>}
             </div>
             <UndoButtons />
             <BackupButton shell={shell} />
           </header>
+          <div className="cards-sidebar">
+            <nav className="nav" aria-label={t.appName}>
+              {TAB_KEYS.map((key, i) => (
+                <button key={key} type="button"
+                  className={`nav__item${key === 'entry-new' ? ' nav__item--new' : ''}`}
+                  aria-current={key === 'entry-new'
+                    ? section === 'entry' && route.segments[1] === 'new' ? 'page' : undefined
+                    : (section === key || (key === '' && (section === 'preview' ||
+                      (section === 'entry' && route.segments[1] !== 'new')))) ? 'page' : undefined}
+                  onClick={() => void openTab(key)}>
+                  <span className="nav__icon"><Icon name={TAB_ICONS[i]} size={23} /></span>
+                  <span>{[t.navDiary, t.navReports, t.navNew, t.navProjects, t.navContacts][i]}</span>
+                </button>
+              ))}
+            </nav>
+          </div>
           {/* Renders nothing at all when the screen has published no actions. */}
-          <PageActionsBar />
+          {!documentWorkspace && <PageActionsBar />}
         </div>
       )}
 
@@ -205,6 +219,7 @@ function Shell() {
           routeEntry={routeEntry}
           ready={!loading && !!projects}
           hasProjects={(projects?.length ?? 0) > 0}
+          wide={wide}
         />
       </main>
       </div>
@@ -307,6 +322,7 @@ function Screen({
   routeEntry,
   ready,
   hasProjects,
+  wide,
 }: {
   section: string;
   route: ReturnType<typeof useRoute>;
@@ -314,6 +330,7 @@ function Screen({
   routeEntry: RoutedEntryState;
   ready: boolean;
   hasProjects: boolean;
+  wide: boolean;
 }) {
   if (!ready) return <Loading />;
 
@@ -355,7 +372,9 @@ function Screen({
     if (!Number.isSafeInteger(id) || id <= 0) return <NotFound />;
     if (routeEntry.kind === 'loading' || routeEntry.kind === 'idle') return <Loading />;
     if (routeEntry.kind !== 'found') return <EntryRouteRecovery state={routeEntry} />;
-    return <PreviewScreen entry={routeEntry.entry} project={routeEntry.project} />;
+    return wide
+      ? <DesktopDiaryWorkspace key={routeEntry.project.uid} entry={routeEntry.entry} project={routeEntry.project} />
+      : <PreviewScreen entry={routeEntry.entry} project={routeEntry.project} />;
   }
 
   if (!hasProjects || !project) {
@@ -393,6 +412,9 @@ function Screen({
     );
   }
 
+  if (wide && route.query.get('view') !== 'list') {
+    return <DesktopDiaryWorkspace key={project.uid} project={project} />;
+  }
   return <EntriesScreen project={project} />;
 }
 
