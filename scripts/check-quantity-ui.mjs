@@ -111,6 +111,21 @@ try {
 
   // Navigating immediately exercises the editor's pending-write flush.
   await leaveAndWaitFor('contractors');
+  await page.evaluate(async () => {
+    const { flushPendingWrites } = await import('/src/lib/pendingWrites.ts');
+    await flushPendingWrites();
+  });
+  const flushedContractors = await page.evaluate(async projectId => {
+    const { db } = await import('/src/db.ts');
+    const rows = await db.entries.where('projectId').equals(projectId).toArray();
+    const original = rows.find(entry => entry.uid === 'quantity-ui-day-a');
+    return {
+      count: original?.contractors.length,
+      branches: rows.filter(entry => entry.syncConflictGroup === 'revision:quantity-ui-day-a').length,
+    };
+  }, seed.projectAId);
+  assert.equal(flushedContractors.count, 3, 'The final editor flush lost contractor rows');
+  assert.equal(flushedContractors.branches, 0, 'Editing a legacy page created a false causal branch');
   await reopenA();
   await openContractors();
   assert.equal(await crew(0).getByRole('combobox', { name: 'Contractor / company name', exact: true }).inputValue(), 'quantity-contact-a');

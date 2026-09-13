@@ -237,7 +237,7 @@ try {
   assert.equal(convergedA.length, 2, 'round-trip sync grew duplicate conflict branches');
 
   // The conflict must be visible in both the diary and the editor.
-  await peerA.page.goto(`${base}/#/`);
+  await peerA.page.goto(`${base}/#/?view=list`);
   await peerA.page.getByText('Sync conflict · both versions were kept', { exact: true }).waitFor();
   await peerA.page.getByText('OFFLINE BRANCH A', { exact: true }).waitFor();
   await peerA.page.getByText('OFFLINE BRANCH B', { exact: true }).waitFor();
@@ -246,7 +246,7 @@ try {
 
   // Selection export is a second entry point to reports and must refuse the
   // unresolved pair before invoking any file bridge.
-  await peerA.page.evaluate(() => { location.hash = '#/'; });
+  await peerA.page.evaluate(() => { location.hash = '#/?view=list'; });
   await peerA.page.getByRole('button', { name: 'View', exact: true }).click();
   await peerA.page.getByRole('menuitem', { name: 'Select items', exact: true }).click();
   for (const open of await peerA.page.locator('.entry__open').all()) await open.click();
@@ -325,7 +325,7 @@ try {
   assert.equal(deletionConflictA.kind, 'deletion');
   assert.equal(deletionConflictB.kind, 'deletion');
 
-  await peerA.page.goto(`${base}/#/`);
+  await peerA.page.goto(`${base}/#/?view=list`);
   await peerA.page.getByText('Sync conflict · deletion needs review', { exact: true }).waitFor();
   const deleteConflictRow = peerA.page.locator('.entry').filter({
     hasText: 'CONCURRENT EDIT KEPT FOR REVIEW',
@@ -351,7 +351,10 @@ try {
 
   await peerA.page.evaluate(id => { location.hash = `#/preview/${id}`; }, deletionConflictA.id);
   await peerA.page.getByText('Sync conflict · deletion needs review', { exact: true }).waitFor();
-  assert.equal(await peerA.page.getByRole('button', { name: 'Create PDF', exact: true }).count(), 0);
+  const blockedDeliver = peerA.page.locator('.desktop-inspector__deliver');
+  await blockedDeliver.waitFor();
+  assert.equal(await blockedDeliver.isDisabled(), true);
+  assert.equal(await peerA.page.evaluate(() => window.__savedFiles.length), 0);
 
   // Save is the explicit Keep choice. Its causal head joins the tombstone,
   // clears the marker, and makes preview/report export reachable again.
@@ -380,7 +383,14 @@ try {
     `explicit Keep left a stale deletion head: ${JSON.stringify(staleStones)}`,
   );
   await peerA.page.evaluate(id => { location.hash = `#/preview/${id}`; }, keptA.id);
-  await peerA.page.getByRole('button', { name: 'Create PDF', exact: true }).waitFor();
+  const readyDeliver = peerA.page.locator('.desktop-inspector__deliver');
+  await readyDeliver.waitFor();
+  await peerA.page.waitForFunction(() => {
+    const button = document.querySelector('.desktop-inspector__deliver');
+    return button instanceof HTMLButtonElement && !button.disabled;
+  });
+  assert.equal(await peerA.page.locator('.desktop-inspector__format[aria-pressed="true"]').textContent(), 'PDF');
+  assert.equal(await readyDeliver.isEnabled(), true);
 
   // Checked-save branch reassignment while a newer editor revision is queued.
   // A slow legacy photo holds the first save before its transaction; a remote

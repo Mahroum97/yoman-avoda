@@ -27,6 +27,12 @@ the application's current sync transport remains LAN sync.
   transaction, and block unresolved same-date, cross-date and deletion conflicts.
 - Export buttons share a synchronous in-flight guard. Cancelling a save does not
   announce a file. Word now supports the same native share delivery as PDF/image.
+- Existing legacy pages without causal metadata use their original validated
+  revision when editing begins. A null expectation previously created a false
+  conflict between the page's earlier and edited contents; reopening could show
+  the empty earlier copy although the edited data remained in the other branch.
+  The contractor regression now requires all three rows and no false branches
+  after navigation, flushing and reload; it passed five fresh runs.
 - The Mac title remains visible, Settings stays at the physical upper-right, and
   the native traffic-light area remains clear in both writing directions.
 
@@ -48,6 +54,7 @@ synthetic storage. No tests ran against the installed diary's data.
 | `check-quantity-ui.mjs` | Passed |
 | `check-storage.mjs` | Passed |
 | `check-causal-sync.mjs` | Passed |
+| `check-causal-conflict-ui.mjs` | Passed; list assertions use the explicit desktop list route |
 
 `npm run typecheck`, `npm run lint`, `npm run build` and `npm run sample` passed.
 The rendered Hebrew PDF was visually checked: correct date digit order, no missing

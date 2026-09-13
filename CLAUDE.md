@@ -942,6 +942,10 @@ fresh-profile rule.
 - Editor saves share an ordered queue across unmounts. Dirtiness belongs to a
   specific revision; an old save cannot mark a newer keystroke clean. Route exit
   flushes the latest draft, and reopening waits before reading it.
+- An existing page without causal metadata starts from its validated legacy
+  revision. Only an unsaved page uses a null expected revision. Treating an
+  existing legacy page as new creates a false conflict with its own earlier
+  content, and reopening can show the wrong preserved copy.
 - `saveEntry` checks one live page per project/date inside the same transaction
   as the write, resolves by UID, and checks parent/deletion state. A stale editor
   is not a restoration operation. Signed status may not fall on undo or sync.

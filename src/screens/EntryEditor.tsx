@@ -43,6 +43,7 @@ import { useEditorActions } from '../hooks/editorActionsContext';
 import { registerPendingWriteFlusher } from '../lib/pendingWrites';
 import { logger } from '../lib/log';
 import { CardsEditorLayout } from '../components/CardsWorkspace';
+import { validatedEntryRevision } from '../sync/revision';
 
 const AUTOSAVE_MS = 1200;
 const log = logger('entry-editor');
@@ -212,7 +213,10 @@ export function EntryEditor({
       latest.current = page;
       if (page.id !== undefined) persistedIds.current.set(page.uid, page.id);
       expectedUpdatedAt.current.set(page.uid, page.id === undefined ? null : page.updatedAt);
-      expectedSyncRevision.current.set(page.uid, page.syncRevision ?? null);
+      expectedSyncRevision.current.set(
+        page.uid,
+        page.id === undefined ? null : page.syncRevision ?? validatedEntryRevision(page),
+      );
       dirtyRevision.current = null;
       setDirty(false);
       setDateConflict(false);
